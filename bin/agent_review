@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+# agent_review: get a review from a different model family without knowing each CLI's flags.
+#
+# Usage:
+#   agent_review --stage impl [--base main] [--persona security] [--cli auto]
+#   agent_review --stage plan --file docs/specs/login.md
+#   agent_review --list
+#
+# Stages:   research | plan | impl | wrapup | docs
+# --cli:    auto (default) | codex | cursor | gemini | claude
+# --author: model family that wrote the work (default $SHIPYARD_AUTHOR, else "claude").
+#           auto picks the first installed CLI whose family differs from the author.
+# Output:   docs/reviews/<timestamp>-<stage>-<cli>.md. The path is the last line printed.
+#
+# Edit the run_* functions below if a CLI changes its flags. Optional model overrides:
+# SHIPYARD_CODEX_MODEL, SHIPYARD_CURSOR_MODEL, SHIPYARD_GEMINI_MODEL, SHIPYARD_CLAUDE_REVIEW_MODEL.
+# Reasoning effort (default high): SHIPYARD_CLAUDE_REVIEW_EFFORT, SHIPYARD_CODEX_EFFORT. Set one to empty to
+# leave that CLI at its own default. Gemini and Cursor have no effort flag.
+# Preference order for auto: SHIPYARD_REVIEW_ORDER (default "codex gemini cursor claude").
+
+set -euo pipefail
+
+plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
+
+stage="" base="" persona="" cli="auto" file="" author="${SHIPYARD_AUTHOR:-claude}"
+order="${SHIPYARD_REVIEW_ORDER:-codex gemini cursor claude}"
+max_bytes=300000
+codex_effort="${SHIPYARD_CODEX_EFFORT-high}"
+claude_effort="${SHIPYARD_CLAUDE_REVIEW_EFFORT-high}"
+
+die() { echo "agent_review: $*" >&2; exit 1; }
+
+# ---- CLI runners: each reads the prompt file given as $1 and prints the review ----
+run_codex()  { codex exec --sandbox read-only --skip-git-repo-check ${SHIPYARD_CODEX_MODEL:+--model "$SHIPYARD_CODEX_MODEL"} ${codex_effort:+-c "model_reasoning_effort=$codex_effort"} - <"$1"; }
+run_gemini() { gemini ${SHIPYARD_GEMINI_MODEL:+-m "$SHIPYARD_GEMINI_MODEL"} -p "Follow the review instructions in the input." <"$1"; }
+run_cursor() { cursor-agent -p --output-format text ${SHIPYARD_CURSOR_MODEL:+--model "$SHIPYARD_CURSOR_MODEL"} "$(cat "$1")"; }
+run_claude() { claude -p --model "${SHIPYARD_CLAUDE_REVIEW_MODEL:-sonnet}" ${claude_effort:+--effort "$claude_effort"} --permission-mode plan --disallowedTools Edit Write NotebookEdit <"$1"; }
+
+bin_for()    { case "$1" in codex) echo codex ;; gemini) echo gemini ;; cursor) echo cursor-agent ;; claude) echo claude ;; esac; }
+# Cursor can run models from any family. Set SHIPYARD_CURSOR_FAMILY to match SHIPYARD_CURSOR_MODEL.
+family_for() { case "$1" in codex) echo openai ;; gemini) echo google ;; cursor) echo "${SHIPYARD_CURSOR_FAMILY:-cursor}" ;; claude) echo claude ;; esac; }
+author_family() { case "$1" in codex|openai|gpt*) echo openai ;; gemini|google) echo google ;; cursor|composer*) echo cursor ;; *) echo claude ;; esac; }
+
+usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --stage) stage="$2"; shift 2 ;;
+    --base) base="$2"; shift 2 ;;
+    --persona) persona="$2"; shift 2 ;;
+    --cli) cli="$2"; shift 2 ;;
+    --file) file="$2"; shift 2 ;;
+    --author) author="$2"; shift 2 ;;
+    --list)
+      for c in codex gemini cursor claude; do
+        if command -v "$(bin_for "$c")" >/dev/null 2>&1; then echo "$c (family: $(family_for "$c")) installed"; else echo "$c not installed"; fi
+      done
+      exit 0 ;;
+    -h|--help) usage 0 ;;
+    *) die "unknown argument: $1 (try --help)" ;;
+  esac
+done
+
+case "$stage" in research|plan|impl|wrapup|docs) ;; *) die "--stage must be research, plan, impl, wrapup or docs" ;; esac
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+cd "$root"
+
+# ---- pick the CLI ----
+afam="$(author_family "$author")"
+if [ "$cli" = "auto" ]; then
+  cli=""
+  for c in $order; do
+    command -v "$(bin_for "$c")" >/dev/null 2>&1 || continue
+    [ "$(family_for "$c")" = "$afam" ] && continue
+    cli="$c"; break
+  done
+  if [ -z "$cli" ]; then
+    command -v claude >/dev/null 2>&1 || die "no review CLI installed"
+    echo "agent_review: warning: no CLI from a different model family is installed. Falling back to claude with a different model, which is weaker than a cross-family review." >&2
+    cli="claude"
+  fi
+fi
+command -v "$(bin_for "$cli")" >/dev/null 2>&1 || die "$cli isn't installed"
+
+# ---- default base: merge-base with the main branch ----
+if [ -z "$base" ] && [ -z "$file" ]; then
+  for b in origin/main main origin/master master; do
+    if git rev-parse --verify -q "$b" >/dev/null; then base="$(git merge-base HEAD "$b")"; break; fi
+  done
+  [ -n "$base" ] || base="HEAD~1"
+  [ "$base" = "$(git rev-parse HEAD)" ] && base="HEAD~1"
+fi
+
+# ---- stage guidance ----
+case "$stage" in
+  research|docs) guide="This is $stage: factual claims about the codebase or the outside world. Check every claim against evidence you open: code for codebase claims (cite file:line), official primary sources for external claims (cite the URL and today's date). Never verify from memory. Instead of a findings table, return a claims table: | # | Claim | Verdict (verified, incorrect, unresolved) | Evidence | Required correction |. For incorrect claims, quote the conflicting evidence and give the correction. For unresolved claims, say exactly what evidence is missing. Also list important areas the material skipped." ;;
+  plan) guide="This is a plan, written before implementation. Check that the acceptance criteria are concrete and testable, that the plan meets them, that it fits the existing architecture and conventions, and that risks, migrations, edge cases and rollback are covered. Point out simpler approaches if they exist. Don't review code style." ;;
+  impl) guide="This is an implementation diff. In order of priority: does it meet the stated acceptance criteria; is it correct, including edge cases, error handling and concurrency; were any tests deleted, skipped, loosened or changed to match the code instead of the spec; does it follow the project's conventions; are the relevant docs, test index and worksheet updated. Run nothing that writes files." ;;
+  wrapup) guide="This is the end of a task. Check that the work is complete against its acceptance criteria, that nothing is half-finished (TODOs, debug code, commented-out blocks, dead flags), that docs and the worksheet tell the truth about what was done, and that follow-ups are recorded in the task queue." ;;
+esac
+
+persona_text="General review. No specific persona."
+if [ -n "$persona" ]; then
+  pf=""
+  for cand in "docs/review/personas/$persona.md" "$plugin_root/skills/review/personas/$persona.md"; do
+    [ -f "$cand" ] && { pf="$cand"; break; }
+  done
+  [ -n "$pf" ] || die "no persona file for '$persona' in docs/review/personas/ or the plugin"
+  persona_text="$(cat "$pf")"
+fi
+
+prompt="$(mktemp "${TMPDIR:-/tmp}/agent_review.XXXXXX")"
+trap 'rm -f "$prompt"' EXIT
+
+{
+  echo "You're reviewing work written by another AI agent (model family: $afam). Be a skeptical senior reviewer."
+  echo "Don't edit, create or delete any files. Read-only commands such as git log, git show and reading files are fine."
+  echo
+  echo "## Stage: $stage"
+  echo "$guide"
+  echo
+  echo "## Persona"
+  echo "$persona_text"
+  echo
+  if [ -f docs/conventions.md ]; then
+    echo "## Project conventions (docs/conventions.md)"
+    head -n 400 docs/conventions.md
+    echo
+  fi
+  echo "## Material to review"
+  if [ -n "$file" ]; then
+    [ -f "$file" ] || die "no such file: $file"
+    echo "File: $file"
+    echo '```'
+    cat "$file"
+    echo '```'
+  else
+    diff="$(git diff "$base" -- . ':(exclude)*.lock' ':(exclude)package-lock.json'
+      git ls-files --others --exclude-standard | while IFS= read -r f; do git diff --no-index -- /dev/null "$f" || true; done)"
+    echo "Diff from $base to the working tree, including new untracked files."
+    if [ "${#diff}" -gt "$max_bytes" ]; then
+      echo "The diff is too large to include. Summary below. Inspect the files yourself with git diff $base -- <path>."
+      echo '```'
+      git diff --stat "$base"
+      echo '```'
+    else
+      echo '```diff'
+      printf '%s\n' "$diff"
+      echo '```'
+    fi
+  fi
+  echo
+  echo "## Output format"
+  echo "Start with one line: VERDICT: approve | changes-requested | blocked"
+  echo "Then a findings table: | # | Severity (critical, major, minor) | file:line | Problem | Suggested fix |"
+  echo "Then a 'Test changes' section listing every test that was added, removed or modified, and whether each change is legitimate."
+  echo "Then 'Checked' and 'Not checked' sections so the author knows what your review covers."
+  echo "Skip praise and style nitpicks that the conventions don't ask for. If there's nothing wrong, say so in one line."
+} >"$prompt"
+
+mkdir -p docs/reviews
+out="docs/reviews/$(date +%Y-%m-%d-%H%M%S)-$stage-$cli${persona:+-$persona}.md"
+{
+  echo "# Review: $stage by $cli${persona:+ ($persona persona)}"
+  echo "> Base: ${base:-n/a} | File: ${file:-n/a} | Author family: $afam | Reviewer family: $(family_for "$cli") | $(date '+%Y-%m-%d %H:%M')"
+  echo
+} >"$out"
+
+if ! "run_$cli" "$prompt" >>"$out" 2>"$out.err"; then
+  echo "agent_review: $cli exited with an error. Its stderr:" >&2
+  cat "$out.err" >&2
+  rm -f "$out.err"
+  exit 1
+fi
+rm -f "$out.err"
+
+cat "$out"
+echo
+echo "$out"

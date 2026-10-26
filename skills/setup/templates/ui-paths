@@ -1,0 +1,14 @@
+# Paths that change what users see. A change touching any of these needs a screen recording
+# in its evidence (shipyard:evidence), not just screenshots. One bash glob per line, relative to
+# the repo root. * matches across folders. Adjust to this project's layout.
+
+*.tsx
+*.jsx
+*.vue
+*.svelte
+*.css
+*.scss
+src/components/*
+src/pages/*
+app/*
+public/*

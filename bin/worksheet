@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# worksheet: create, find and tag session worksheets.
+#
+# Usage:
+#   worksheet new <slug> ["Title"]   create docs/worksheets/YYYY-MM-DD-<slug>.md and make it current
+#   worksheet current                print the current worksheet's path
+#   worksheet use <name>             make an existing worksheet current (to resume someone else's)
+#   worksheet list                   list worksheets with their one-line summaries
+#   worksheet tag [name]             add annotated tag ws/<name> at HEAD (default: current worksheet)
+#
+# Commits made under a worksheet should carry a trailer line: "Worksheet: <name>".
+# Find everything for one later with: git log --grep "Worksheet: <name>"  or  git show ws/<name>
+
+set -euo pipefail
+
+plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
+die() { echo "worksheet: $*" >&2; exit 1; }
+
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+cd "$root"
+dir="docs/worksheets"
+state=".shipyard/.cache/current-worksheet"
+mkdir -p "$dir" .shipyard/.cache
+
+name_of() { basename "$1" .md; }
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  new)
+    slug="${1:-}"; [ -n "$slug" ] || die "usage: worksheet new <slug> [\"Title\"]"
+    case "$slug" in *[!a-z0-9-]*) die "slug must be lowercase letters, digits and dashes" ;; esac
+    title="${2:-$slug}"
+    name="$(date +%Y-%m-%d)-$slug"
+    path="$dir/$name.md"
+    [ -e "$path" ] && die "$path already exists. Use: worksheet use $name"
+    tpl="$dir/_template.md"; [ -f "$tpl" ] || tpl="$plugin_root/skills/worksheet/template.md"
+    content="$(cat "$tpl")"
+    content="${content//"{{NAME}}"/$name}"
+    content="${content//"{{TITLE}}"/$title}"
+    content="${content//"{{DATE}}"/$(date '+%Y-%m-%d %H:%M')}"
+    content="${content//"{{BRANCH}}"/$(git branch --show-current 2>/dev/null || echo detached)}"
+    content="${content//"{{BASE}}"/$(git rev-parse --short HEAD 2>/dev/null || echo none)}"
+    printf '%s\n' "$content" >"$path"
+    printf '%s' "$path" >"$state"
+    echo "$path"
+    ;;
+  current)
+    [ -f "$state" ] && [ -f "$(cat "$state")" ] || die "no current worksheet. Start one with: worksheet new <slug>"
+    cat "$state"; echo
+    ;;
+  use)
+    n="${1:-}"; [ -n "$n" ] || die "usage: worksheet use <name>"
+    path="$dir/${n%.md}.md"; [ -f "$path" ] || die "no worksheet at $path"
+    printf '%s' "$path" >"$state"; echo "$path"
+    ;;
+  list)
+    for f in "$dir"/*.md; do
+      [ -e "$f" ] || continue
+      [ "$(basename "$f")" = "_template.md" ] && continue
+      summary="$(sed -n '2p' "$f" | sed 's/^> *//')"
+      printf '%s  %s\n' "$(name_of "$f")" "$summary"
+    done
+    ;;
+  tag)
+    if [ -n "${1:-}" ]; then name="${1%.md}"; else
+      [ -f "$state" ] || die "no current worksheet and no name given"
+      name="$(name_of "$(cat "$state")")"
+    fi
+    path="$dir/$name.md"; [ -f "$path" ] || die "no worksheet at $path"
+    [ -z "$(git status --porcelain)" ] || echo "worksheet: warning: uncommitted changes won't be in the tag. Commit first." >&2
+    git tag -a "ws/$name" -m "$(head -n 7 "$path")" || die "tag ws/$name exists. Delete it first if you mean to move it."
+    echo "ws/$name -> $(git rev-parse --short HEAD)"
+    ;;
+  ""|-h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) die "unknown command: $cmd (try --help)" ;;
+esac

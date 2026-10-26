@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# lint-fix: fix lint problems instead of just reporting them.
+#
+# Usage:
+#   bin/lint-fix --staged   pre-commit mode: only staged files, re-stages what it fixes
+#   bin/lint-fix <files>    fix specific files
+#
+# Order: 1) the linters' own --fix  2) bin/llm-fix for what's left  3) check again.
+# Exits 1 only if problems remain after both passes.
+# Files with unstaged changes aren't auto-fixed in --staged mode, because fixing them would
+# mix unstaged work into the commit. They're checked and reported instead.
+# Set SHIPYARD_LLM_FIX=0 to skip the LLM pass.
+
+set -uo pipefail
+cd "$(dirname "$0")/.."
+
+# ---- fill these in for the project. Each takes file paths as arguments. ----
+fix()   { {{FIX_CMD}} "$@"; }      # e.g. npx eslint --fix "$@" && npx prettier --write "$@"
+check() { {{CHECK_CMD}} "$@"; }    # e.g. npx eslint "$@". Must exit non-zero on problems
+match='{{FILE_REGEX}}'             # e.g. '\.(ts|tsx|js|jsx)$'
+# ---------------------------------------------------------------------------
+
+staged=0
+if [ "${1:-}" = "--staged" ]; then
+  staged=1
+  files=()
+  while IFS= read -r f; do files+=("$f"); done < <(git diff --cached --name-only --diff-filter=ACMR | grep -E "$match" || true)
+else
+  files=("$@")
+fi
+[ "${#files[@]}" -eq 0 ] && exit 0
+
+fixable=() checkonly=()
+for f in "${files[@]}"; do
+  if [ "$staged" = 1 ] && ! git diff --quiet -- "$f"; then checkonly+=("$f"); else fixable+=("$f"); fi
+done
+
+if [ "${#fixable[@]}" -gt 0 ]; then
+  fix "${fixable[@]}" >/dev/null 2>&1 || true
+  if [ "${SHIPYARD_LLM_FIX:-1}" != "0" ]; then
+    for f in "${fixable[@]}"; do
+      if ! out="$(check "$f" 2>&1)"; then
+        echo "lint-fix: $f still has problems after --fix, asking an LLM to fix them"
+        bin/llm-fix "$f" "$out" || echo "lint-fix: LLM fix failed for $f"
+        fix "$f" >/dev/null 2>&1 || true
+      fi
+    done
+  fi
+  [ "$staged" = 1 ] && git add -- "${fixable[@]}"
+fi
+
+if ! check "${files[@]}"; then
+  echo
+  echo "lint-fix: problems remain. Fix them by hand, or add a lint rule with an autofix so this doesn't come back (shipyard:lint-rule)."
+  [ "${#checkonly[@]}" -gt 0 ] && echo "lint-fix: not auto-fixed because they have unstaged changes: ${checkonly[*]}"
+  exit 1
+fi

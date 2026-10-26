@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# verify: the single definition of "done" for this repo. Agents, the Stop hook, pre-push and CI all call it.
+#
+# Usage:
+#   bin/verify          fast checks. Runs every time an agent stops, so keep it to a few minutes.
+#   bin/verify --full   everything. End of shift and CI.
+#
+# Exit code 0 means every check passed. Output is meant to be read by an agent, so failures
+# should say what failed and where. Delete steps that don't apply to this project.
+# If a step needs secrets (e2e against real services), wrap that step in bin/with-secrets.
+# Never print environment values here: this output goes straight into the agent's context.
+
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+mode="${1:-fast}"
+step() { printf '\n==> %s\n' "$1"; }
+
+step "typecheck"
+{{TYPECHECK_CMD}}
+
+step "lint"
+{{LINT_CMD}}
+
+step "unit tests"
+{{UNIT_TEST_CMD}}
+
+step "e2e smoke"
+{{E2E_SMOKE_CMD}}
+
+if [ "$mode" = "--full" ]; then
+  step "full e2e"
+  {{E2E_FULL_CMD}}
+
+  step "visual regression"
+  {{VISUAL_CMD}}
+
+  step "performance benchmarks"
+  {{BENCH_CMD}}
+fi
+
+printf '\nverify (%s): all checks passed\n' "$mode"

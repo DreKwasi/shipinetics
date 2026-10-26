@@ -1,0 +1,18 @@
+# Test files. Only the shipyard:test-writer subagent may create or edit these, and it may
+# edit nothing else (apart from docs/testing/). One bash glob per line, relative to the repo
+# root. * matches across folders. Adjust to this project's layout.
+# Override for a session: start Claude Code with SHIPYARD_ALLOW_AUTHOR_TESTS=1.
+
+*.test.*
+*.spec.*
+*_test.*
+*/test_*.py
+test_*.py
+tests/*
+*/tests/*
+test/*
+*/__tests__/*
+*/__mocks__/*
+*/fixtures/*
+e2e/*
+*-snapshots/*

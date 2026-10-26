@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+# evidence: capture, check and publish proof that a change works. Every PR carries it.
+#
+# Usage:
+#   evidence init [worksheet]               create docs/evidence/<worksheet>/EVIDENCE.md (default: current worksheet)
+#   evidence run [-w worksheet] -- <cmd>    run a command, append it and its output to terminal.log
+#   evidence check [worksheet...]           check evidence for these worksheets (default: current)
+#   evidence check --branch [base]          check every worksheet with commits on this branch since base
+#   evidence pr-body [base]                 print the "## Evidence" section for a PR from this branch
+#
+# Evidence lives in docs/evidence/<worksheet>/: EVIDENCE.md with one row per acceptance criterion,
+# screenshots (*.png, *.jpg), recordings (*.webm, *.mp4, *.gif, *.mov) and terminal.log.
+# A change that touches a path in .shipyard/ui-paths also needs a recording.
+# Track docs/evidence with git LFS so recordings don't bloat the repo.
+
+set -euo pipefail
+
+die() { echo "evidence: $*" >&2; exit 1; }
+root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+cd "$root"
+
+artifacts='\.(png|jpe?g|gif|webm|mp4|mov|log|txt)'
+recordings='\.(webm|mp4|gif|mov)$'
+
+current_ws() {
+  local f=.shipyard/.cache/current-worksheet
+  [ -f "$f" ] && [ -f "$(cat "$f")" ] || die "no current worksheet. Name one, or start one with: worksheet new <slug>"
+  basename "$(cat "$f")" .md
+}
+
+default_base() {
+  local b
+  for b in origin/main main origin/master master; do
+    if git rev-parse --verify -q "$b" >/dev/null; then git merge-base HEAD "$b"; return; fi
+  done
+  git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD
+}
+
+branch_worksheets() { # branch_worksheets <base>
+  { git log "$1..HEAD" --format='%(trailers:key=Worksheet,valueonly)' 2>/dev/null
+    [ -f .shipyard/.cache/current-worksheet ] && [ -n "$(git status --porcelain)" ] && basename "$(cat .shipyard/.cache/current-worksheet)" .md
+  } | sed '/^$/d' | sort -u
+}
+
+acs_of() { # acceptance criterion IDs in a worksheet
+  local w="docs/worksheets/$1.md"
+  [ -f "$w" ] || return 0
+  grep -oE '\bAC[0-9]+\b' "$w" | sort -u
+}
+
+changed_files_of() { # files changed under a worksheet (commits plus uncommitted work if it's current)
+  git log --grep "Worksheet: $1" --name-only --format= 2>/dev/null
+  if [ -f .shipyard/.cache/current-worksheet ] && [ "$(basename "$(cat .shipyard/.cache/current-worksheet)" .md)" = "$1" ]; then
+    git status --porcelain --untracked-files=all | cut -c4-
+  fi
+}
+
+matches_list() { # matches_list <listfile> <path>
+  local glob
+  [ -f "$1" ] || return 1
+  while IFS= read -r glob || [ -n "$glob" ]; do
+    glob="${glob%%#*}"; glob="$(printf '%s' "$glob" | tr -d '[:space:]')"
+    [ -z "$glob" ] && continue
+    # shellcheck disable=SC2053
+    [[ "$2" == $glob ]] && return 0
+  done <"$1"
+  return 1
+}
+
+check_one() { # check_one <worksheet>; prints problems, returns 1 if any
+  local ws="$1" dir="docs/evidence/$1" ev="docs/evidence/$1/EVIDENCE.md" bad=0 f ac line
+  if [ ! -f "$ev" ]; then
+    echo "  $ws: no $ev. Start it with: evidence init $ws"
+    return 1
+  fi
+  if ! ls "$dir" 2>/dev/null | grep -qE "$artifacts\$"; then
+    echo "  $ws: $dir has no screenshot, recording or terminal log"; bad=1
+  fi
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    case "$f" in */*) p="$f" ;; *) p="$dir/$f" ;; esac
+    [ -s "$p" ] || [ -s "$dir/$f" ] || { echo "  $ws: EVIDENCE.md names $f, but that file is missing or empty"; bad=1; }
+  done < <(grep -oE "[A-Za-z0-9_./-]+$artifacts" "$ev" | sort -u)
+  for ac in $(acs_of "$ws"); do
+    line="$(grep -E "^\|[[:space:]]*$ac[[:space:]]*\|" "$ev" || true)"
+    if [ -z "$line" ]; then
+      echo "  $ws: $ac has no row in EVIDENCE.md"; bad=1
+    elif ! printf '%s' "$line" | grep -qE "$artifacts"; then
+      echo "  $ws: the $ac row doesn't name an evidence file"; bad=1
+    fi
+  done
+  if [ -f .shipyard/ui-paths ]; then
+    while IFS= read -r f; do
+      [ -z "$f" ] && continue
+      if matches_list .shipyard/ui-paths "$f"; then
+        if ! ls "$dir" 2>/dev/null | grep -qE "$recordings"; then
+          echo "  $ws: changes UI ($f) but has no screen recording (.webm, .mp4, .gif or .mov)"; bad=1
+        fi
+        break
+      fi
+    done < <(changed_files_of "$ws" | sort -u)
+  fi
+  return "$bad"
+}
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  init)
+    ws="${1:-$(current_ws)}"
+    dir="docs/evidence/$ws"; ev="$dir/EVIDENCE.md"
+    mkdir -p "$dir"
+    if [ -f "$ev" ]; then echo "$ev"; exit 0; fi
+    {
+      echo "# Evidence: $ws"
+      echo "> Commit: $(git rev-parse --short HEAD) (update when you record) | Recorded: $(date '+%Y-%m-%d %H:%M') | Worksheet: docs/worksheets/$ws.md"
+      echo "> App: <how it was started, e.g. bin/with-secrets npm run dev on localhost:3000>"
+      echo
+      echo "One row per acceptance criterion. Evidence is a file in this folder: a screenshot, a recording, or terminal.log."
+      echo
+      echo "| Criterion | Evidence | What it shows |"
+      echo "|---|---|---|"
+      acs="$(acs_of "$ws")"
+      if [ -n "$acs" ]; then for ac in $acs; do echo "| $ac | | |"; done; else echo "| AC1 | | |"; fi
+      echo
+      echo "## How it was recorded"
+      echo
+      echo "<The script or commands, e.g. node docs/evidence/$ws/record.mjs http://localhost:3000>"
+    } >"$ev"
+    echo "$ev"
+    ;;
+  run)
+    ws=""
+    while [ $# -gt 0 ] && [ "$1" != "--" ]; do
+      case "$1" in -w) ws="$2"; shift 2 ;; *) die "usage: evidence run [-w worksheet] -- <command>" ;; esac
+    done
+    [ "${1:-}" = "--" ] || die "usage: evidence run [-w worksheet] -- <command>"
+    shift
+    [ $# -gt 0 ] || die "no command given"
+    ws="${ws:-$(current_ws)}"
+    dir="docs/evidence/$ws"; mkdir -p "$dir"; log="$dir/terminal.log"
+    { printf '\n$ '; printf '%q ' "$@"; printf '\n'; } >>"$log"
+    set +e
+    "$@" 2>&1 | tee -a "$log"
+    rc=${PIPESTATUS[0]}
+    set -e
+    printf '[exit %s at %s]\n' "$rc" "$(date '+%Y-%m-%d %H:%M:%S')" >>"$log"
+    exit "$rc"
+    ;;
+  check)
+    list=()
+    if [ "${1:-}" = "--branch" ]; then
+      base="${2:-$(default_base)}"
+      changed="$(git diff --name-only "$base" 2>/dev/null; git status --porcelain --untracked-files=all | cut -c4-)"
+      if [ -n "$changed" ] && ! printf '%s\n' "$changed" | sed '/^$/d' | grep -vqE '^docs/|\.md$'; then
+        echo "evidence: docs-only change, no evidence needed"; exit 0
+      fi
+      while IFS= read -r w; do [ -n "$w" ] && list+=("$w"); done < <(branch_worksheets "$base")
+      [ "${#list[@]}" -gt 0 ] || die "no worksheets on this branch since $base, so there's no evidence to check. Agent work needs a worksheet (worksheet new <slug>) and evidence (evidence init)."
+    elif [ $# -gt 0 ]; then
+      list=("$@")
+    else
+      list=("$(current_ws)")
+    fi
+    problems=0
+    for w in "${list[@]}"; do
+      w="${w%.md}"; w="${w##*/}"
+      check_one "$w" || problems=1
+    done
+    if [ "$problems" = 1 ]; then
+      echo "evidence: incomplete. Capture what's missing (shipyard:evidence), then check again." >&2
+      exit 1
+    fi
+    echo "evidence: complete for ${list[*]}"
+    ;;
+  pr-body)
+    base="${1:-$(default_base)}"
+    url=""
+    if command -v gh >/dev/null 2>&1; then
+      repo_url="$(gh repo view --json url -q .url 2>/dev/null || true)"
+      branch="$(git branch --show-current)"
+      [ -n "$repo_url" ] && [ -n "$branch" ] && url="$repo_url/blob/$branch"
+    fi
+    link() { if [ -n "$url" ]; then printf '%s/%s' "$url" "$1"; else printf '%s' "$1"; fi; }
+    echo "## Evidence"
+    echo
+    [ -n "$url" ] || echo "_Links are repo paths. Push the branch, then open them on GitHub._"
+    while IFS= read -r w; do
+      [ -z "$w" ] && continue
+      dir="docs/evidence/$w"
+      echo
+      echo "### $w"
+      if [ ! -f "$dir/EVIDENCE.md" ]; then echo "No evidence recorded."; continue; fi
+      sed -n '/^| Criterion/,/^$/p' "$dir/EVIDENCE.md"
+      for f in "$dir"/*; do
+        [ -f "$f" ] || continue
+        case "$f" in
+          *.png|*.jpg|*.jpeg|*.gif) echo; echo "![$(basename "$f")]($(link "$f")?raw=true)" ;;
+          *.webm|*.mp4|*.mov) echo; echo "Recording: [$(basename "$f")]($(link "$f"))" ;;
+          *.log|*.txt) echo; echo "Terminal transcript: [$(basename "$f")]($(link "$f"))" ;;
+        esac
+      done
+    done < <(branch_worksheets "$base")
+    ;;
+  ""|-h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
+  *) die "unknown command: $cmd (try --help)" ;;
+esac

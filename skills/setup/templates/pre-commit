@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Pre-commit: fix lint problems in staged files, then let the commit through if they're clean.
+# Install as .githooks/pre-commit and enable with: git config core.hooksPath .githooks
+exec bin/lint-fix --staged

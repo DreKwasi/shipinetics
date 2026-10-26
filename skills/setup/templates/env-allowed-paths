@@ -1,0 +1,8 @@
+# The only files allowed to read environment variables (process.env, os.environ and friends).
+# Normally just the config module, which validates every variable and exports typed values.
+# One bash glob per line, relative to the repo root. * matches across folders.
+# Override for a session: start Claude Code with SHIPYARD_ALLOW_ENV_READ=1.
+
+{{CONFIG_MODULE_GLOB}}
+*.config.*
+# Add build or deploy scripts here only if they genuinely need the environment.

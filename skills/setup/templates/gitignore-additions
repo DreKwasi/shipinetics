@@ -1,0 +1,9 @@
+
+# shipyard
+.shipyard/.cache/
+.claude/worktrees/
+.shipyard/explainers/
+.env
+.env.*
+test-results/
+playwright-report/

@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# scan-skills: run NVIDIA SkillSpector over every skill and agent definition that can reach your sessions.
+#
+# Usage:
+#   scan-skills                 scan everything installed (user skills, plugins, this project, shipyard itself)
+#   scan-skills <path>...       scan specific skill folders, SKILL.md files, agent .md files or git URLs
+#   scan-skills --llm ...       add SkillSpector's LLM analysis (needs a provider key; run via bin/with-secrets)
+#
+# Static analysis (--no-llm) is the default: no API key, nothing leaves the machine.
+# Writes a JSON report per target and a summary to docs/security/skill-scans/YYYY-MM-DD.md when run in a
+# repo, else to $TMPDIR. Exits 1 if any target is DO_NOT_INSTALL or couldn't be scanned, 2 if SkillSpector
+# isn't installed.
+# Gate mapping: SAFE allow, CAUTION read the findings first, DO_NOT_INSTALL remove or don't install.
+
+set -uo pipefail
+
+usage() { sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; }
+command -v skillspector >/dev/null 2>&1 || {
+  echo "scan-skills: SkillSpector isn't installed. Install it with: uv tool install git+https://github.com/NVIDIA/skillspector.git" >&2
+  exit 2
+}
+command -v jq >/dev/null 2>&1 || { echo "scan-skills: jq is required" >&2; exit 2; }
+
+llm="--no-llm"
+targets=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --llm) llm=""; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) targets+=("$1"); shift ;;
+  esac
+done
+
+plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
+root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
+if [ "${#targets[@]}" -eq 0 ]; then
+  for d in "$HOME/.claude/skills"/*/ "$HOME/.agents/skills"/*/ \
+           "$HOME/.claude/plugins/cache"/*/*/*/skills/*/ \
+           ${root:+"$root/.claude/skills"/*/} "$plugin_root/skills"/*/; do
+    [ -f "$d/SKILL.md" ] && targets+=("${d%/}")
+  done
+  for f in "$HOME/.claude/agents"/*.md "$HOME/.claude/plugins/cache"/*/*/*/agents/*.md \
+           ${root:+"$root/.claude/agents"/*.md} "$plugin_root/agents"/*.md; do
+    [ -f "$f" ] && targets+=("$f")
+  done
+fi
+[ "${#targets[@]}" -gt 0 ] || { echo "scan-skills: nothing to scan" >&2; exit 0; }
+
+day="$(date +%Y-%m-%d)"
+if [ -n "$root" ]; then out="$root/docs/security/skill-scans"; else out="${TMPDIR:-/tmp}/skill-scans"; fi
+reports="$out/$day"
+mkdir -p "$reports"
+summary="$out/$day.md"
+
+blocked=0 caution=0 safe=0 errors=0
+{
+  echo "# Skill scan $day"
+  echo "> SkillSpector, $( [ -n "$llm" ] && echo "static analysis only" || echo "static plus LLM analysis" ). Targets: ${#targets[@]}."
+  echo
+  echo "| Target | Recommendation | Score | Findings | Report |"
+  echo "|---|---|---|---|---|"
+} >"$summary"
+
+seen=""
+for t in "${targets[@]}"; do
+  real="$(cd "$(dirname "$t")" 2>/dev/null && printf '%s/%s' "$(pwd -P)" "$(basename "$t")")" || real="$t"
+  case " $seen " in *" $real "*) continue ;; esac
+  seen="$seen $real"
+  name="$(printf '%s' "$t" | sed -e "s#^$HOME#~#" -e 's#[^A-Za-z0-9._~-]#_#g' | tail -c 120)"
+  report="$reports/$name.json"
+  # shellcheck disable=SC2086  # $llm is deliberately empty or one flag
+  skillspector scan "$t" $llm --format json --output "$report" >/dev/null 2>"$report.err"
+  rc=$?
+  if [ "$rc" = 2 ] || [ ! -s "$report" ]; then
+    errors=$((errors + 1))
+    echo "| \`$t\` | ERROR | | | $(head -n 1 "$report.err" 2>/dev/null) |" >>"$summary"
+    continue
+  fi
+  rm -f "$report.err"
+  if ! rec="$(jq -r '.risk_assessment.recommendation // "UNKNOWN"' "$report" 2>/dev/null)"; then
+    errors=$((errors + 1))
+    echo "| \`$t\` | ERROR | | | unreadable report |" >>"$summary"
+    continue
+  fi
+  score="$(jq -r '.risk_assessment.score // ""' "$report")"
+  n="$(jq -r '(.findings // []) | length' "$report")"
+  case "$rec" in
+    DO_NOT_INSTALL) blocked=$((blocked + 1)) ;;
+    CAUTION) caution=$((caution + 1)) ;;
+    SAFE) safe=$((safe + 1)) ;;
+  esac
+  echo "| \`$t\` | $rec | $score | $n | ${report#"${root:+$root/}"} |" >>"$summary"
+done
+
+{
+  echo
+  echo "Safe: $safe. Caution: $caution. Do not install: $blocked. Errors: $errors."
+} >>"$summary"
+
+cat "$summary"
+echo
+echo "Summary: $summary"
+if [ "$errors" -gt 0 ]; then echo "scan-skills: $errors target(s) couldn't be scanned, so they aren't known to be safe." >&2; fi
+[ "$blocked" -eq 0 ] && [ "$errors" -eq 0 ] || exit 1

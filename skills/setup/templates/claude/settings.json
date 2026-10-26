@@ -1,0 +1,19 @@
+{
+  "effortLevel": "high",
+  "env": {
+    "CLAUDE_CODE_SUBPROCESS_ENV_SCRUB": "1"
+  },
+  "permissions": {
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(gh pr merge *)",
+      "Bash(npm publish *)",
+      "Bash(gcloud secrets versions access *)",
+      "Read(~/.config/gcloud/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)"
+    ]
+  }
+}

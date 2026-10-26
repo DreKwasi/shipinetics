@@ -1,0 +1,59 @@
+name: verify
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [main]
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    if: github.event.action != 'edited' && github.event.action != 'labeled' && github.event.action != 'unlabeled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      # Replace with the project's toolchain setup and install step.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+
+      - run: bin/verify --full
+
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-results
+          path: |
+            test-results/
+            playwright-report/
+          retention-days: 7
+
+  evidence:
+    # Every PR shows the change working: screenshots, a screen recording or a terminal transcript.
+    # Generate the section with `evidence pr-body`. Add the no-evidence label for docs-only changes.
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-evidence')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require an Evidence section with proof
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if ! printf '%s\n' "$PR_BODY" | grep -q '^## Evidence'; then
+            echo "::error::This PR has no '## Evidence' section. Add screenshots, a screen recording or a terminal transcript of the change working (bin/evidence pr-body generates it), or add the no-evidence label for docs-only changes."
+            exit 1
+          fi
+          if ! printf '%s\n' "$PR_BODY" | sed -n '/^## Evidence/,$p' | grep -qiE '\.(png|jpe?g|gif|webm|mp4|mov)|user-attachments|terminal\.log'; then
+            echo "::error::The Evidence section has no screenshot, recording or terminal transcript."
+            exit 1
+          fi
