@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # PreToolUse hook for Bash. Blocks `gh pr create` and `gh pr ready` until the branch has
 # complete evidence (screenshots, recordings or terminal transcripts for every acceptance
-# criterion; see shipyard:evidence), the complete verify has passed on exactly this code
-# (shipyard-verify), and the PR body carries the "## Evidence" section.
+# criterion; see shipinetics:evidence), the complete verify has passed on exactly this code
+# (shipinetics-verify), and the PR body carries the "## Evidence" section.
 #
 # Works from the repo the command runs in, so in workspace mode it checks the package repo.
-# Active only when a .shipyard/ folder exists at or above that repo. Docs-only branches pass.
-# Start Claude Code with SHIPYARD_ALLOW_NO_EVIDENCE=1 to skip the whole gate for a session
-# (evidence and verify), or SHIPYARD_SKIP_VERIFY=1 to skip only the verify check.
+# Active only when a .shipinetics/ folder exists at or above that repo. Docs-only branches pass.
+# Start Claude Code with SHIPINETICS_ALLOW_NO_EVIDENCE=1 to skip the whole gate for a session
+# (evidence and verify), or SHIPINETICS_SKIP_VERIFY=1 to skip only the verify check.
 
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPYARD_ALLOW_NO_EVIDENCE:-0}" = "1" ] && exit 0
+[ "${SHIPINETICS_ALLOW_NO_EVIDENCE:-0}" = "1" ] && exit 0
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
 
@@ -42,10 +42,10 @@ deny() {
 }
 
 evidence="$(cd "$(dirname "$0")/.." && pwd)/bin/evidence"
-if ! out="$(cd "$repo" && SHIPYARD_ROOT="$root" "$evidence" check --branch 2>&1)"; then
-  deny "shipyard: this PR has no complete evidence yet, so it can't be opened.
+if ! out="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" check --branch 2>&1)"; then
+  deny "shipinetics: this PR has no complete evidence yet, so it can't be opened.
 $out
-Capture it (shipyard:evidence): screenshots per acceptance criterion, a screen recording for UI changes, terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
+Capture it (shipinetics:evidence): screenshots per acceptance criterion, a screen recording for UI changes, terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
 fi
 case "$out" in *docs-only*) exit 0 ;; esac
 
@@ -57,9 +57,9 @@ case "$out" in *docs-only*) exit 0 ;; esac
 pkg=""; [ "$root" != "$repo" ] && pkg="$(sy_rel "$root" "$repo")"
 enrolled=1
 if [ -n "$pkg" ]; then sy_workspace "$root" && sy_package_of "$root" "$pkg" >/dev/null || enrolled=0; fi
-if [ "${SHIPYARD_SKIP_VERIFY:-0}" != "1" ] && [ "$enrolled" = 1 ] && sy_verify_configured "$root" "$pkg" &&
+if [ "${SHIPINETICS_SKIP_VERIFY:-0}" != "1" ] && [ "$enrolled" = 1 ] && sy_verify_configured "$root" "$pkg" &&
    ! sy_verify_passed "$root" "$pkg" complete; then
-  deny "shipyard: the complete verify hasn't passed on this exact code, so the PR can't open yet. Run shipyard-verify (it runs $(sy_verify_cmd "$root" complete "$pkg") and records the pass), fix anything that fails, then open the PR again."
+  deny "shipinetics: the complete verify hasn't passed on this exact code, so the PR can't open yet. Run shipinetics-verify (it runs $(sy_verify_cmd "$root" complete "$pkg") and records the pass), fix anything that fails, then open the PR again."
 fi
 
 # The body must carry the Evidence section.
@@ -76,7 +76,7 @@ elif [[ "$cmd" =~ $text_re ]]; then
   body="$cmd"
 fi
 if ! printf '%s' "$body" | grep -q '## Evidence'; then
-  deny "shipyard: the PR body needs the '## Evidence' section. Generate it with: evidence pr-body > \$TMPDIR/pr-body.md, put your summary above it, and pass --body-file \$TMPDIR/pr-body.md. Don't use --fill."
+  deny "shipinetics: the PR body needs the '## Evidence' section. Generate it with: evidence pr-body > \$TMPDIR/pr-body.md, put your summary above it, and pass --body-file \$TMPDIR/pr-body.md. Don't use --fill."
 fi
 
 exit 0

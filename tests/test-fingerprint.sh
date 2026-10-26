@@ -2,8 +2,8 @@
 . "$(dirname "$0")/helpers.sh"
 . "$SY/scripts/lib.sh"
 r="$scratch/repo"; new_repo "$r"; cd "$r" || exit 1
-mkdir -p docs/worksheets; echo a >a.txt; echo w >docs/worksheets/w.md; printf '.shipyard/.cache/\n' >.gitignore
-x=(':(exclude).shipyard/.cache' ':(exclude)docs/worksheets')
+mkdir -p docs/worksheets; echo a >a.txt; echo w >docs/worksheets/w.md; printf '.shipinetics/.cache/\n' >.gitignore
+x=(':(exclude).shipinetics/.cache' ':(exclude)docs/worksheets')
 f1="$(sy_fingerprint "$r" "${x[@]}")"
 eq "fingerprint is a git tree" "$(git cat-file -t "$f1")" tree
 git add -A; git commit -qm one

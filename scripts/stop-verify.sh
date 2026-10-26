@@ -1,36 +1,36 @@
 #!/usr/bin/env bash
 # Stop hook. Keeps the agent working while the project's checks fail.
 #
-# Only active in projects with a .shipyard/ folder (here or in a parent folder).
+# Only active in projects with a .shipinetics/ folder (here or in a parent folder).
 # Runs when the repo has changes: uncommitted ones, or commits made since the session started.
 # Agents commit each step as they go, so a clean tree doesn't mean there's nothing to check.
-# Which tier runs (see shipyard-verify and lib.sh):
+# Which tier runs (see shipinetics-verify and lib.sh):
 #   complete (verify_cmd, default bin/verify) when the worksheet's Status says done or handed off,
-#     when a changed file matches .shipyard/complete-paths (build config, manifests, lockfiles),
+#     when a changed file matches .shipinetics/complete-paths (build config, manifests, lockfiles),
 #     or when the project has no quick tier.
 #   quick (verify_quick_cmd) at every other stop, scoped to the files changed this session.
 # A pass is reused while the code's contents stay the same, so committing verified work or
 # editing only the worksheet, evidence or feedback log doesn't run anything again.
-# Workspace mode (packages set in .shipyard/config): the same per package repo with changes, using
+# Workspace mode (packages set in .shipinetics/config): the same per package repo with changes, using
 # package_verify_cmd and package_verify_quick_cmd. With verify_scope = touched (the default), only packages
 # the agent edited this session count, so the user's own unrelated work never blocks the agent.
-# The session's starting HEAD is recorded per repo in .shipyard/.cache/head-<session>*.
+# The session's starting HEAD is recorded per repo in .shipinetics/.cache/head-<session>*.
 # Lets a stuck agent stop with a message to the user. Each run's time goes in
-# .shipyard/.cache/verify-times.tsv (shipyard-verify times summarises it).
+# .shipinetics/.cache/verify-times.tsv (shipinetics-verify times summarises it).
 # Reminds the agent once per session to update its worksheet and feedback log.
-# Set SHIPYARD_SKIP_VERIFY=1 in the environment to turn it off for a session.
+# Set SHIPINETICS_SKIP_VERIFY=1 in the environment to turn it off for a session.
 
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPYARD_SKIP_VERIFY:-0}" = "1" ] && exit 0
+[ "${SHIPINETICS_SKIP_VERIFY:-0}" = "1" ] && exit 0
 
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
 root="$(sy_root)" || exit 0
 cd "$root" || exit 0
 
-cache="$root/.shipyard/.cache"
+cache="$root/.shipinetics/.cache"
 mkdir -p "$cache"
 
 stop_active="$(sy_json_field "$input" stop_hook_active)"
@@ -66,7 +66,7 @@ committed_since_start() {
 }
 
 reminder_text() { # reminder_text <missing>
-  printf 'shipyard: there are code changes this session, but you have not updated %s. If your task is finished, do that before you stop (see the shipyard:worksheet and shipyard:feedback skills). If you are mid-task or waiting on the user, ignore this.' "$1"
+  printf 'shipinetics: there are code changes this session, but you have not updated %s. If your task is finished, do that before you stop (see the shipinetics:worksheet and shipinetics:feedback skills). If you are mid-task or waiting on the user, ignore this.' "$1"
 }
 
 block_with() { # block_with <log> <label>
@@ -82,26 +82,26 @@ block_with() { # block_with <log> <label>
 }
 
 stuck_release() {
-  printf '%s\n' '{"systemMessage": "shipyard: verify is still failing and the agent stopped without changing anything. Logs are in .shipyard/.cache/."}'
+  printf '%s\n' '{"systemMessage": "shipinetics: verify is still failing and the agent stopped without changing anything. Logs are in .shipinetics/.cache/."}'
   exit 0
 }
 
 # quick_note <what>: tell the user, without blocking, that only the quick tier has run on this code
 quick_note() {
-  local m="shipyard: quick checks passed for $1. The complete verify hasn't run on this code yet. It runs at the stop after the worksheet is marked done, before a push or PR, or now with shipyard-verify."
+  local m="shipinetics: quick checks passed for $1. The complete verify hasn't run on this code yet. It runs at the stop after the worksheet is marked done, before a push or PR, or now with shipinetics-verify."
   if command -v jq >/dev/null 2>&1; then jq -n --arg m "$m" '{systemMessage: $m}'
   else python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1]}))' "$m"; fi
   exit 0
 }
 
-# pick_tier <list of changed files> <path prefix for .shipyard lists> [worksheet paths...]
+# pick_tier <list of changed files> <path prefix for .shipinetics lists> [worksheet paths...]
 pick_tier() {
   local list="$1" prefix="$2" f
   shift 2
   if sy_task_done "$root" "$@"; then echo complete; return; fi
-  if [ -f "$root/.shipyard/complete-paths" ]; then
+  if [ -f "$root/.shipinetics/complete-paths" ]; then
     while IFS= read -r f; do
-      [ -n "$f" ] && sy_in_list "$root/.shipyard/complete-paths" "$prefix$f" && { echo complete; return; }
+      [ -n "$f" ] && sy_in_list "$root/.shipinetics/complete-paths" "$prefix$f" && { echo complete; return; }
     done <"$list"
   fi
   echo quick
@@ -181,9 +181,9 @@ verify_bin="${verify_cmd%% *}"
 [ -x "$root/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || exit 0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
-changed="$(sy_changed_paths "$root" | grep -v '^\.shipyard/\.cache/' || true)"
+changed="$(sy_changed_paths "$root" | grep -v '^\.shipinetics/\.cache/' || true)"
 if [ -n "$session" ]; then
-  changed="$(printf '%s\n' "$changed" "$(committed_since_start "$root" "" ':(exclude).shipyard/.cache')" | sed '/^$/d')"
+  changed="$(printf '%s\n' "$changed" "$(committed_since_start "$root" "" ':(exclude).shipinetics/.cache')" | sed '/^$/d')"
 fi
 [ -z "$changed" ] && exit 0
 

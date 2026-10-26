@@ -11,7 +11,7 @@
 #
 # Active in every project, because secrets in your shell environment are exposed everywhere.
 # Run things that need secrets through bin/with-secrets, which injects them without printing them.
-# Start Claude Code with SHIPYARD_ALLOW_ENV_READ=1 to turn this off for a session.
+# Start Claude Code with SHIPINETICS_ALLOW_ENV_READ=1 to turn this off for a session.
 #
 # It's a backstop that matches command text, not a sandbox. The stronger layer is
 # CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1, which strips credentials from every command Claude runs.
@@ -19,7 +19,7 @@
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPYARD_ALLOW_ENV_READ:-0}" = "1" ] && exit 0
+[ "${SHIPINETICS_ALLOW_ENV_READ:-0}" = "1" ] && exit 0
 
 jget() {
   if command -v jq >/dev/null 2>&1; then
@@ -34,7 +34,7 @@ sys.stdout.write("" if v is None else str(v))' "$1"
 }
 
 deny() {
-  local reason="shipyard: blocked because this would $1. Secrets here live in a vault and reach the app as environment variables, so agents never read their values. To run something that needs secrets, use bin/with-secrets <command>. To check a variable is set without seeing it: [ -n \"\${NAME+x}\" ] && echo set. If the user really wants this, they can run it themselves or start Claude Code with SHIPYARD_ALLOW_ENV_READ=1."
+  local reason="shipinetics: blocked because this would $1. Secrets here live in a vault and reach the app as environment variables, so agents never read their values. To run something that needs secrets, use bin/with-secrets <command>. To check a variable is set without seeing it: [ -n \"\${NAME+x}\" ] && echo set. If the user really wants this, they can run it themselves or start Claude Code with SHIPINETICS_ALLOW_ENV_READ=1."
   if command -v jq >/dev/null 2>&1; then
     jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
   else

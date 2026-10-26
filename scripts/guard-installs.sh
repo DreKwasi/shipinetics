@@ -2,12 +2,12 @@
 # PreToolUse hook for Bash. Asks the user to confirm before an agent installs a skill, plugin,
 # marketplace or MCP server, and reminds them to scan it with SkillSpector first.
 # Anything new gets the same permissions as your agents, so a human checks it.
-# Active in every project. Start Claude Code with SHIPYARD_ALLOW_INSTALLS=1 to skip it for a session.
+# Active in every project. Start Claude Code with SHIPINETICS_ALLOW_INSTALLS=1 to skip it for a session.
 
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPYARD_ALLOW_INSTALLS:-0}" = "1" ] && exit 0
+[ "${SHIPINETICS_ALLOW_INSTALLS:-0}" = "1" ] && exit 0
 
 if command -v jq >/dev/null 2>&1; then
   cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
@@ -23,7 +23,7 @@ if command -v skillspector >/dev/null 2>&1; then
 else
   advice="SkillSpector isn't installed, so this hasn't been scanned. Install it (uv tool install git+https://github.com/NVIDIA/skillspector.git) and scan the source first, or approve only if you trust it."
 fi
-reason="shipyard: this installs new agent tooling that will run with your permissions. $advice See shipyard:security-scans."
+reason="shipinetics: this installs new agent tooling that will run with your permissions. $advice See shipinetics:security-scans."
 
 if command -v jq >/dev/null 2>&1; then
   jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $r}}'

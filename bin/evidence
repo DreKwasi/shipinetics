@@ -10,12 +10,12 @@
 #
 # Run it inside the git repo the PR comes from. Evidence lives in <evidence_dir>/<worksheet>/ in that
 # repo (default docs/evidence): EVIDENCE.md with one row per acceptance criterion, screenshots,
-# recordings and terminal.log. A change touching a path in .shipyard/ui-paths also needs a recording.
+# recordings and terminal.log. A change touching a path in .shipinetics/ui-paths also needs a recording.
 # Evidence must be fresh: EVIDENCE.md's Commit line names the commit it was recorded at, and no
-# code may have changed since. Changes to docs, Markdown, tests (.shipyard/test-paths), worksheets,
-# .shipyard/ and the evidence itself don't count, so they keep the evidence valid.
+# code may have changed since. Changes to docs, Markdown, tests (.shipinetics/test-paths), worksheets,
+# .shipinetics/ and the evidence itself don't count, so they keep the evidence valid.
 # Worksheets on a branch are found from "Worksheet:" commit trailers and from worksheet copies the
-# branch adds under package_worksheets_dir. Paths come from .shipyard/config (see shipyard-config).
+# branch adds under package_worksheets_dir. Paths come from .shipinetics/config (see shipinetics-config).
 
 set -euo pipefail
 
@@ -26,7 +26,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 die() { echo "evidence: $*" >&2; exit 1; }
 repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
 cd "$repo"
-root="${SHIPYARD_ROOT:-$(sy_root "$repo" || echo "$repo")}"
+root="${SHIPINETICS_ROOT:-$(sy_root "$repo" || echo "$repo")}"
 ev_base="$(sy_cfg "$root" evidence_dir)"
 wsdir="$root/$(sy_cfg "$root" worksheets_dir)"
 pkg_ws="$(sy_cfg "$root" package_worksheets_dir)"
@@ -36,7 +36,7 @@ artifacts='\.(png|jpe?g|gif|webm|mp4|mov|log|txt)'
 recordings='\.(webm|mp4|gif|mov)$'
 
 current_ws() {
-  local f="$root/.shipyard/.cache/current-worksheet" p
+  local f="$root/.shipinetics/.cache/current-worksheet" p
   [ -f "$f" ] || die "no current worksheet. Name one, or start one with: worksheet new <slug>"
   p="$(cat "$f")"; case "$p" in /*) ;; *) p="$root/$p" ;; esac
   [ -f "$p" ] || die "the current worksheet ($p) no longer exists"
@@ -69,8 +69,8 @@ branch_worksheets() { # branch_worksheets <base>
   {
     git log "$1..HEAD" --format='%(trailers:key=Worksheet,valueonly)' 2>/dev/null
     if [ -n "$pkg_ws" ]; then branch_files "$1" | grep "^$pkg_ws/.*\.md$" | sed 's#.*/##; s#\.md$##'; fi
-    if [ -f "$root/.shipyard/.cache/current-worksheet" ] && [ -n "$(git status --porcelain)" ]; then
-      basename "$(cat "$root/.shipyard/.cache/current-worksheet")" .md
+    if [ -f "$root/.shipinetics/.cache/current-worksheet" ] && [ -n "$(git status --porcelain)" ]; then
+      basename "$(cat "$root/.shipinetics/.cache/current-worksheet")" .md
     fi
   } | sed '/^$/d' | sort -u
 }
@@ -84,7 +84,7 @@ changed_files_of() { # changed_files_of <worksheet> <base>: files under that wor
   local by_trailer
   by_trailer="$(git log --grep "Worksheet: $1" --name-only --format= 2>/dev/null | sed '/^$/d')"
   if [ -n "$by_trailer" ]; then printf '%s\n' "$by_trailer"; else branch_files "$2"; fi
-  if [ -f "$root/.shipyard/.cache/current-worksheet" ] && [ "$(basename "$(cat "$root/.shipyard/.cache/current-worksheet")" .md)" = "$1" ]; then
+  if [ -f "$root/.shipinetics/.cache/current-worksheet" ] && [ "$(basename "$(cat "$root/.shipinetics/.cache/current-worksheet")" .md)" = "$1" ]; then
     git status --porcelain --untracked-files=all | cut -c4-
   fi
 }
@@ -101,10 +101,10 @@ fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if 
   mine="$(branch_files "$3")"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
-    case "$f" in "$ev_base"/*|docs/*|*.md|.shipyard/*) continue ;; esac
+    case "$f" in "$ev_base"/*|docs/*|*.md|.shipinetics/*) continue ;; esac
     printf '%s\n' "$mine" | grep -qxF -- "$f" || continue
     if [ -n "$pkg_ws" ]; then case "$f" in "$pkg_ws"/*) continue ;; esac; fi
-    sy_in_list "$root/.shipyard/test-paths" "$prefix$f" && continue
+    sy_in_list "$root/.shipinetics/test-paths" "$prefix$f" && continue
     n=$((n + 1)); [ "$n" -le 5 ] && stale="${stale:+$stale, }$f"
   done < <({ git -c core.quotePath=false diff --name-only --no-renames "$rec" -- . 2>/dev/null; git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)
   [ "$n" -eq 0 ] && return 0
@@ -136,10 +136,10 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
     fi
   done
   fresh_one "$ws" "$ev" "$2" || bad=1
-  if [ -f "$root/.shipyard/ui-paths" ]; then
+  if [ -f "$root/.shipinetics/ui-paths" ]; then
     while IFS= read -r f; do
       [ -z "$f" ] && continue
-      if sy_in_list "$root/.shipyard/ui-paths" "$prefix$f"; then
+      if sy_in_list "$root/.shipinetics/ui-paths" "$prefix$f"; then
         if ! ls "$dir" 2>/dev/null | grep -qE "$recordings"; then
           echo "  $ws: changes UI ($prefix$f) but has no screen recording (.webm, .mp4, .gif or .mov)"; bad=1
         fi
@@ -217,7 +217,7 @@ case "$cmd" in
       check_one "$w" "$base" || problems=1
     done
     if [ "$problems" = 1 ]; then
-      echo "evidence: incomplete. Capture what's missing (shipyard:evidence), then check again." >&2
+      echo "evidence: incomplete. Capture what's missing (shipinetics:evidence), then check again." >&2
       exit 1
     fi
     echo "evidence: complete for ${list[*]}"

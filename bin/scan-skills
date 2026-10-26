@@ -2,7 +2,7 @@
 # scan-skills: run NVIDIA SkillSpector over every skill and agent definition that can reach your sessions.
 #
 # Usage:
-#   scan-skills                 scan everything installed (user skills, plugins, this project, shipyard itself)
+#   scan-skills                 scan everything installed (user skills, plugins, this project, shipinetics itself)
 #   scan-skills <path>...       scan specific skill folders, SKILL.md files, agent .md files or git URLs
 #   scan-skills --llm ...       add SkillSpector's LLM analysis (needs a provider key; run via bin/with-secrets)
 #

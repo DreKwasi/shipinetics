@@ -8,16 +8,16 @@
 #
 # Stages:   research | plan | impl | wrapup | docs
 # --cli:    auto (default) | codex | cursor | gemini | claude
-# --author: model family that wrote the work (default $SHIPYARD_AUTHOR, else "claude").
+# --author: model family that wrote the work (default $SHIPINETICS_AUTHOR, else "claude").
 #           auto picks the first installed CLI whose family differs from the author.
-# Output:   <reviews_dir>/<timestamp>-<stage>-<cli>.md under the Shipyard root (default docs/reviews).
-#           The path is the last line printed. Conventions and personas come from .shipyard/config.
+# Output:   <reviews_dir>/<timestamp>-<stage>-<cli>.md under the Shipinetics root (default docs/reviews).
+#           The path is the last line printed. Conventions and personas come from .shipinetics/config.
 #
 # Edit the run_* functions below if a CLI changes its flags. Optional model overrides:
-# SHIPYARD_CODEX_MODEL, SHIPYARD_CURSOR_MODEL, SHIPYARD_GEMINI_MODEL, SHIPYARD_CLAUDE_REVIEW_MODEL.
-# Reasoning effort (default high): SHIPYARD_CLAUDE_REVIEW_EFFORT, SHIPYARD_CODEX_EFFORT. Set one to empty to
+# SHIPINETICS_CODEX_MODEL, SHIPINETICS_CURSOR_MODEL, SHIPINETICS_GEMINI_MODEL, SHIPINETICS_CLAUDE_REVIEW_MODEL.
+# Reasoning effort (default high): SHIPINETICS_CLAUDE_REVIEW_EFFORT, SHIPINETICS_CODEX_EFFORT. Set one to empty to
 # leave that CLI at its own default. Gemini and Cursor have no effort flag.
-# Preference order for auto: SHIPYARD_REVIEW_ORDER (default "codex gemini cursor claude").
+# Preference order for auto: SHIPINETICS_REVIEW_ORDER (default "codex gemini cursor claude").
 
 set -euo pipefail
 
@@ -25,23 +25,23 @@ plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$plugin_root/scripts/lib.sh"
 
-stage="" base="" persona="" cli="auto" file="" author="${SHIPYARD_AUTHOR:-claude}"
-order="${SHIPYARD_REVIEW_ORDER:-codex gemini cursor claude}"
+stage="" base="" persona="" cli="auto" file="" author="${SHIPINETICS_AUTHOR:-claude}"
+order="${SHIPINETICS_REVIEW_ORDER:-codex gemini cursor claude}"
 max_bytes=300000
-codex_effort="${SHIPYARD_CODEX_EFFORT-high}"
-claude_effort="${SHIPYARD_CLAUDE_REVIEW_EFFORT-high}"
+codex_effort="${SHIPINETICS_CODEX_EFFORT-high}"
+claude_effort="${SHIPINETICS_CLAUDE_REVIEW_EFFORT-high}"
 
 die() { echo "agent_review: $*" >&2; exit 1; }
 
 # ---- CLI runners: each reads the prompt file given as $1 and prints the review ----
-run_codex()  { codex exec --sandbox read-only --skip-git-repo-check ${SHIPYARD_CODEX_MODEL:+--model "$SHIPYARD_CODEX_MODEL"} ${codex_effort:+-c "model_reasoning_effort=$codex_effort"} - <"$1"; }
-run_gemini() { gemini ${SHIPYARD_GEMINI_MODEL:+-m "$SHIPYARD_GEMINI_MODEL"} -p "Follow the review instructions in the input." <"$1"; }
-run_cursor() { cursor-agent -p --output-format text ${SHIPYARD_CURSOR_MODEL:+--model "$SHIPYARD_CURSOR_MODEL"} "$(cat "$1")"; }
-run_claude() { claude -p --model "${SHIPYARD_CLAUDE_REVIEW_MODEL:-sonnet}" ${claude_effort:+--effort "$claude_effort"} --permission-mode plan --disallowedTools Edit Write NotebookEdit <"$1"; }
+run_codex()  { codex exec --sandbox read-only --skip-git-repo-check ${SHIPINETICS_CODEX_MODEL:+--model "$SHIPINETICS_CODEX_MODEL"} ${codex_effort:+-c "model_reasoning_effort=$codex_effort"} - <"$1"; }
+run_gemini() { gemini ${SHIPINETICS_GEMINI_MODEL:+-m "$SHIPINETICS_GEMINI_MODEL"} -p "Follow the review instructions in the input." <"$1"; }
+run_cursor() { cursor-agent -p --output-format text ${SHIPINETICS_CURSOR_MODEL:+--model "$SHIPINETICS_CURSOR_MODEL"} "$(cat "$1")"; }
+run_claude() { claude -p --model "${SHIPINETICS_CLAUDE_REVIEW_MODEL:-sonnet}" ${claude_effort:+--effort "$claude_effort"} --permission-mode plan --disallowedTools Edit Write NotebookEdit <"$1"; }
 
 bin_for()    { case "$1" in codex) echo codex ;; gemini) echo gemini ;; cursor) echo cursor-agent ;; claude) echo claude ;; esac; }
-# Cursor can run models from any family. Set SHIPYARD_CURSOR_FAMILY to match SHIPYARD_CURSOR_MODEL.
-family_for() { case "$1" in codex) echo openai ;; gemini) echo google ;; cursor) echo "${SHIPYARD_CURSOR_FAMILY:-cursor}" ;; claude) echo claude ;; esac; }
+# Cursor can run models from any family. Set SHIPINETICS_CURSOR_FAMILY to match SHIPINETICS_CURSOR_MODEL.
+family_for() { case "$1" in codex) echo openai ;; gemini) echo google ;; cursor) echo "${SHIPINETICS_CURSOR_FAMILY:-cursor}" ;; claude) echo claude ;; esac; }
 author_family() { case "$1" in codex|openai|gpt*) echo openai ;; gemini|google) echo google ;; cursor|composer*) echo cursor ;; *) echo claude ;; esac; }
 
 usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }

@@ -1,7 +1,7 @@
 # Evidence freshness: code changes after recording fail; docs, tests and merged-in work don't.
 . "$(dirname "$0")/helpers.sh"
 t="$scratch/ev"; new_repo "$t"; cd "$t" || exit 1
-mkdir -p .shipyard; printf 'tests/*\n' >.shipyard/test-paths; printf '.shipyard/.cache/\n' >.gitignore
+mkdir -p .shipinetics; printf 'tests/*\n' >.shipinetics/test-paths; printf '.shipinetics/.cache/\n' >.gitignore
 echo a >a.txt; echo o >other.txt; git add -A; git commit -qm init; git checkout -qb feat
 mkdir -p docs/worksheets docs/evidence/w; printf '# W\n- [ ] AC1: works\n' >docs/worksheets/w.md
 echo b >a.txt; git add -A; git commit -qm code -m "Worksheet: w"

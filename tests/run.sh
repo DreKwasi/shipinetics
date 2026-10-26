@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run.sh: run every shipyard test. Exit code 0 means all passed.
+# run.sh: run every shipinetics test. Exit code 0 means all passed.
 # Usage: tests/run.sh [test file...]
 # Run it with the bash you want to check, for example /bin/bash tests/run.sh on macOS (bash 3.2).
 

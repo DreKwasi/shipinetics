@@ -3,19 +3,19 @@
 #
 # Usage:
 #   design-check [base]      check UI files changed since base (default: where the branch left main)
-#   design-check --all       check every file matching .shipyard/ui-paths (for sweeps)
+#   design-check --all       check every file matching .shipinetics/ui-paths (for sweeps)
 #   design-check --help      this text
 #
-# Runs Impeccable's detector on the changed files in .shipyard/ui-paths, and on the same files at
+# Runs Impeccable's detector on the changed files in .shipinetics/ui-paths, and on the same files at
 # the base, then reports only the design-system findings this branch added: fonts, colors, radii
 # and font sizes that aren't in DESIGN.md's token frontmatter. It reports Impeccable's advisory
 # findings too, which its own exit code ignores. Pre-existing findings are counted, not listed.
 # The detector can't see everything: spacing off the scale, var() names that don't exist,
-# duplicated components and new token definitions still need a reviewer (shipyard:ui-reviewer).
+# duplicated components and new token definitions still need a reviewer (shipinetics:ui-reviewer).
 #
 # Exit code: 0 no new findings (or nothing to check against), 1 new findings, 2 couldn't run.
 # Needs Impeccable (plugin or skill) and python3. A finding that's intentional is either a
-# design-system change request (shipyard:worksheet) or a sanctioned exception recorded with
+# design-system change request (shipinetics:worksheet) or a sanctioned exception recorded with
 # `impeccable hooks ignore-value <value> --reason "<who decided>"`.
 
 set -uo pipefail
@@ -50,7 +50,7 @@ design_md=""
 for c in DESIGN.md .agents/context/DESIGN.md docs/DESIGN.md; do [ -f "$c" ] && { design_md="$c"; break; }; done
 if [ -z "$design_md" ] || ! head -n 1 "$design_md" | grep -q '^---'; then
   echo "design-check: no DESIGN.md with token frontmatter, so there's no design system to check against."
-  echo "Run /impeccable document (scan mode) to write one from the code (shipyard:setup, design system step)."
+  echo "Run /impeccable document (scan mode) to write one from the code (shipinetics:setup, design system step)."
   exit 0
 fi
 
@@ -63,8 +63,8 @@ if [ "$all" = 0 ] && [ -z "$base" ]; then
   [ -n "$base" ] || die "no base found. Pass one: design-check <ref>"
 fi
 
-ui="$root/.shipyard/ui-paths"
-[ -f "$ui" ] || die "no .shipyard/ui-paths, so there's no way to tell UI files apart. Run /shipyard:setup."
+ui="$root/.shipinetics/ui-paths"
+[ -f "$ui" ] || die "no .shipinetics/ui-paths, so there's no way to tell UI files apart. Run /shipinetics:setup."
 files=()
 while IFS= read -r f; do
   [ -f "$f" ] && sy_in_list "$ui" "$prefix$f" && files+=("$f")

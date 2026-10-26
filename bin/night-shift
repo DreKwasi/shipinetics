@@ -24,7 +24,7 @@
 # to secretmanager.googleapis.com and oauth2.googleapis.com.
 # It never pushes. You review branch night/<date> when you're back.
 # On a laptop, keep the machine awake: caffeinate -i night-shift ...
-# Logs: .shipyard/.cache/night/<date>/ in the main checkout.
+# Logs: .shipinetics/.cache/night/<date>/ in the main checkout.
 
 set -euo pipefail
 
@@ -55,16 +55,16 @@ command -v jq >/dev/null || die "jq is required"
 . "$plugin_root/scripts/lib.sh"
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
 cd "$root"
-sy="$(sy_root "$root")" || die "this repo isn't set up. Run /shipyard:setup first."
-sy_workspace "$sy" && die "workspace mode ($sy) isn't supported by night-shift yet: each package needs its own worktree and verify. Use the project's own night shift process, or set up Shipyard inside one package repo."
+sy="$(sy_root "$root")" || die "this repo isn't set up. Run /shipinetics:setup first."
+sy_workspace "$sy" && die "workspace mode ($sy) isn't supported by night-shift yet: each package needs its own worktree and verify. Use the project's own night shift process, or set up Shipinetics inside one package repo."
 verify_bin="$(sy_cfg "$sy" verify_cmd)"; verify_bin="${verify_bin%% *}"
-[ -x "$sy/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || die "the verify command ($verify_bin) isn't there. Run /shipyard:setup first."
+[ -x "$sy/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || die "the verify command ($verify_bin) isn't there. Run /shipinetics:setup first."
 [ -z "$(git status --porcelain)" ] || die "commit or stash your changes first, so the shift starts from a known state"
 
 day="$(date +%Y-%m-%d)"
 branch="night/$day"
 wt="$root/.claude/worktrees/night-$day"
-logs="$root/.shipyard/.cache/night/$day"
+logs="$root/.shipinetics/.cache/night/$day"
 mkdir -p "$logs"
 
 if [ -d "$wt" ]; then
@@ -100,7 +100,7 @@ JSON
 
 run_claude() { # run_claude <prompt> <budget> <log>
   if [ "$dry" = 1 ]; then echo '{"result":"QUEUE_EMPTY (dry run)","total_cost_usd":0}' >"$3"; return 0; fi
-  (cd "$wt" && SHIPYARD_AUTHOR=claude CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 claude -p "$1" \
+  (cd "$wt" && SHIPINETICS_AUTHOR=claude CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1 claude -p "$1" \
     --model "$model" \
     --effort "$effort" \
     --permission-mode acceptEdits \
@@ -116,7 +116,7 @@ record() { # record <run> <outcome> <worksheet> <cost> <turns> <duration_s>
   echo "$day,$1,$2,$3,$4,$5,$6,$model,$effort,$plugin_version" >>"$metrics"
 }
 
-task_goal="Use the shipyard:night-shift skill to take exactly one task from the queue to done or blocked, then stop. The goal is met when the conversation shows one of these: (a) the task is in Done in TODOS.md, bin/verify passes with its output shown, the work and the worksheet are committed with the Worksheet trailer, the worksheet is tagged, and the final message names the task ID and the worksheet; (b) the task is in Blocked with a one-line question for a human, that is committed, and the final message says BLOCKED with the task ID; (c) there are no ready tasks and the final message is QUEUE_EMPTY; (d) something needs a human before any more work can happen and the final message starts with SHIFT_STOP and the reason. Throughout: tests are only written or changed by shipyard:test-writer, no protected file changes, nothing is pushed. If none of these holds after 5 turns, stop and report the blocker."
+task_goal="Use the shipinetics:night-shift skill to take exactly one task from the queue to done or blocked, then stop. The goal is met when the conversation shows one of these: (a) the task is in Done in TODOS.md, bin/verify passes with its output shown, the work and the worksheet are committed with the Worksheet trailer, the worksheet is tagged, and the final message names the task ID and the worksheet; (b) the task is in Blocked with a one-line question for a human, that is committed, and the final message says BLOCKED with the task ID; (c) there are no ready tasks and the final message is QUEUE_EMPTY; (d) something needs a human before any more work can happen and the final message starts with SHIFT_STOP and the reason. Throughout: tests are only written or changed by shipinetics:test-writer, no protected file changes, nothing is pushed. If none of these holds after 5 turns, stop and report the blocker."
 
 start=$(date +%s); end=$((start + $(awk -v h="$hours" 'BEGIN { printf "%d", h * 3600 }')))
 spent=0 n=0 idle=0 stop_reason=""
@@ -155,11 +155,11 @@ while :; do
 done
 
 echo "[$(date +%H:%M)] stopping task loop: $stop_reason. Running end-of-shift validation."
-mkdir -p "$wt/.shipyard/.cache" && cp "$metrics" "$wt/.shipyard/.cache/night-metrics.csv"
+mkdir -p "$wt/.shipinetics/.cache" && cp "$metrics" "$wt/.shipinetics/.cache/night-metrics.csv"
 left=$(add "$budget" "-$spent")
 eos_budget="$task_budget"; ge "$left" "$task_budget" || eos_budget="$left"
 t0=$(date +%s)
-run_claude "Use the shipyard:end-of-shift skill. The task loop stopped because: $stop_reason. Total spend so far: \$$spent. Per-run metrics are in .shipyard/.cache/night-metrics.csv. Write the shift report." \
+run_claude "Use the shipinetics:end-of-shift skill. The task loop stopped because: $stop_reason. Total spend so far: \$$spent. Per-run metrics are in .shipinetics/.cache/night-metrics.csv. Write the shift report." \
   "$eos_budget" "$logs/end-of-shift.json"
 eos_cost="$(jq -r '.total_cost_usd // 0' "$logs/end-of-shift.json" 2>/dev/null || echo 0)"
 spent=$(add "$spent" "$eos_cost")

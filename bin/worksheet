@@ -8,7 +8,7 @@
 #   worksheet list                   list worksheets with their one-line summaries
 #   worksheet tag [name]             tag HEAD of the current repo for the worksheet
 #
-# Where worksheets live and how they're tagged come from .shipyard/config (see shipyard-config).
+# Where worksheets live and how they're tagged come from .shipinetics/config (see shipinetics-config).
 # If the project has its own scripts (worksheet_new_cmd, worksheet_tag_cmd), this hands off to them,
 # so one command works the same in every project.
 # Commits made under a worksheet should carry a trailer line: "Worksheet: <name>" unless the project
@@ -21,10 +21,10 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 . "$here/scripts/lib.sh"
 die() { echo "worksheet: $*" >&2; exit 1; }
 
-root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a Shipyard project or a git repo"
+root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a Shipinetics project or a git repo"
 dir="$root/$(sy_cfg "$root" worksheets_dir)"
-state="$root/.shipyard/.cache/current-worksheet"
-mkdir -p "$dir" "$root/.shipyard/.cache"
+state="$root/.shipinetics/.cache/current-worksheet"
+mkdir -p "$dir" "$root/.shipinetics/.cache"
 name_of() { basename "$1" .md; }
 
 cmd="${1:-}"; shift || true

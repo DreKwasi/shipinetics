@@ -1,11 +1,11 @@
-# helpers.sh: shared setup and assertions for shipyard's own tests. Source it from a test.
+# helpers.sh: shared setup and assertions for shipinetics's own tests. Source it from a test.
 # Every test works in a scratch folder under $TMPDIR and never touches this repo.
 
 set -uo pipefail
 SY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PATH="$SY/bin:$PATH"
 fails=0
-scratch="$(mktemp -d "${TMPDIR:-/tmp}/shipyard-test.XXXXXX")"
+scratch="$(mktemp -d "${TMPDIR:-/tmp}/shipinetics-test.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 
 # new_repo <dir>: an empty git repo on main with a test identity
@@ -21,8 +21,8 @@ stub_verify() {
   mkdir -p "$(dirname "$1")"
   cat >"$1" <<'V'
 #!/bin/sh
-printf 'RAN tier=%s arg=%s files=' "${SHIPYARD_VERIFY_TIER:-none}" "${1:-}"
-if [ -n "${SHIPYARD_CHANGED_FILES:-}" ]; then tr '\n' '|' <"$SHIPYARD_CHANGED_FILES"; fi
+printf 'RAN tier=%s arg=%s files=' "${SHIPINETICS_VERIFY_TIER:-none}" "${1:-}"
+if [ -n "${SHIPINETICS_CHANGED_FILES:-}" ]; then tr '\n' '|' <"$SHIPINETICS_CHANGED_FILES"; fi
 echo
 [ -f FAIL ] && { echo boom; exit 1; }
 exit 0
@@ -37,7 +37,7 @@ stop_hook() {
 }
 
 # last_timing <project root>: "<tier> <result>" from the newest timing row
-last_timing() { tail -n 1 "$1/.shipyard/.cache/verify-times.tsv" | cut -f4,6 | tr '\t' ' '; }
+last_timing() { tail -n 1 "$1/.shipinetics/.cache/verify-times.tsv" | cut -f4,6 | tr '\t' ' '; }
 
 # replace <file> <old> <new>: in-place literal replacement, portable across macOS and Linux
 replace() { python3 - "$@" <<'PY'

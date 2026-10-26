@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# shipyard-config: show this project's Shipyard settings (paths, commands, mode).
+# shipinetics-config: show this project's Shipinetics settings (paths, commands, mode).
 #
 # Usage:
-#   shipyard-config              print every setting, marking the ones the project sets itself
-#   shipyard-config get <key>    print one value (the project's, else the default)
-#   shipyard-config root         print the Shipyard root (the folder that holds .shipyard/)
+#   shipinetics-config              print every setting, marking the ones the project sets itself
+#   shipinetics-config get <key>    print one value (the project's, else the default)
+#   shipinetics-config root         print the Shipinetics root (the folder that holds .shipinetics/)
 #
 # Skills and tools use these values in place of their default paths.
 
@@ -13,10 +13,10 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$here/scripts/lib.sh"
 
-root="$(sy_root "$PWD")" || { echo "shipyard-config: no .shipyard/ folder here or above. Run /shipyard:setup first." >&2; exit 1; }
+root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder here or above. Run /shipinetics:setup first." >&2; exit 1; }
 
 case "${1:-}" in
-  get) [ -n "${2:-}" ] || { echo "usage: shipyard-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
+  get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
   root) echo "$root" ;;
   ""|list)
     echo "root: $root"
@@ -28,5 +28,5 @@ case "${1:-}" in
     done
     ;;
   -h|--help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//' ;;
-  *) echo "shipyard-config: unknown command: $1" >&2; exit 2 ;;
+  *) echo "shipinetics-config: unknown command: $1" >&2; exit 2 ;;
 esac
