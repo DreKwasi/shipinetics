@@ -202,7 +202,7 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one ve
 
 ## Known limits
 
-- The guards match what Claude's tools are asked to do. An agent could still write a test file or print a variable through a script it writes and then runs. The env scrub, the reviewers and the night shift sandbox are the layers behind them.
+- The guards match what Claude's tools are asked to do. Maintenance on guarded files goes through a human or a named command (`shipinetics-config apply`, `bench-compare --init`, `known-failing init`, `shipinetics-config migrate`), as the setup skill lists. An agent could still write a test file or print a variable through a script it writes and then runs. The env scrub, the reviewers and the night shift sandbox are the layers behind them.
 - The reviewers have Bash so they can run `git diff` and tests, which makes them read-only by instruction, not enforcement. Claude Code ignores hooks on plugin subagents.
 - The install gate asks you, so in a headless run (where nobody can answer) installs are refused.
 - `agent_review`'s runners for Codex, Gemini and Cursor use each CLI's non-interactive mode as documented when this was written. Check them against `--help` the first time you use one.

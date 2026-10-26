@@ -24,6 +24,21 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in 
 - Use a branch: `shipinetics-setup` unless the user is already on one for this.
 - **Protected files go through pending.** The edit guard stops agents changing any existing file that `.shipinetics/protected-paths` covers, `.shipinetics/` itself included, and Claude Code stops agents editing `.claude/settings.json`. So write `protected-paths` in Finish, after the phases that edit `.shipinetics/`. For a protected file (on a resumed run, or `.claude/settings.json` at any time), write the full new version to `.shipinetics/pending/<path>` (same path under that folder) and a human reviews and applies it with `shipinetics-config apply`. Put `shipinetics-config apply` on the For you list. Never ask the user to restart with `SHIPINETICS_UNLOCK=1` to get setup through.
 
+## What the guards cover
+
+The edit guard sees only Claude's file tools (Edit, Write, NotebookEdit). It doesn't see Bash, so `mv`, `cp`, `sed -i`, `git mv` or a script can change a protected file, a test file or a policy list without being stopped. That's a gap in the enforcement, not permission: the rule still holds, and reviewers check diffs for it. So a maintenance move on a guarded file goes through a human or a named command, never a Bash workaround:
+
+| Move | Route |
+|---|---|
+| Change a protected file (acceptance test, baseline, policy list, `.claude/settings.json`) | The new version in `.shipinetics/pending/<path>`, then a human runs `shipinetics-config apply` |
+| Rename, move or rewrite tests in bulk (framework migration) | `shipinetics:test-writer`, or a human starts the session with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |
+| Reset a benchmark baseline | `bench-compare --init` (a pending proposal once a baseline exists) |
+| Quarantine failing tests | `known-failing init` (a pending proposal once the list exists) |
+| Move a project from Shipyard | `shipinetics-config migrate` |
+| Check which rule covers a path | `shipinetics-config match <list> <path>` |
+
+Tell the user this in the Finish summary in one or two sentences, so they don't read the guards as a sandbox.
+
 ## Projects set up under the old name
 
 Shipinetics used to be called Shipyard. A project with a `.shipyard/` folder and no `.shipinetics/` was set up before the rename. It still works for one version, but migrate it before anything else: with a clean tree, run `shipinetics-config migrate --dry-run`, show the user the plan, then run `shipinetics-config migrate` and commit the result on its own (see `${CLAUDE_SKILL_DIR}/../../MIGRATING.md`). The setup log moves to `docs/shipinetics-setup.md` and still says which phases are done.
@@ -179,6 +194,6 @@ Follow `shipinetics:visual-regression` and `shipinetics:perf` to add one visual 
 
 Write `.shipinetics/protected-paths` now, with the contents you decided in Phase 1 and Phase 2. If it already exists, write the full new version to `.shipinetics/pending/.shipinetics/protected-paths` (same path under that folder) and a human reviews and applies it with `shipinetics-config apply` instead. Run `shipinetics-config pending`: if anything is waiting, put `shipinetics-config apply` near the top of the For you list, with what each change does.
 
-Update `docs/shipinetics-setup.md` with the new status table and the date. Tell the user, in a few lines: what's in place now, what you verified, what failed or was skipped, the For you list, and the gate checks to try themselves (Phase 1 step 8).
+Update `docs/shipinetics-setup.md` with the new status table and the date. Tell the user, in a few lines (including that the guards cover file tools only, see What the guards cover): what's in place now, what you verified, what failed or was skipped, the For you list, and the gate checks to try themselves (Phase 1 step 8).
 
 Put any row S or V that's still partial or missing at the top of the For you list, with what it leaves unprotected, for example "env scrub off: commands the agent runs still see credentials" or "no CI evidence job in `web`: PRs from it can merge without evidence". These rows are guardrails. Until they're done, the protection is only partly in force, and the user needs to know that rather than assume it. The weekly sweep checks them again (shipinetics:sweep).
