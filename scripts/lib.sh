@@ -259,6 +259,26 @@ if (length $n) {
 print $t;
 PL
 
+# sy_list_match <root> <list> <path relative to root>: true if the path matches a glob in one of
+# the project's lists (protected-paths, test-paths, env-allowed-paths, ui-paths, complete-paths)
+# the way the guards see it, and sets SY_MATCHED to the glob. A proposal in the pending folder is
+# checked as the file it would replace, but protected-paths never covers it. In protected-paths, a
+# glob for either folder name (.shipinetics/ or the legacy .shipyard/) covers both.
+sy_list_match() {
+  local dn list rel="$3" alias=""
+  dn="$(sy_dir_name "$1")"; list="$1/$dn/$2"; SY_MATCHED=""
+  case "$rel" in
+    "$dn/pending/"*) [ "$2" = protected-paths ] && return 1; rel="${rel#"$dn/pending/"}" ;;
+  esac
+  sy_in_list "$list" "$rel" && return 0
+  [ "$2" = protected-paths ] || return 1
+  case "$rel" in
+    "$SY_DIR_NAME"/*) alias="$SY_LEGACY_DIR_NAME/${rel#"$SY_DIR_NAME"/}" ;;
+    "$SY_LEGACY_DIR_NAME"/*) alias="$SY_DIR_NAME/${rel#"$SY_LEGACY_DIR_NAME"/}" ;;
+  esac
+  [ -n "$alias" ] && sy_in_list "$list" "$alias"
+}
+
 # sy_json_field <json> <dotted.path>: a value from hook input, with a python fallback when jq is missing
 sy_json_field() {
   if command -v jq >/dev/null 2>&1; then

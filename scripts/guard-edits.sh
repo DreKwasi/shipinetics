@@ -54,27 +54,20 @@ session="$(jget session_id)"
 is_test_writer=0
 case "$agent" in *test-writer) is_test_writer=1 ;; esac
 # A proposal in the pending folder is never protected itself, and the other rules check it as the
-# file it would replace.
-pending=0 target_rel="$rel"
-case "$rel" in "$dn/pending/"*) pending=1; target_rel="${rel#"$dn/pending/"}" ;; esac
+# file it would replace (sy_list_match does both).
+target_rel="$rel"
+case "$rel" in "$dn/pending/"*) target_rel="${rel#"$dn/pending/"}" ;; esac
 testing_guide="$(sy_cfg "$root" testing_guide_file)"
 test_index="$(sy_cfg "$root" test_index_file)"
 
 # ---- 1. protected paths: existing files only ----
-# Also try the path under the folder's other name (see the top of this file).
-case "$rel" in
-  "$SY_DIR_NAME"/*) alias_rel="$SY_LEGACY_DIR_NAME/${rel#"$SY_DIR_NAME"/}" ;;
-  "$SY_LEGACY_DIR_NAME"/*) alias_rel="$SY_DIR_NAME/${rel#"$SY_LEGACY_DIR_NAME"/}" ;;
-  *) alias_rel="" ;;
-esac
-if [ "$pending" = 0 ] && ! sy_flag UNLOCK && [ -e "$path" ] &&
-   { sy_in_list "$dir/protected-paths" "$rel" || { [ -n "$alias_rel" ] && sy_in_list "$dir/protected-paths" "$alias_rel"; }; }; then
+if ! sy_flag UNLOCK && [ -e "$path" ] && sy_list_match "$root" protected-paths "$rel"; then
   deny "$rel is protected (matches '$SY_MATCHED' in $dn/protected-paths). These files define what done means, so they don't change to fit the implementation. If you think the file is wrong, write the full new version to $dn/pending/$rel, add your reasoning under 'Test change requests' in your worksheet, and carry on with the rest of the task. A human reviews it and applies it with shipinetics-config apply."
 fi
 
 # ---- 2. test ownership ----
 if ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
-  if sy_in_list "$dir/test-paths" "$target_rel"; then
+  if sy_list_match "$root" test-paths "$rel"; then
     if [ "$is_test_writer" != 1 ]; then
       deny "$rel is a test file (matches '$SY_MATCHED' in $dn/test-paths). The agent that writes the code doesn't write its tests. Spawn the shipinetics:test-writer subagent with the spec or acceptance criteria and the files under test, and let it write or change tests in its own context. If an existing test looks wrong, give test-writer your reasoning and the spec, and it decides."
     fi
@@ -90,7 +83,7 @@ fi
 # Docs and plain text only mention the environment, and reads of safe variables (NODE_ENV, HOME,
 # env_safe_names) don't count.
 case "$target_rel" in *.md|*.mdx|*.markdown|*.txt|*.rst|*.adoc|docs/*) is_doc=1 ;; *) is_doc=0 ;; esac
-if [ "$is_doc" = 0 ] && ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths" ] && ! sy_in_list "$dir/env-allowed-paths" "$target_rel"; then
+if [ "$is_doc" = 0 ] && ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths" ] && ! sy_list_match "$root" env-allowed-paths "$rel"; then
   safe="$(sy_safe_env_names "$root")"
   re='process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|os\.getenv|os\.Getenv|os\.LookupEnv|std::env::var|env::var\(|System\.getenv|ENV\[|ENV\.fetch|getenv\('
   count() { # without perl, count every read
