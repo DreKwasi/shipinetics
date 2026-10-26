@@ -46,7 +46,7 @@ Evidence is real or it's nothing:
    - **iOS simulator:** `xcrun simctl io booted screenshot <file>.png` and `xcrun simctl io booted recordVideo <file>.mov` (stop it with Ctrl-C), or the simulator tool's screenshot action.
 4. **Look at every screenshot** with the Read tool before you list it. Confirm it shows what the row claims. If it doesn't, the feature or the recording is wrong: fix it, don't describe around it.
 5. **Fill in EVIDENCE.md:** for each criterion, the file name and one line on what it shows. Update the commit line to the commit you recorded at.
-6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, and UI changes have a recording.
+6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. So record evidence once the code is final, after review fixes, and a later docs or test commit doesn't make you record it again. If a fix touches code, re-record the criteria it affects and update the Commit line.
 7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipyard:setup` asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
 
 ## Opening the PR
@@ -65,4 +65,4 @@ Push the branch first so the image links resolve. If evidence changes after revi
 
 ## Reviewing a PR
 
-Open the evidence before reading the diff. For each criterion: does the screenshot or transcript actually show the result? Is it from this branch's code (check the commit line)? Anything missing, stale or unconvincing is a finding, severity major.
+Open the evidence before reading the diff. For each criterion: does the screenshot or transcript actually show the result? Is it from this branch's code? `evidence check` fails if code changed after the commit on the Commit line. Anything missing, stale or unconvincing is a finding, severity major.

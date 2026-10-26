@@ -11,6 +11,9 @@
 # Run it inside the git repo the PR comes from. Evidence lives in <evidence_dir>/<worksheet>/ in that
 # repo (default docs/evidence): EVIDENCE.md with one row per acceptance criterion, screenshots,
 # recordings and terminal.log. A change touching a path in .shipyard/ui-paths also needs a recording.
+# Evidence must be fresh: EVIDENCE.md's Commit line names the commit it was recorded at, and no
+# code may have changed since. Changes to docs, Markdown, tests (.shipyard/test-paths), worksheets,
+# .shipyard/ and the evidence itself don't count, so they keep the evidence valid.
 # Worksheets on a branch are found from "Worksheet:" commit trailers and from worksheet copies the
 # branch adds under package_worksheets_dir. Paths come from .shipyard/config (see shipyard-config).
 
@@ -86,6 +89,26 @@ changed_files_of() { # changed_files_of <worksheet> <base>: files under that wor
   fi
 }
 
+fresh_one() { # fresh_one <worksheet> <EVIDENCE.md>: prints a problem if code changed since recording
+  local rec f stale="" n=0
+  rec="$(sed -n 's/^>[[:space:]]*Commit:[[:space:]]*\([0-9a-fA-F]\{7,40\}\).*/\1/p' "$2" | head -n 1)"
+  if [ -z "$rec" ] || ! git rev-parse -q --verify "$rec^{commit}" >/dev/null 2>&1; then
+    echo "  $1: the Commit line in $2 doesn't name a commit in this repo. Set it to the commit you recorded the evidence at."
+    return 1
+  fi
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    case "$f" in "$ev_base"/*|docs/*|*.md|.shipyard/*) continue ;; esac
+    if [ -n "$pkg_ws" ]; then case "$f" in "$pkg_ws"/*) continue ;; esac; fi
+    sy_in_list "$root/.shipyard/test-paths" "$prefix$f" && continue
+    n=$((n + 1)); [ "$n" -le 5 ] && stale="${stale:+$stale, }$f"
+  done < <({ git diff --name-only "$rec" -- . 2>/dev/null; git ls-files --others --exclude-standard; } | sort -u)
+  [ "$n" -eq 0 ] && return 0
+  [ "$n" -gt 5 ] && stale="$stale and $((n - 5)) more"
+  echo "  $1: the evidence was recorded at $rec, but code changed since: $stale. Re-record the criteria those changes affect, then set the Commit line to the commit you recorded at."
+  return 1
+}
+
 check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
   local ws="$1" dir="$ev_base/$1" ev="$ev_base/$1/EVIDENCE.md" bad=0 f p ac line
   if [ ! -f "$ev" ]; then
@@ -108,6 +131,7 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
       echo "  $ws: the $ac row doesn't name an evidence file"; bad=1
     fi
   done
+  fresh_one "$ws" "$ev" || bad=1
   if [ -f "$root/.shipyard/ui-paths" ]; then
     while IFS= read -r f; do
       [ -z "$f" ] && continue
