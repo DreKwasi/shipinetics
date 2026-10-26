@@ -16,7 +16,7 @@
 
 ## Key decisions
 
-{{Why it's built this way, and what was rejected. One line each. Link the worksheet where it was decided.}}
+{{Why it's built this way, and what was rejected. One line each. Link the worksheet where it was decided, or the ADR in docs/adr/ if it's a project-wide decision.}}
 
 ## How to test it
 

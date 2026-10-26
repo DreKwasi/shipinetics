@@ -60,6 +60,19 @@ Docs that state external facts (an API's rate limit, a library's behavior in a v
 - When you change a doc's factual content, get a docs review: `shipyard:reviewer` with stage `docs`, or `agent_review --stage docs --file <doc>`. It returns a claims table with a verdict for every claim (verified, incorrect, unresolved).
 - Fix incorrect claims. Keep unresolved claims visibly marked in the doc (`UNVERIFIED: <what's missing>`) until someone resolves them.
 
+## Where decisions and terms go
+
+One home for each, so they don't drift apart:
+
+| What | Where |
+|---|---|
+| A domain term and what it means | `CONTEXT.md`, the glossary: term, one-line definition, words to avoid. No implementation details |
+| A decision that's hard to reverse, surprising without context, and a real trade-off, across the project | `docs/adr/NNNN-<slug>.md`, 1 to 3 sentences. Link it from the system docs it affects |
+| Why one system is built the way it is | That system doc's Key decisions, one line each |
+| A choice made during one task | The worksheet's Decisions. Promote it to the system doc or an ADR only if it will matter after the task |
+
+The `domain-modeling` skill writes `CONTEXT.md` and ADRs in these formats. Use them in code and docs: a name the glossary says to avoid is a review finding.
+
 ## Persona ownership
 
 The `Owner persona` field says which review persona (shipyard:review) checks this doc when its area changes. When that persona reviews a change, it reports docs that went stale. The author fixes them before the task is done.
