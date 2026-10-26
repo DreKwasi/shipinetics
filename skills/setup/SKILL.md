@@ -97,9 +97,12 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 
 For row R, check with the tools you have: try loading each skill, and call the Whiteboard `session_capabilities` tool. If one is missing, give the user the install command:
 
-- security-audit: `npx skills add cloudflare/security-audit-skill`
+Install skills globally with the `skills` CLI (`-g`), so its lock file records them and `npx skills check` can find their updates later (README, "Keeping companions up to date").
+
+- security-audit: `npx skills add cloudflare/security-audit-skill -g -a claude-code`
 - Impeccable: the Claude Code plugin (`/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`), or `npx impeccable install --providers=claude`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the copy in the repo's `.agents/skills/` folder, written for Codex (`$impeccable` commands, Codex's question tool). If both are installed, `shipinetics:ui-reviewer` uses the plugin.
-- merge-risk: `npx skills add warpdotdev/common-skills --skill merge-risk`
+- merge-risk: `npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code`
+- Matt Pocock's skills (optional, interactive sessions): `npx skills add mattpocock/skills --skill grilling --skill grill-me --skill domain-modeling --skill wait-what -g -a claude-code`
 - Whiteboard: the dev.fast Whiteboard plugin from its marketplace.
 
 ## Phase 1: core loop (points 0, 3, and the verify gate)

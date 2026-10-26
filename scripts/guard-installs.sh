@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# PreToolUse hook for Bash. Asks the user to confirm before an agent installs a skill, plugin,
-# marketplace or MCP server, and reminds them to scan it with SkillSpector first.
-# Anything new gets the same permissions as your agents, so a human checks it.
+# PreToolUse hook for Bash. Asks the user to confirm before an agent installs or updates a skill,
+# plugin, marketplace or MCP server, and reminds them to scan it with SkillSpector first.
+# Anything new, and any new version, gets the same permissions as your agents, so a human checks it.
 # Active in every project. Start Claude Code with SHIPINETICS_ALLOW_INSTALLS=1 to skip it for a session,
 # or switch it off with "hooks_off = installs" in the project or user config.
 
@@ -19,7 +19,8 @@ else
   cmd="$(printf '%s' "$input" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))')"
 fi
 
-re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+add|claude[[:space:]]+plugin[[:space:]]+(install|marketplace[[:space:]]+add)|claude[[:space:]]+mcp[[:space:]]+add'
+# Installs and updates: an update pulls new code too.
+re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add'
 [[ "$cmd" =~ $re ]] || exit 0
 
 if command -v skillspector >/dev/null 2>&1; then
@@ -27,7 +28,7 @@ if command -v skillspector >/dev/null 2>&1; then
 else
   advice="SkillSpector isn't installed, so this hasn't been scanned. Install it (uv tool install git+https://github.com/NVIDIA/skillspector.git) and scan the source first, or approve only if you trust it."
 fi
-reason="shipinetics: this installs new agent tooling that will run with your permissions. $advice See shipinetics:security-scans."
+reason="shipinetics: this installs or updates agent tooling that will run with your permissions. $advice See shipinetics:security-scans."
 
 if command -v jq >/dev/null 2>&1; then
   jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $r}}'

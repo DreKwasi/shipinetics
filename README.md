@@ -41,16 +41,39 @@ shipinetics uses these when they're installed and falls back when they aren't. `
 
 | Companion | Used by | Install |
 |---|---|---|
-| Cloudflare `security-audit` skill | `shipinetics:security-reviewer`, and the full security audit on the cadence you pick (`security_audit_every`, checked by `shipinetics-config due security-audit` in the weekly sweep) | `npx skills add cloudflare/security-audit-skill` |
+| Cloudflare `security-audit` skill | `shipinetics:security-reviewer`, and the full security audit on the cadence you pick (`security_audit_every`, checked by `shipinetics-config due security-audit` in the weekly sweep) | `npx skills add cloudflare/security-audit-skill -g -a claude-code` |
 | Impeccable plugin | `shipinetics:ui-reviewer`, `design-check`, the design-system setup step, HTML explainers | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the repo's `.agents/skills/` copy, written for Codex |
-| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs and L splits, `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `claude plugin install mattpocock-skills@claude-plugins-official`. Some of the others in that pack clash with shipinetics's rules: `shipinetics:workflow` lists which to leave alone |
-| `merge-risk` skill (Warp) | Merge-risk grades on every PR | `npx skills add warpdotdev/common-skills --skill merge-risk` |
+| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs, L splits and hard-to-reverse decisions; `/wait-what` when a message doesn't land; `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `npx skills add mattpocock/skills --skill <name> -g -a claude-code` for each one you want. Some of the others in that pack clash with shipinetics's rules: `shipinetics:workflow` lists which to leave alone |
+| `merge-risk` skill (Warp) | Merge-risk grades on every PR | `npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code` |
 | NVIDIA SkillSpector | `scan-skills`, the install gate | `uv tool install git+https://github.com/NVIDIA/skillspector.git` |
 | Strix | App security testing (shipinetics:security-scans) | See its README. Needs Docker and a provider key in your vault |
 | dev.fast Whiteboard plugin | Whiteboards of changes for human review | from the dev.fast marketplace |
 | Codex, Gemini or Cursor CLI | `agent_review` cross-family reviews | each tool's installer |
 
 They aren't declared as hard plugin dependencies on purpose. A missing hard dependency stops the whole plugin from loading, and some of them (Whiteboard, Docker) won't exist in CI or on every machine.
+
+#### Keeping companions up to date
+
+Companions change upstream, and Shipinetics depends on some of their details, so updates are checked every week but applied only by you:
+
+1. **Check.** The weekly sweep (shipinetics:sweep) runs `npx skills check` for skills, and compares `claude plugin list` with each plugin's marketplace. You can run them any time.
+2. **Scan.** Before you update, scan the new version with SkillSpector (shipinetics:security-scans).
+3. **Update.** Skills: `npx skills update -g <names>`. Plugins: `claude plugin marketplace update <marketplace>`, then `claude plugin update <plugin>@<marketplace>`. CLIs: their own installers. The install gate asks you before an agent runs any of these.
+4. **Re-check.** The sweep reads the updated companion's SKILL.md against the table below. If something Shipinetics relies on changed, it queues a task to update Shipinetics.
+
+`npx skills check` only finds skills installed with the `skills` CLI, so install them that way, with `-g`.
+
+#### What Shipinetics relies on
+
+| Companion | Shipinetics relies on |
+|---|---|
+| `security-audit` | A guidance mode for one change, a full six-phase mode that writes outside the repo (default `~/security-audit-skill/<repo>/run-<N>`), and its severity names |
+| Impeccable | The `critique`, `audit`, `document` and `detect` commands, and DESIGN.md with token frontmatter |
+| `grilling` | A recommended answer for each question, and facts looked up by the agent, not asked of you |
+| `domain-modeling` | The glossary in `GLOSSARY.md` (`GLOSSARY-MAP.md` for several) and ADRs in `docs/adr/` |
+| `wait-what` | A re-pitch in ASD-STE100 with the terms from `GLOSSARY.md` |
+| `diagnosing-bugs` | Its phases 1 to 6, with the regression test in phase 5 |
+| `merge-risk` | A low, medium or high grade with the files that set it |
 
 ### Other skill packs
 
