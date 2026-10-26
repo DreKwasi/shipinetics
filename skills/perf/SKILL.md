@@ -5,7 +5,7 @@ description: Performance benchmarks that catch regressions automatically, plus p
 
 # Performance: benchmarks and profiling
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Two jobs. **Benchmarks** run automatically and fail when a key path gets slower. **Profiling** is how you find out why, and how you prove an optimization worked.
 
@@ -27,7 +27,7 @@ Two jobs. **Benchmarks** run automatically and fail when a key path gets slower.
    | CLI commands | `hyperfine` |
 
 3. **Store baselines** in `perf/baselines/<scenario>.json` with the median, the spread (p95 or stddev), the number of runs, the machine and the commit. `perf/baselines/*` is protected, so agents can't quietly reset them.
-4. **Build the comparison** as a project script, `bin/bench` (shipyard:build-tool). It runs every scenario N times (at least 5, after a warmup), compares the median to the baseline, and fails if any scenario is slower by more than the threshold. Start with 10% and tune it for noise. Its output says which scenario, baseline vs now, and by how much.
+4. **Build the comparison** as a project script, `bin/bench` (shipinetics:build-tool). It runs every scenario N times (at least 5, after a warmup), compares the median to the baseline, and fails if any scenario is slower by more than the threshold. Start with 10% and tune it for noise. Its output says which scenario, baseline vs now, and by how much.
 5. Add `bin/bench` to `bin/verify --full`.
 
 ### Noise

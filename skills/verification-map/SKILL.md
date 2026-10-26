@@ -6,7 +6,7 @@ argument-hint: "[create|maintain|light <feature ids>]"
 
 # The verification map
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 "The build passed" says little about whether a feature works. Proof means using the real app the way a user does, through every way a user can reach the feature, and showing the result and the state it leaves behind. The map makes that repeatable: any agent, on any model, can launch the app, drive a feature and capture proof without rediscovering how. It lives in `docs/verification/` and is committed, so Codex, Cursor and CI agents can read it too. The approach comes from pstack's verification skills.
 
@@ -38,7 +38,7 @@ Start with 3 to 5 features: the ones users depend on most and the ones the curre
 
 ## Evidence standards
 
-These apply wherever the map is used, including shipyard:evidence:
+These apply wherever the map is used, including shipinetics:evidence:
 
 - **The real user path.** No test-only endpoints, fixture servers or injected state, unless that is the product. Mock only at production boundaries (payment provider, email), and say so.
 - **Action and resulting state.** A screenshot of the button is not proof. Show what it did: the new row, the changed total, the file written.
@@ -51,7 +51,7 @@ These apply wherever the map is used, including shipyard:evidence:
 ## Create
 
 1. **Interview the repo, not the user.** Find how the app starts, seeds, logs in and logs, from `AGENTS.md`, `package.json` or the stack's equivalent, the e2e config, CI and the dev scripts. Ask the user only for what you can't find. If the checkout doesn't build or start, fix that first or report it.
-2. **Write the README sections** above with the real commands. Prefer existing harnesses (the e2e setup, a seed script) over new ones. If a step needs a helper script, make it a `bin/` script (shipyard:build-tool), not a paragraph of commands.
+2. **Write the README sections** above with the real commands. Prefer existing harnesses (the e2e setup, a seed script) over new ones. If a step needs a helper script, make it a `bin/` script (shipinetics:build-tool), not a paragraph of commands.
 3. **Write the first feature files.** For each one, actually drive every entry point while you write it, and put the selectors you used in the file.
 4. **Prove it end to end** before handing off: launch from empty data, run the doctor, drive one feature through every entry point, capture its proof, clean up, then confirm the evidence survived cleanup and nothing you started is still running. If you proved it in a stand-in environment, list which launch steps are still unproven.
 5. **Point to it.** In `AGENTS.md`, make "Run the app yourself" point at `docs/verification/README.md`. If the harness supports project skills, add a short `.claude/skills/drive-app/SKILL.md` whose description says it launches and drives this app, and whose body points at the README. Claude Code's built-in `run` skill looks for a project skill like that.
@@ -76,7 +76,7 @@ Edit only `docs/verification/` and its helper scripts, never product code.
 | Workflow step 6 | Drive the touched features from their files, every entry point |
 | A task touches a feature the map lacks | Add its file in the same task |
 | Evidence | The standards above, and the feature ID and entry point in each EVIDENCE.md row |
-| Independent re-check | The wrap-up reviewer re-drives the main touched feature at the final code (shipyard:review) |
-| Night shift | The doctor after `shipyard-verify` at preflight. The re-check at wrap-up is required |
+| Independent re-check | The wrap-up reviewer re-drives the main touched feature at the final code (shipinetics:review) |
+| Night shift | The doctor after `shipinetics-verify` at preflight. The re-check at wrap-up is required |
 | End of shift | `light` for the features the shift touched |
 | Weekly sweep | `maintain` |

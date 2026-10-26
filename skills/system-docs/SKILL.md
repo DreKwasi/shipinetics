@@ -5,7 +5,7 @@ description: Rules for the self-healing system docs in docs/systems/, including 
 
 # Self-healing system docs
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Docs rot because nobody owns updating them. Here, every agent does: whoever changes a system updates its doc in the same change, and whoever finds a wrong doc fixes it.
 
@@ -57,7 +57,7 @@ Every doc in `docs/systems/` starts with exactly these 7 lines (template: `docs/
 Docs that state external facts (an API's rate limit, a library's behavior in a version, a provider's quota) go stale without anyone touching the code. For each such fact:
 
 - Cite an official primary source inline, with the date you checked it: `(source: <URL>, checked 2026-10-26)`.
-- When you change a doc's factual content, get a docs review: `shipyard:reviewer` with stage `docs`, or `agent_review --stage docs --file <doc>`. It returns a claims table with a verdict for every claim (verified, incorrect, unresolved).
+- When you change a doc's factual content, get a docs review: `shipinetics:reviewer` with stage `docs`, or `agent_review --stage docs --file <doc>`. It returns a claims table with a verdict for every claim (verified, incorrect, unresolved).
 - Fix incorrect claims. Keep unresolved claims visibly marked in the doc (`UNVERIFIED: <what's missing>`) until someone resolves them.
 
 ## Where decisions and terms go
@@ -75,7 +75,7 @@ The `domain-modeling` skill writes `CONTEXT.md` and ADRs in these formats. Use t
 
 ## Persona ownership
 
-The `Owner persona` field says which review persona (shipyard:review) checks this doc when its area changes. When that persona reviews a change, it reports docs that went stale. The author fixes them before the task is done.
+The `Owner persona` field says which review persona (shipinetics:review) checks this doc when its area changes. When that persona reviews a change, it reports docs that went stale. The author fixes them before the task is done.
 
 ## Don'ts
 

@@ -6,7 +6,7 @@ argument-hint: "<problem or convention ID>"
 
 # Encode it in a linter
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Every problem a linter catches is one reviewers and agents never have to think about again. The goal isn't to flag problems, it's to end up with clean code automatically.
 
@@ -37,4 +37,4 @@ Go down this list and stop at the first that works:
 
 ## The LLM fallback
 
-`bin/llm-fix <file> "<lint output>"` runs a cheaper model (default: Sonnet through `claude -p`, or a Cursor model with `SHIPYARD_FIX_CLI=cursor`) restricted to reading and editing that one file. If it touches anything else, the change is rolled back. `bin/lint-fix` re-checks afterwards, so a bad LLM fix still fails the commit. Turn it off for a commit with `SHIPYARD_LLM_FIX=0`.
+`bin/llm-fix <file> "<lint output>"` runs a cheaper model (default: Sonnet through `claude -p`, or a Cursor model with `SHIPINETICS_FIX_CLI=cursor`) restricted to reading and editing that one file. If it touches anything else, the change is rolled back. `bin/lint-fix` re-checks afterwards, so a bad LLM fix still fails the commit. Turn it off for a commit with `SHIPINETICS_LLM_FIX=0`.

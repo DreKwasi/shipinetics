@@ -11,8 +11,8 @@
 - Retries, longer timeouts or `waitForTimeout` added instead of fixing a race.
 - New behavior with no test. Bug fixes with no regression test.
 - Test names that claim one thing while the body checks another.
-- Any change to files in `.shipyard/protected-paths`.
-- Tests written by the implementing agent instead of `shipyard:test-writer` (check the worksheet and the commit for how they were produced).
+- Any change to files in `.shipinetics/protected-paths`.
+- Tests written by the implementing agent instead of `shipinetics:test-writer` (check the worksheet and the commit for how they were produced).
 
 **Look for bloat too**
 - Several tests for the same equivalence class that a table would cover.

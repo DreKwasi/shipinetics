@@ -1,12 +1,12 @@
 ---
 name: feedback
-description: Write end-of-session feedback about what slowed the agent down, and periodically ingest that feedback to improve docs, skills, tools and lint rules. Use at the end of every session that changed code, and when the user runs /shipyard:feedback ingest.
+description: Write end-of-session feedback about what slowed the agent down, and periodically ingest that feedback to improve docs, skills, tools and lint rules. Use at the end of every session that changed code, and when the user runs /shipinetics:feedback ingest.
 argument-hint: "[ingest]"
 ---
 
 # Agent feedback
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Mode: `$ARGUMENTS` (empty means write an entry, `ingest` means process the backlog).
 
@@ -43,4 +43,4 @@ Run this with the user every week or two, or when the backlog gets long.
 6. **Look at the numbers.** Read the Metrics blocks of worksheets since the last ingest, and `docs/metrics/runs.csv` if night shifts ran. Summarize per accepted task: cost, turns, review rounds, corrections after human review, human review minutes, and the share of tasks accepted. Show the user any trend, and which feedback cluster it might explain. Also compare merge-risk grades with what actually happened: if low-risk tasks keep needing corrections, the grading (or the evidence behind it) can't be trusted yet, and that's worth fixing before anyone reviews less.
 7. **Change one thing at a time.** When a fix changes the setup itself (effort level, a skill, a reviewer, a model), say so in the commit and note the date. Compare the next batch of accepted tasks against the previous one on the same metrics before changing anything else. Two changes at once make the numbers unreadable.
 8. Move the marker to today's date: `<!-- ingested through: YYYY-MM-DD -->`. Leave old entries in place above it.
-9. Commit each approved fix separately, with a message saying what changed and which feedback it addresses. These fixes belong to no task's worksheet, so commit with `SHIPYARD_ALLOW_NO_WORKSHEET=1`.
+9. Commit each approved fix separately, with a message saying what changed and which feedback it addresses. These fixes belong to no task's worksheet, so commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`.

@@ -45,7 +45,7 @@ Write it so another agent could take over from the last entry.>
 ## Verified
 
 <What you actually checked and how: commands run, screens clicked through, screenshots taken.
-Evidence: docs/evidence/{{NAME}}/EVIDENCE.md (shipyard:evidence). Also what you didn't verify, and why.>
+Evidence: docs/evidence/{{NAME}}/EVIDENCE.md (shipinetics:evidence). Also what you didn't verify, and why.>
 
 ## Reviews
 
@@ -72,7 +72,7 @@ each, with the evidence. Until a human approves, the change uses existing tokens
 ## Metrics
 
 <Fill in at wrap-up. Leave a cell blank rather than guess. The night shift launcher records cost,
-turns and duration in .shipyard/.cache/night/<date>/metrics.csv. In an interactive session the human
+turns and duration in .shipinetics/.cache/night/<date>/metrics.csv. In an interactive session the human
 can read cost from /usage.>
 
 | Metric | Value |

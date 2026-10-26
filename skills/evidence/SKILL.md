@@ -6,7 +6,7 @@ argument-hint: "[worksheet]"
 
 # Evidence: show it working
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 A PR without proof that it works isn't worth a reviewer's time. Passing tests are necessary, not sufficient: tests can be wrong, and they never show what the user sees. So every PR carries evidence recorded from the real, running app at the PR's code: screenshots for each acceptance criterion, a screen recording for anything visual, and terminal transcripts for CLIs, APIs and jobs.
 
@@ -22,14 +22,14 @@ Worksheet: `$ARGUMENTS` (default: the current one).
 
 | Change | Required evidence |
 |---|---|
-| UI (any path in `.shipyard/ui-paths`) | A screenshot per acceptance criterion showing the observable result, a mobile-width screenshot of the main changed screen, and one screen recording of the whole flow |
+| UI (any path in `.shipinetics/ui-paths`) | A screenshot per acceptance criterion showing the observable result, a mobile-width screenshot of the main changed screen, and one screen recording of the whole flow |
 | CLI | A terminal transcript per criterion: the real command and its real output, via `evidence run` |
 | API | A transcript of real requests against the running service (curl or httpie through `evidence run`), showing status and body |
 | Background job, data change | A transcript of triggering it and of the resulting state (a query, a log line, a file) |
 | Bug fix | The same, showing the bug's reproduction steps now producing the right result. If you can, also the "before" from the base commit |
 | Docs, config, tests only | None. Humans add the `no-evidence` label; the hook passes docs-only branches by itself |
 
-Evidence is real or it's nothing. The verification map's evidence standards apply (shipyard:verification-map): the real user path, the action *and* the resulting state, changes read back from a second view, every entry point the feature lists, each artifact labeled with its feature ID and entry point. In short:
+Evidence is real or it's nothing. The verification map's evidence standards apply (shipinetics:verification-map): the real user path, the action *and* the resulting state, changes read back from a second view, every entry point the feature lists, each artifact labeled with its feature ID and entry point. In short:
 
 - Recorded from the app started the normal way (`bin/with-secrets <start command>`), at the code you're submitting. Not mocks, not Storybook, not a test's fixture server, unless that is the product.
 - Shows the result the criterion talks about, not just that a page loaded, and the state it left behind.
@@ -48,7 +48,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 4. **Look at every screenshot** with the Read tool before you list it. Confirm it shows what the row claims. If it doesn't, the feature or the recording is wrong: fix it, don't describe around it.
 5. **Fill in EVIDENCE.md:** for each criterion, the file name and one line on what it shows. Update the commit line to the commit you recorded at.
 6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. Record it when the feature works (workflow step 6), so reviewers can start from it. A later docs or test commit doesn't make you record it again. If a review fix touches code, re-record the criteria it affects at wrap-up and update the Commit line. Only this branch's own changes count, so merging main doesn't make evidence stale.
-7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipyard:setup` asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
+7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipinetics:setup` asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
 
 ## Opening the PR
 
@@ -56,7 +56,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 evidence pr-body > "$TMPDIR/pr-body.md"
 ```
 
-Put your summary above the generated `## Evidence` section in that file (what changed, why, how it was verified, anything not verified). Add a `## Merge risk` section after it with the independent grade (shipyard:review, "Merge risk"). Then:
+Put your summary above the generated `## Evidence` section in that file (what changed, why, how it was verified, anything not verified). Add a `## Merge risk` section after it with the independent grade (shipinetics:review, "Merge risk"). Then:
 
 ```bash
 gh pr create --title "<title>" --body-file "$TMPDIR/pr-body.md"

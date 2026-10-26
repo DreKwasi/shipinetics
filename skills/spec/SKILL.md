@@ -1,12 +1,12 @@
 ---
 name: spec
-description: Turn an issue, task or idea into a spec with runnable acceptance criteria, then have the independent test-writer produce failing acceptance tests before any implementation. Use at the start of any task size M or larger, when the user runs /shipyard:spec, or when a queue task lacks clear acceptance criteria.
+description: Turn an issue, task or idea into a spec with runnable acceptance criteria, then have the independent test-writer produce failing acceptance tests before any implementation. Use at the start of any task size M or larger, when the user runs /shipinetics:spec, or when a queue task lacks clear acceptance criteria.
 argument-hint: "<issue URL, task ID or description>"
 ---
 
 # Spec: intent to acceptance criteria
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Input: `$ARGUMENTS`. Fetch it if it's an issue URL (`gh issue view`) or a task ID (`TODOS.md`).
 
@@ -21,9 +21,9 @@ The human's job is intent and acceptance criteria. Your job is to make those cri
    - **Autonomous:** never grill: nobody can answer. If the gap is a product decision, mark the task blocked with the question and stop. If it's a technical detail, decide, and record the decision under Open questions so a human can overrule it.
    - If a question needs a runnable answer (does this interaction feel right, does this state model hold), build a throwaway prototype (the `prototype` skill, interactive only), record what it showed under Approach, and delete it.
 3. **Write the spec** to `docs/specs/<slug>.md` using the format below.
-4. **Have the acceptance tests written independently.** Spawn the `shipyard:test-writer` subagent in `acceptance` mode with the spec path. You don't write them yourself: the hook won't let you, and tests written by the implementer share its blind spots. Test-writer writes `e2e/acceptance/<slug>.spec.ts` (or the stack's equivalent), one test per criterion named after it, and confirms they fail now for the right reason. Read its report: a criterion it couldn't test usually means the criterion isn't observable yet. Fix the spec and ask again.
-5. **They're protected now.** Files in `e2e/acceptance/` are in `.shipyard/protected-paths` by default. If the tests live elsewhere, add their paths. From here on, no agent can modify them without a human unlocking it.
-6. **Review.** Get a plan review of the spec (shipyard:review plan). Interactive: show the user the criteria and get a yes before implementation.
+4. **Have the acceptance tests written independently.** Spawn the `shipinetics:test-writer` subagent in `acceptance` mode with the spec path. You don't write them yourself: the hook won't let you, and tests written by the implementer share its blind spots. Test-writer writes `e2e/acceptance/<slug>.spec.ts` (or the stack's equivalent), one test per criterion named after it, and confirms they fail now for the right reason. Read its report: a criterion it couldn't test usually means the criterion isn't observable yet. Fix the spec and ask again.
+5. **They're protected now.** Files in `e2e/acceptance/` are in `.shipinetics/protected-paths` by default. If the tests live elsewhere, add their paths. From here on, no agent can modify them without a human unlocking it.
+6. **Review.** Get a plan review of the spec (shipinetics:review plan). Interactive: show the user the criteria and get a yes before implementation.
 7. **Write the goal line.** Add a `## Goal` section to the spec with a ready-to-paste `/goal` condition built from the acceptance criteria (format below). Interactive: show it to the user and suggest they paste it to run the implementation to completion. Claude can't set a goal itself.
 8. Link the spec and tests from the worksheet and the queue task.
 
@@ -34,15 +34,15 @@ The human's job is intent and acceptance criteria. Your job is to make those cri
 Build it from the acceptance criteria:
 
 - **One measurable end state per criterion**, each with a stated check: "the AC1 to AC4 tests in `e2e/acceptance/refunds.spec.ts` pass, shown by running them".
-- **The standing checks:** `shipyard-verify` exits 0 with its output shown (the complete tier); the implementation review verdict is approve, or every finding has a recorded response in the worksheet.
-- **Constraints:** no file in `e2e/acceptance/` or any protected path is modified; tests are only changed by shipyard:test-writer.
+- **The standing checks:** `shipinetics-verify` exits 0 with its output shown (the complete tier); the implementation review verdict is approve, or every finding has a recorded response in the worksheet.
+- **Constraints:** no file in `e2e/acceptance/` or any protected path is modified; tests are only changed by shipinetics:test-writer.
 - **Deliverables:** the worksheet is updated and the work is committed with the `Worksheet:` trailer.
 - **A turn bound:** "If this isn't met after 15 turns, stop and report the blocker." It's judged by the model, so the hard limits stay with the launcher or you.
 
 Example:
 
 ```
-/goal The refund-rounding spec is implemented: the AC1 to AC4 tests in e2e/acceptance/refunds.spec.ts pass (run them and show the output), shipyard-verify exits 0 (show the output), the shipyard:reviewer implementation review is approve or every finding has a response in the worksheet, no file under e2e/acceptance/ was modified, and the work is committed with the Worksheet trailer. If this isn't met after 15 turns, stop and report the blocker.
+/goal The refund-rounding spec is implemented: the AC1 to AC4 tests in e2e/acceptance/refunds.spec.ts pass (run them and show the output), shipinetics-verify exits 0 (show the output), the shipinetics:reviewer implementation review is approve or every finding has a response in the worksheet, no file under e2e/acceptance/ was modified, and the work is committed with the Worksheet trailer. If this isn't met after 15 turns, stop and report the blocker.
 ```
 
 Keep it under 4,000 characters.

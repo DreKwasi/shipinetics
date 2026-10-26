@@ -1,12 +1,12 @@
 ---
 name: sweep
-description: Periodic sweep across recent commits looking for problems no single review sees, like duplication between tasks, drifting patterns, half-finished migrations and stale docs. Use weekly, at end of shift for that day's commits, or when the user runs /shipyard:sweep.
+description: Periodic sweep across recent commits looking for problems no single review sees, like duplication between tasks, drifting patterns, half-finished migrations and stale docs. Use weekly, at end of shift for that day's commits, or when the user runs /shipinetics:sweep.
 argument-hint: "[since: date, ref or 'last-sweep']"
 ---
 
 # Commit sweep
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Per-task reviews look at one diff. Problems that span diffs slip through: two agents writing the same helper on different days, a pattern that drifts a bit with each change, a migration started and never finished. A sweep reads across commits to catch those.
 
@@ -34,15 +34,15 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Complexity hot spots:** files changed in many commits this period. Churn often means a missing abstraction or a confusing module.
 - **Worksheet follow-ups** that never made it into the queue.
 - **Review dispositions** marked "deferred" whose queue task doesn't exist.
-- **Guardrails not in force:** rerun rows S and V of the setup audit (shipyard:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
-- **Verification map drift:** run shipyard:verification-map `maintain` (weekly sweeps; at end of shift, `light` instead). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
-- **Verify time:** `shipyard-verify times 7`. If the quick tier regularly takes more than a minute, find which step is slow and scope it better. If the complete tier keeps failing at the done gate on things the quick tier could have caught, move a scoped version of that check into `--quick`.
+- **Guardrails not in force:** rerun rows S and V of the setup audit (shipinetics:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
+- **Verification map drift:** run shipinetics:verification-map `maintain` (weekly sweeps; at end of shift, `light` instead). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
+- **Verify time:** `shipinetics-verify times 7`. If the quick tier regularly takes more than a minute, find which step is slow and scope it better. If the complete tier keeps failing at the done gate on things the quick tier could have caught, move a scoped version of that check into `--quick`.
 
 ## Act
 
 - **Small, safe fixes** (stale doc lines, a missing queue task, a leftover debug line): fix them now, with `bin/verify` passing, in a commit with the trailer `Worksheet: <sweep worksheet name>`.
 - **Anything larger:** add a task to the queue with the evidence (commits, files).
-- **Recurring problems:** propose a lint rule (shipyard:lint-rule) or a convention.
+- **Recurring problems:** propose a lint rule (shipinetics:lint-rule) or a convention.
 - **Architecture:** if the same complexity hot spots show up sweep after sweep, suggest the user run `/improve-codebase-architecture` (Matt Pocock's skill, interactive) on them, and add what they choose to the queue. Its report opens with `open`, which some sandboxes block: give the user the path instead.
 
 ## Report

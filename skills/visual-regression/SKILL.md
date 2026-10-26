@@ -5,7 +5,7 @@ description: Set up and run screenshot-based visual regression tests, combining 
 
 # Visual regression
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Two layers, because each misses what the other catches:
 
@@ -25,7 +25,7 @@ Two layers, because each misses what the other catches:
 4. **Store baselines.** Ask the user which they prefer:
    - **git LFS** (recommended once there are more than a handful): `git lfs install`, then `git lfs track "e2e/**/*-snapshots/**"`, and commit `.gitattributes`. Add `lfs: true` to the CI checkout step.
    - **PR artifacts:** CI uploads screenshots and diffs as artifacts or posts them to the PR, with baselines kept in plain git.
-5. **Protect baselines.** `*-snapshots/*` is in `.shipyard/protected-paths` by default, so agents can't quietly regenerate them.
+5. **Protect baselines.** `*-snapshots/*` is in `.shipinetics/protected-paths` by default, so agents can't quietly regenerate them.
 6. Add the visual run to `bin/verify --full`.
 
 ## Writing a visual test
@@ -48,7 +48,7 @@ test('invoice page @visual', async ({ page }) => {
 2. Decide: **intended** (the task changed this UI on purpose) or **regression** (it shouldn't have changed).
 3. **Regression:** fix the code. Never update the baseline to make a regression pass.
 4. **Intended:** look at the actual image as a designer would. Is anything clipped, overlapping, misaligned, unreadable, or off-brand (against DESIGN.md and the existing components)? Check dark mode and a narrow viewport if the change could affect them.
-5. Baselines are protected, so updating them is a human decision. Write in the worksheet under "Test change requests": which screenshot, why it changed, and your visual review of the new version. Attach or link the actual image. A human runs the update with `SHIPYARD_UNLOCK=1` or approves it in the PR.
+5. Baselines are protected, so updating them is a human decision. Write in the worksheet under "Test change requests": which screenshot, why it changed, and your visual review of the new version. Attach or link the actual image. A human runs the update with `SHIPINETICS_UNLOCK=1` or approves it in the PR.
 
 ## Agent visual review without a failing test
 

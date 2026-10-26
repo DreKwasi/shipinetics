@@ -6,7 +6,7 @@ argument-hint: "[skills|app|all]"
 
 # Security scans
 
-> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+> Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 
 Shipping faster is only good if you aren't shipping vulnerabilities faster. Two tools cover what code review alone misses:
 
@@ -17,7 +17,7 @@ Scope: `$ARGUMENTS` (default: `skills`).
 
 ## SkillSpector: what your agents load
 
-**Install:** `uv tool install git+https://github.com/NVIDIA/skillspector.git` (or its Docker image). `/shipyard:setup` checks for it.
+**Install:** `uv tool install git+https://github.com/NVIDIA/skillspector.git` (or its Docker image). `/shipinetics:setup` checks for it.
 
 **Before installing anything** (a skill, a plugin, an MCP server), scan the source first:
 
@@ -33,7 +33,7 @@ skillspector scan <git URL, folder, SKILL.md or zip> --no-llm
 
 A hook asks the user to confirm every `npx skills add`, `claude plugin install`, `claude plugin marketplace add` and `claude mcp add`, so a human sees the scan result before anything new gets your permissions.
 
-**Everything already installed:** `scan-skills` scans user skills, installed plugins, this project's skills and agents, and shipyard itself, and writes a summary to `docs/security/skill-scans/<date>.md`. Run it in the weekly security pass and after adding or updating any skill or plugin. It exits 1 if anything is `DO_NOT_INSTALL`.
+**Everything already installed:** `scan-skills` scans user skills, installed plugins, this project's skills and agents, and shipinetics itself, and writes a summary to `docs/security/skill-scans/<date>.md`. Run it in the weekly security pass and after adding or updating any skill or plugin. It exits 1 if anything is `DO_NOT_INSTALL`.
 
 **Accepted findings:** when the user reviews a finding and accepts it, record it in a SkillSpector baseline (`skillspector baseline <path> -o .skillspector-baseline.yaml --reason "<why>"`) so later scans only show new findings. Never baseline a finding without the user's say-so.
 
@@ -41,7 +41,7 @@ A hook asks the user to confirm every `npx skills add`, `claude plugin install`,
 
 ## Strix: security testing of your own app
 
-**Install:** see the Strix README (it needs Docker and an LLM provider key). Store the key in the vault and add it to `.shipyard/secrets.list`, so runs go through `bin/with-secrets`.
+**Install:** see the Strix README (it needs Docker and an LLM provider key). Store the key in the vault and add it to `.shipinetics/secrets.list`, so runs go through `bin/with-secrets`.
 
 **Rules, every time:**
 
@@ -55,9 +55,9 @@ A hook asks the user to confirm every `npx skills add`, `claude plugin install`,
 
 **Acting on findings:**
 
-1. Each confirmed finding becomes a queue task (shipyard:task-queue) with its severity. Critical and high go to the top as P0 or P1.
-2. Fix through the normal workflow. `shipyard:test-writer` writes a regression test that fails while the issue exists.
-3. `shipyard:security-reviewer` reviews the fix.
+1. Each confirmed finding becomes a queue task (shipinetics:task-queue) with its severity. Critical and high go to the top as P0 or P1.
+2. Fix through the normal workflow. `shipinetics:test-writer` writes a regression test that fails while the issue exists.
+3. `shipinetics:security-reviewer` reviews the fix.
 4. Re-run the same Strix check against the fix to confirm it's closed, with the user's approval again.
 
 ## When each runs
@@ -66,5 +66,5 @@ A hook asks the user to confirm every `npx skills add`, `claude plugin install`,
 |---|---|
 | Before any skill, plugin or MCP install | `skillspector scan <source> --no-llm` |
 | Weekly security pass | `scan-skills`, plus a review of new CAUTION results with the user |
-| Changes to auth, input handling, permissions or dependencies | `shipyard:security-reviewer` (always), plus a Strix quick scan of the local app if the user approves |
-| Before a release | Full security-audit run (shipyard:review), Strix against staging if the user approves, `scan-skills` |
+| Changes to auth, input handling, permissions or dependencies | `shipinetics:security-reviewer` (always), plus a Strix quick scan of the local app if the user approves |
+| Before a release | Full security-audit run (shipinetics:review), Strix against staging if the user approves, `scan-skills` |
