@@ -32,7 +32,7 @@ Then the companions. Each is optional, and shipyard tells you when one is missin
 npx skills add cloudflare/security-audit-skill
 ```
 
-Impeccable, as the Claude Code plugin (not `npx skills add`, which installs its Codex build). In Claude Code:
+Impeccable, as the Claude Code plugin. Not `npx skills add`, which installs the repo's `.agents/skills/` copy, written for Codex. In Claude Code:
 
 ```
 /plugin marketplace add pbakaus/impeccable
@@ -43,7 +43,7 @@ Then open `/plugin` and install Impeccable from the list.
 Optionally, Matt Pocock's skills, for grilling a plan before the spec and naming domain terms. `shipyard:workflow` says which ones fit and which to leave alone:
 
 ```bash
-npx skills add mattpocock/skills
+claude plugin install mattpocock-skills@claude-plugins-official
 ```
 
 ```bash

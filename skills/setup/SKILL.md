@@ -76,7 +76,12 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 | X | Security tools | SkillSpector installed (`scan-skills` runs), Strix installed with its provider key in the vault, Docker available |
 | E | Explainers | `.shipyard/explainers/` gitignored. Optional: Manim or Remotion, a local TTS, an ElevenLabs key in Secret Manager |
 
-For row R, check with the tools you have: try loading each skill, and call the Whiteboard `session_capabilities` tool. If one is missing, give the user the install command: `npx skills add cloudflare/security-audit-skill`, the Impeccable plugin for Claude Code (`/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`), or `npx impeccable install --providers=claude`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the Codex build, whose instructions name Codex's tools. If both are installed, `shipyard:ui-reviewer` uses the plugin, `npx skills add warpdotdev/common-skills --skill merge-risk`, and the dev.fast Whiteboard plugin from its marketplace.
+For row R, check with the tools you have: try loading each skill, and call the Whiteboard `session_capabilities` tool. If one is missing, give the user the install command:
+
+- security-audit: `npx skills add cloudflare/security-audit-skill`
+- Impeccable: the Claude Code plugin (`/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`), or `npx impeccable install --providers=claude`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the copy in the repo's `.agents/skills/` folder, written for Codex (`$impeccable` commands, Codex's question tool). If both are installed, `shipyard:ui-reviewer` uses the plugin.
+- merge-risk: `npx skills add warpdotdev/common-skills --skill merge-risk`
+- Whiteboard: the dev.fast Whiteboard plugin from its marketplace.
 
 ## Phase 1: core loop (points 0, 3, and the verify gate)
 

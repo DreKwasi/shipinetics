@@ -39,7 +39,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 
 ## How to capture it
 
-1. **Start the file:** `evidence init`. It creates `docs/evidence/<worksheet>/EVIDENCE.md` with a row for every acceptance criterion in the worksheet.
+1. **Commit the code first,** so the evidence can name the commit it shows. Then **start the file:** `evidence init`. It creates `docs/evidence/<worksheet>/EVIDENCE.md` with a row for every acceptance criterion in the worksheet.
 2. **Run the app** and check it works before recording.
 3. **Record:**
    - **Web:** copy `${CLAUDE_SKILL_DIR}/record-template.mjs` to `docs/evidence/<worksheet>/record.mjs`, write one block per criterion (act, wait for the visible result, screenshot `AC<n>-<name>.png`), and run it with the base URL: `node docs/evidence/<worksheet>/record.mjs http://localhost:3000`. It saves the screenshots and `walkthrough.webm`, and fails if the page logged errors.
@@ -47,7 +47,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
    - **iOS simulator:** `xcrun simctl io booted screenshot <file>.png` and `xcrun simctl io booted recordVideo <file>.mov` (stop it with Ctrl-C), or the simulator tool's screenshot action.
 4. **Look at every screenshot** with the Read tool before you list it. Confirm it shows what the row claims. If it doesn't, the feature or the recording is wrong: fix it, don't describe around it.
 5. **Fill in EVIDENCE.md:** for each criterion, the file name and one line on what it shows. Update the commit line to the commit you recorded at.
-6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. So record evidence once the code is final, after review fixes, and a later docs or test commit doesn't make you record it again. If a fix touches code, re-record the criteria it affects and update the Commit line.
+6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. Record it when the feature works (workflow step 6), so reviewers can start from it. A later docs or test commit doesn't make you record it again. If a review fix touches code, re-record the criteria it affects at wrap-up and update the Commit line. Only this branch's own changes count, so merging main doesn't make evidence stale.
 7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipyard:setup` asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
 
 ## Opening the PR

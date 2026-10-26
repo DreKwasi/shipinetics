@@ -71,7 +71,7 @@ Tests aren't enough. Start the app and run the doctor check from `docs/verificat
 
 For web apps, drive it with Playwright or the Playwright MCP and take a screenshot of the result. Look at the screenshot. For CLIs and APIs, run the real commands and read the output. Write what you checked, and what you saw, in the worksheet.
 
-Once it works, **record the evidence** (shipyard:evidence): a screenshot per acceptance criterion and a screen recording for UI changes, or terminal transcripts for CLIs and APIs, saved in `docs/evidence/<worksheet>/` and checked with `evidence check`. Every PR needs it, and the hook won't let a PR open without it.
+Once it works, commit, then **record the evidence** (shipyard:evidence) and set its Commit line to that commit: a screenshot per acceptance criterion and a screen recording for UI changes, or terminal transcripts for CLIs and APIs, saved in `docs/evidence/<worksheet>/` and checked with `evidence check`. Recording now lets reviewers start from it. If a review fix later changes code, `evidence check` names the files, and you re-record the criteria they affect at wrap-up. Every PR needs it, and the hook won't let a PR open without it.
 
 ## 7. Verify
 
@@ -96,7 +96,7 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipya
 
 ## 10. Wrap up
 
-1. Wrap-up review for S and up (shipyard:review wrapup).
+1. If review fixes changed code since the evidence was recorded, re-record the affected criteria now (`evidence check` says which). Then the wrap-up review for S and up (shipyard:review wrapup).
 2. Commit what's left: evidence, docs, the worksheet. Message says why, not just what. Add the trailer line `Worksheet: <name>`.
 3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, add your summary above the Evidence section, get the merge-risk grade from an independent reviewer and add it below (shipyard:review), then `gh pr create --body-file "$TMPDIR/pr-body.md"` (shipyard:evidence).
 4. Mark the worksheet done with a summary and exact next steps, if any. Fill in its Metrics block (shipyard:worksheet). `worksheet tag`.
@@ -120,6 +120,6 @@ If they're installed, use these at the matching step. Shipyard's rules win where
 Don't run these next to shipyard, because they bypass its rules:
 
 - Any `tdd` skill (Matt Pocock's, pstack's). The implementer writes its own tests there, and here the hook only lets test-writer touch test files. Test-writer already follows the same rules: test behavior at the highest seam, no tautological tests, mock only at boundaries.
-- `implement`, Matt Pocock's `code-review` and the `code-review` plugin. Use shipyard:review, which uses a different model and records every response.
-- `to-prd`, `to-issues` and `triage`, unless the project's queue really is GitHub issues. They write a second spec format and a second queue. A to-prd issue can still be the input to shipyard:spec.
+- `implement` and `implement-spec`, Matt Pocock's `code-review` and `pr`, and the `code-review` plugin. Use shipyard:review, which uses a different model and records every response.
+- `to-spec`, `to-tickets` and `triage` (`to-prd` and `to-issues` in older installs), unless the project's queue really is GitHub issues. They write a second spec format and a second queue. An issue they write can still be the input to shipyard:spec.
 - `setup-matt-pocock-skills` (it writes into `CLAUDE.md`; shipyard keeps content in `AGENTS.md`), pstack's `poteto-mode` router, and its `autopilot` and `shipping` playbooks (they merge and force-push).
