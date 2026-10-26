@@ -33,6 +33,8 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Complexity hot spots:** files changed in many commits this period. Churn often means a missing abstraction or a confusing module.
 - **Worksheet follow-ups** that never made it into the queue.
 - **Review dispositions** marked "deferred" whose queue task doesn't exist.
+- **Guardrails not in force:** rerun rows S and V of the setup audit (shipyard:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
+- **Verify time:** `shipyard-verify times 7`. If the quick tier regularly takes more than a minute, find which step is slow and scope it better. If the complete tier keeps failing at the done gate on things the quick tier could have caught, move a scoped version of that check into `--quick`.
 
 ## Act
 
