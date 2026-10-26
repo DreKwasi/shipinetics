@@ -82,6 +82,8 @@ At mid-task stops the Stop hook runs only the quick tier, scoped to your changes
 
 Implementation review is required for every task above XS (shipyard:review impl). That includes the security reviewer when the change touches anything security-relevant and the UI reviewer when it touches UI. Respond to every finding in the worksheet: fixed, disagree with a reason, or deferred to the queue.
 
+For UI changes, run `design-check` yourself before review and fix what it finds. A value outside DESIGN.md either becomes the documented token, or, if the design really needs something new, goes in the worksheet's "Design-system change requests" for a human to approve. Don't add tokens or edit DESIGN.md to make a finding go away.
+
 For tasks M and up, also author a Whiteboard of the change for the human (shipyard:review, "Whiteboard for the human"), if Whiteboard is installed.
 
 ## 9. Keep the docs true

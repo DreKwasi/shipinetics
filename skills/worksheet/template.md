@@ -56,6 +56,15 @@ Evidence: docs/evidence/{{NAME}}/EVIDENCE.md (shipyard:evidence). Also what you 
 
 <Protected tests or baselines you believe are wrong, with your reasoning. A human decides.>
 
+## Design-system change requests
+
+<Changes to DESIGN.md or the design tokens you think the project needs: a value that should become
+a token, a missing component state, near-duplicate tokens, a gap the UI reviewer found. One row
+each, with the evidence. Until a human approves, the change uses existing tokens. A human decides.>
+
+| # | Proposed change | Why (evidence) | Status |
+|---|---|---|---|
+
 ## Blockers
 
 <Anything stopping progress, what you tried, and what's needed to unblock it.>

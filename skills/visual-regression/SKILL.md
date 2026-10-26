@@ -47,7 +47,7 @@ test('invoice page @visual', async ({ page }) => {
 1. Open the three images Playwright writes to `test-results/` (expected, actual, diff). Read each PNG with the Read tool and look at them.
 2. Decide: **intended** (the task changed this UI on purpose) or **regression** (it shouldn't have changed).
 3. **Regression:** fix the code. Never update the baseline to make a regression pass.
-4. **Intended:** look at the actual image as a designer would. Is anything clipped, overlapping, misaligned, unreadable, or off-brand? Check dark mode and a narrow viewport if the change could affect them.
+4. **Intended:** look at the actual image as a designer would. Is anything clipped, overlapping, misaligned, unreadable, or off-brand (against DESIGN.md and the existing components)? Check dark mode and a narrow viewport if the change could affect them.
 5. Baselines are protected, so updating them is a human decision. Write in the worksheet under "Test change requests": which screenshot, why it changed, and your visual review of the new version. Attach or link the actual image. A human runs the update with `SHIPYARD_UNLOCK=1` or approves it in the PR.
 
 ## Agent visual review without a failing test

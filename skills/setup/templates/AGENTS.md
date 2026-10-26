@@ -29,6 +29,7 @@ Always run the app and use the feature you changed before you say it works. Test
 | What to work on | `TODOS.md` {{OR_LINEAR}} |
 | What happened in past sessions | `docs/worksheets/`. Find by tag with `git tag -l 'ws/*'` or by commit trailer with `git log --grep "Worksheet:"` |
 | Review personas for this domain | `docs/review/personas/` |
+| Design system (UI projects) | `DESIGN.md`: its frontmatter is the token list. `PRODUCT.md` for who it's for. Check a branch with `design-check`. Propose token changes in the worksheet, don't make them |
 
 ## Docs stay true
 

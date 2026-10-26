@@ -7,3 +7,9 @@
 e2e/acceptance/*
 *-snapshots/*
 perf/baselines/*
+
+# The design system, if the user wants token changes to need a human (setup asks).
+# Agents propose changes as design-system change requests in their worksheet instead.
+# DESIGN.md
+# .impeccable/design.json
+# src/styles/tokens.css

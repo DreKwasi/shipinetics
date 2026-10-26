@@ -16,7 +16,7 @@ The user would rather come back to two tasks done right and one clearly blocked 
 - **Never** push, merge, deploy, publish, change CI config, delete data, rewrite git history, or switch away from the night branch.
 - **Never** try to see a secret. Run anything that needs secrets through `bin/with-secrets`. If a task needs a new secret, it's blocked until a human creates it in the vault (shipyard:secrets).
 - **Never** write tests yourself. Spawn `shipyard:test-writer` (shipyard:testing). The hook enforces it.
-- **Never** modify protected files (`.shipyard/protected-paths`). Test change requests go in the worksheet.
+- **Never** modify protected files (`.shipyard/protected-paths`). Test change requests and design-system change requests go in the worksheet.
 - **Never** upgrade a dependency's major version, add a new dependency, or change the database schema unless the task explicitly asks for it.
 - **Never** weaken a check to get green. If `bin/verify` can't pass, the task is blocked, not done.
 - **Stay in scope.** Work you notice outside the task goes in the queue, not in this run.

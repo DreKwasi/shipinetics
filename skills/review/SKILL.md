@@ -43,13 +43,13 @@ Persona files live in `${CLAUDE_SKILL_DIR}/personas/`. A project can add its own
 | `test-integrity` | Any test file changed. Always at impl stage | `shipyard:reviewer` with this persona |
 | `ai-smells` | Every impl review | `shipyard:reviewer` or `agent_review --persona ai-smells` |
 | **security** | Auth, input handling, file or network access, secrets or config, permissions, dependencies, anything reachable by untrusted users | `shipyard:security-reviewer`, which uses Cloudflare's `security-audit` skill in guidance mode plus the security persona. Add `agent_review --persona security` for a second family on high-risk changes |
-| **frontend** | Any change to UI: components, styles, routes, copy, layout | `shipyard:ui-reviewer`, which runs impeccable's `critique` and `audit` against real screenshots |
+| **frontend** | Any change to UI: components, styles, routes, copy, layout | `shipyard:ui-reviewer`, which checks conformance to DESIGN.md (`design-check` plus a manual pass), then runs impeccable's `critique` and `audit` against real screenshots. Its "Design-system gaps" go to the worksheet's design-system change requests |
 | `performance` | Hot paths, loops over data, queries, rendering, startup, bundle size | `shipyard:reviewer` with this persona |
 | `maintainability` | New modules, new abstractions, large diffs, changes to shared code | `shipyard:reviewer` with this persona |
 | `code-quality` | Medium and larger diffs | `agent_review --persona code-quality` |
 | domain persona (e.g. `domain-finance`) | Anything touching that domain's rules. The project defines these from `domain-expert-template.md` | `shipyard:reviewer` with this persona |
 
-The security and frontend reviewers depend on skills you install separately: `security-audit` (from `cloudflare/security-audit-skill`) and `impeccable` (from `pbakaus/impeccable`). If one is missing, its reviewer says so and falls back to the persona file. `/shipyard:setup` checks for both.
+The security and frontend reviewers depend on skills you install separately: `security-audit` (from `cloudflare/security-audit-skill`) and `impeccable` (the plugin from the `pbakaus/impeccable` marketplace). If one is missing, its reviewer says so and falls back to the persona file. `/shipyard:setup` checks for both.
 
 ### Full security audit
 
