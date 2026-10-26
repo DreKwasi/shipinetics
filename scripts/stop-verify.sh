@@ -1,15 +1,22 @@
 #!/usr/bin/env bash
-# Stop hook. Keeps the agent working while the project's verify command fails.
+# Stop hook. Keeps the agent working while the project's checks fail.
 #
 # Only active in projects with a .shipyard/ folder (here or in a parent folder).
-# Single-repo mode: runs verify_cmd (default bin/verify) when the repo has changes: uncommitted
-# ones, or commits made since the session started. Agents commit each step as they go, so a
-# clean tree doesn't mean there's nothing to check.
-# Workspace mode (packages set in .shipyard/config): runs package_verify_cmd for each package
-# repo with changes in the same sense. With verify_scope = touched (the default), only packages
+# Runs when the repo has changes: uncommitted ones, or commits made since the session started.
+# Agents commit each step as they go, so a clean tree doesn't mean there's nothing to check.
+# Which tier runs (see shipyard-verify and lib.sh):
+#   complete (verify_cmd, default bin/verify) when the worksheet's Status says done or handed off,
+#     when a changed file matches .shipyard/complete-paths (build config, manifests, lockfiles),
+#     or when the project has no quick tier.
+#   quick (verify_quick_cmd) at every other stop, scoped to the files changed this session.
+# A pass is reused while the code's contents stay the same, so committing verified work or
+# editing only the worksheet, evidence or feedback log doesn't run anything again.
+# Workspace mode (packages set in .shipyard/config): the same per package repo with changes, using
+# package_verify_cmd and package_verify_quick_cmd. With verify_scope = touched (the default), only packages
 # the agent edited this session count, so the user's own unrelated work never blocks the agent.
 # The session's starting HEAD is recorded per repo in .shipyard/.cache/head-<session>*.
-# Skips states that already passed, and lets a stuck agent stop with a message to the user.
+# Lets a stuck agent stop with a message to the user. Each run's time goes in
+# .shipyard/.cache/verify-times.tsv (shipyard-verify times summarises it).
 # Reminds the agent once per session to update its worksheet and feedback log.
 # Set SHIPYARD_SKIP_VERIFY=1 in the environment to turn it off for a session.
 
@@ -38,21 +45,6 @@ emit_context() {
   else
     python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "Stop", "additionalContext": sys.argv[1]}}))' "$1"
   fi
-}
-
-# fingerprint <repo dir> <exclude pathspecs...>: hash of HEAD, diff and untracked files
-fingerprint() {
-  local repo="$1"; shift
-  (
-    cd "$repo" || exit 0
-    git rev-parse HEAD 2>/dev/null
-    git diff HEAD --binary -- . "$@" 2>/dev/null || { git diff --cached --binary; git diff --binary; }
-    git ls-files --others --exclude-standard -z -- . "$@" |
-      while IFS= read -r -d '' f; do
-        printf '%s\n' "$f"
-        [ -f "$f" ] && shasum "$f"
-      done
-  ) | shasum | cut -d' ' -f1
 }
 
 # committed_since_start <repo dir> <cache key> <exclude pathspecs...>: files changed by commits
@@ -92,6 +84,27 @@ block_with() { # block_with <log> <label>
 stuck_release() {
   printf '%s\n' '{"systemMessage": "shipyard: verify is still failing and the agent stopped without changing anything. Logs are in .shipyard/.cache/."}'
   exit 0
+}
+
+# quick_note <what>: tell the user, without blocking, that only the quick tier has run on this code
+quick_note() {
+  local m="shipyard: quick checks passed for $1. The complete verify hasn't run on this code yet. It runs at the stop after the worksheet is marked done, before a push or PR, or now with shipyard-verify."
+  if command -v jq >/dev/null 2>&1; then jq -n --arg m "$m" '{systemMessage: $m}'
+  else python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1]}))' "$m"; fi
+  exit 0
+}
+
+# pick_tier <list of changed files> <path prefix for .shipyard lists> [worksheet paths...]
+pick_tier() {
+  local list="$1" prefix="$2" f
+  shift 2
+  if sy_task_done "$root" "$@"; then echo complete; return; fi
+  if [ -f "$root/.shipyard/complete-paths" ]; then
+    while IFS= read -r f; do
+      [ -n "$f" ] && sy_in_list "$root/.shipyard/complete-paths" "$prefix$f" && { echo complete; return; }
+    done <"$list"
+  fi
+  echo quick
 }
 
 # ---------------------------------------------------------------- workspace mode
@@ -136,27 +149,30 @@ if sy_workspace "$root"; then
   fi
 
   [ -n "$verify_tpl" ] || exit 0
-  failed="" all_same=1
+  failed="" all_same=1 quick_only=""
   for p in "${candidates[@]}"; do
-    excl=(':(exclude)'"$evidence")
-    [ -n "$pkg_ws" ] && excl+=(':(exclude)'"$pkg_ws")
-    fp="$(fingerprint "$root/$p" "${excl[@]}")"
-    [ "$fp" = "$(cat "$cache/last-pass-${p//\//_}" 2>/dev/null)" ] && continue
-    log="$cache/verify-${p//\//_}.log"
-    cmd="${verify_tpl//\{package\}/$p}"
-    if (cd "$root" && sh -c "$cmd") >"$log" 2>&1; then
-      printf '%s' "$fp" >"$cache/last-pass-${p//\//_}"
-      rm -f "$cache/last-fail-${p//\//_}"
+    sfx="$(sy_key_suffix "$p")"
+    list="$cache/changed-$session$sfx"
+    {
+      committed_since_start "$root/$p" "${p//\//_}"
+      git -C "$root/$p" status --porcelain --untracked-files=all | cut -c4-
+    } | sed '/^$/d' | sort -u >"$list"
+    tier="$(pick_tier "$list" "$p/")"
+    if sy_verify_run "$root" "$p" "$tier" "$list" stop; then
+      [ "$SY_VERIFY_RAN" = 1 ] && [ "$SY_VERIFY_TIER" = quick ] && quick_only="${quick_only:+$quick_only, }$p"
     else
-      [ "$fp" = "$(cat "$cache/last-fail-${p//\//_}" 2>/dev/null)" ] || all_same=0
-      printf '%s' "$fp" >"$cache/last-fail-${p//\//_}"
+      [ "$SY_VERIFY_FP" = "$(cat "$cache/last-fail$sfx" 2>/dev/null)" ] || all_same=0
+      printf '%s' "$SY_VERIFY_FP" >"$cache/last-fail$sfx"
       failed="${failed:+$failed }$p"
     fi
   done
-  [ -z "$failed" ] && exit 0
+  if [ -z "$failed" ]; then
+    [ -n "$quick_only" ] && quick_note "$quick_only"
+    exit 0
+  fi
   [ "$stop_active" = "true" ] && [ "$all_same" = 1 ] && stuck_release
   first="${failed%% *}"
-  block_with "$cache/verify-${first//\//_}.log" "Verify for $failed (${verify_tpl//\{package\}/<package>})"
+  block_with "$cache/verify$(sy_key_suffix "$first").log" "Verify for $failed"
 fi
 
 # ---------------------------------------------------------------- single-repo mode
@@ -164,8 +180,6 @@ verify_cmd="$(sy_cfg "$root" verify_cmd)"
 verify_bin="${verify_cmd%% *}"
 [ -x "$root/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || exit 0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
-
-ignore=(':(exclude).shipyard/.cache' ':(exclude)'"$worksheets" ':(exclude)'"$feedback" ':(exclude)'"$evidence")
 
 changed="$(git status --porcelain --untracked-files=all -- . ':(exclude).shipyard/.cache' | cut -c4-)"
 if [ -n "$session" ]; then
@@ -190,15 +204,14 @@ if [ "$stop_active" != "true" ] && [ -n "$session" ] && [ -n "$code_changed" ] &
   fi
 fi
 
-fp="$(fingerprint "$root" "${ignore[@]}")"
-[ "$fp" = "$(cat "$cache/last-pass" 2>/dev/null)" ] && exit 0
-
-log="$cache/verify.log"
-if sh -c "$verify_cmd" >"$log" 2>&1; then
-  printf '%s' "$fp" >"$cache/last-pass"
-  rm -f "$cache/last-fail"
+list="$cache/changed-${session:-none}"
+printf '%s\n' "$code_changed" | sed '/^$/d' | sort -u >"$list"
+[ -s "$list" ] || exit 0
+tier="$(pick_tier "$list" "" $(printf '%s\n' "$changed" | grep "^$worksheets/.*\.md$" || true))"
+if sy_verify_run "$root" "" "$tier" "$list" stop; then
+  [ "$SY_VERIFY_RAN" = 1 ] && [ "$SY_VERIFY_TIER" = quick ] && quick_note "this session's changes"
   exit 0
 fi
-[ "$stop_active" = "true" ] && [ "$fp" = "$(cat "$cache/last-fail" 2>/dev/null)" ] && stuck_release
-printf '%s' "$fp" >"$cache/last-fail"
-block_with "$log" "$verify_cmd"
+[ "$stop_active" = "true" ] && [ "$SY_VERIFY_FP" = "$(cat "$cache/last-fail" 2>/dev/null)" ] && stuck_release
+printf '%s' "$SY_VERIFY_FP" >"$cache/last-fail"
+block_with "$SY_VERIFY_LOG" "$(sy_verify_cmd "$root" "$SY_VERIFY_TIER" "")"

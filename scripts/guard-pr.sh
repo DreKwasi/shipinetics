@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # PreToolUse hook for Bash. Blocks `gh pr create` and `gh pr ready` until the branch has
 # complete evidence (screenshots, recordings or terminal transcripts for every acceptance
-# criterion; see shipyard:evidence) and the PR body carries the "## Evidence" section.
+# criterion; see shipyard:evidence), the complete verify has passed on exactly this code
+# (shipyard-verify), and the PR body carries the "## Evidence" section.
 #
 # Works from the repo the command runs in, so in workspace mode it checks the package repo.
 # Active only when a .shipyard/ folder exists at or above that repo. Docs-only branches pass.
@@ -46,6 +47,15 @@ $out
 Capture it (shipyard:evidence): screenshots per acceptance criterion, a screen recording for UI changes, terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
 fi
 case "$out" in *docs-only*) exit 0 ;; esac
+
+# The complete verify must have passed on exactly this code. Mid-task stops may only have run the
+# quick tier, so this is where the complete tier is guaranteed. A recorded pass is reused, so
+# this costs nothing when the agent already ran it.
+pkg=""; [ "$root" != "$repo" ] && pkg="$(sy_rel "$root" "$repo")"
+if [ "${SHIPYARD_SKIP_VERIFY:-0}" != "1" ] && sy_verify_configured "$root" "$pkg" &&
+   ! sy_verify_passed "$root" "$pkg" complete; then
+  deny "shipyard: the complete verify hasn't passed on this exact code, so the PR can't open yet. Run shipyard-verify (it runs $(sy_verify_cmd "$root" complete "$pkg") and records the pass), fix anything that fails, then open the PR again."
+fi
 
 # The body must carry the Evidence section.
 body=""

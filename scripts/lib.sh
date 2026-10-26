@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipyard-config` to print a project's effective settings.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd packages package_verify_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args"
 
 sy_default() {
   case "$1" in
@@ -111,4 +111,164 @@ for p in sys.argv[1].split("."):
     v = v.get(p) if isinstance(v, dict) else None
 sys.stdout.write("" if v is None else str(v))' "$2"
   fi
+}
+
+# ---------------------------------------------------------------- verify tiers
+# A project's checks run in tiers, each at the moment its result is needed (see shipyard-verify):
+#   quick     mid-task stops: checks scoped to the changed files (verify_quick_cmd)
+#   complete  the "done" gate, push and PR: every fast check (verify_cmd, default bin/verify)
+# Nothing is skipped. A tier's command just runs later or earlier. Without verify_quick_cmd,
+# every stop runs the complete tier, as before. A pass is recorded against a fingerprint of the
+# code's contents, so committing verified code, or editing only worksheets, evidence and the
+# feedback log, doesn't re-run anything. A complete pass also counts as a quick pass.
+
+# sy_key_suffix <package or empty>: cache-file suffix, "" for the single repo
+sy_key_suffix() { if [ -n "$1" ]; then printf -- '-%s' "${1//\//_}"; fi; }
+
+# sy_verify_excludes <root> <package or empty>: pathspecs that aren't code as far as verify goes
+sy_verify_excludes() {
+  local pkg_ws
+  printf '%s\n' ':(exclude).shipyard/.cache' ":(exclude)$(sy_cfg "$1" evidence_dir)"
+  if [ -n "$2" ]; then
+    pkg_ws="$(sy_cfg "$1" package_worksheets_dir)"
+    if [ -n "$pkg_ws" ]; then printf '%s\n' ":(exclude)$pkg_ws"; fi
+  else
+    printf '%s\n' ":(exclude)$(sy_cfg "$1" worksheets_dir)" ":(exclude)$(sy_cfg "$1" feedback_file)"
+  fi
+}
+
+# sy_fingerprint <repo dir> <exclude pathspecs...>: hash of the working tree's contents
+# (tracked and untracked, minus ignored files and the excluded paths). It doesn't depend on HEAD,
+# so the same code has the same fingerprint before and after it's committed. It builds the tree
+# in a throwaway copy of the index and never touches the real one. Falls back to hashing HEAD
+# plus the diff if that fails.
+sy_fingerprint() {
+  local repo="$1" idx tree="" p paths=()
+  shift
+  for p in "$@"; do paths+=("${p#:(exclude)}"); done
+  idx="$(mktemp "${TMPDIR:-/tmp}/sy-index.XXXXXX")" || idx=""
+  if [ -n "$idx" ]; then
+    tree="$(
+      cd "$repo" || exit 1
+      real="$(git rev-parse --git-path index 2>/dev/null)" || exit 1
+      if [ -f "$real" ]; then cp "$real" "$idx" || exit 1; else rm -f "$idx"; fi
+      export GIT_INDEX_FILE="$idx"
+      [ -f "$real" ] || git read-tree --empty || exit 1
+      git add -A -- . >/dev/null 2>&1 || exit 1
+      [ "${#paths[@]}" -eq 0 ] || git rm -r -q --cached --ignore-unmatch -- "${paths[@]}" >/dev/null 2>&1 || exit 1
+      git write-tree 2>/dev/null
+    )" || tree=""
+    rm -f "$idx"
+  fi
+  if [ -n "$tree" ]; then printf '%s\n' "$tree"; return 0; fi
+  (
+    cd "$repo" || exit 0
+    git rev-parse HEAD 2>/dev/null
+    git diff HEAD --binary -- . "$@" 2>/dev/null || { git diff --cached --binary; git diff --binary; }
+    git ls-files --others --exclude-standard -z -- . "$@" |
+      while IFS= read -r -d '' f; do
+        printf '%s\n' "$f"
+        [ -f "$f" ] && shasum "$f"
+      done
+  ) | shasum | cut -d' ' -f1
+}
+
+# sy_has_quick <root> <package or empty>: true if the project defines a quick tier
+sy_has_quick() {
+  if [ -n "$2" ]; then [ -n "$(sy_cfg "$1" package_verify_quick_cmd)" ]
+  else [ -n "$(sy_cfg "$1" verify_quick_cmd)" ]; fi
+}
+
+# sy_verify_cmd <root> <quick|complete> <package or empty>: the tier's command, "" if none.
+# quick falls back to the complete command when the project has no quick tier.
+sy_verify_cmd() {
+  local c=""
+  if [ -n "$3" ]; then
+    if [ "$2" = quick ]; then c="$(sy_cfg "$1" package_verify_quick_cmd)"; fi
+    [ -n "$c" ] || c="$(sy_cfg "$1" package_verify_cmd)"
+    printf '%s\n' "${c//\{package\}/$3}"
+  else
+    if [ "$2" = quick ]; then c="$(sy_cfg "$1" verify_quick_cmd)"; fi
+    [ -n "$c" ] || c="$(sy_cfg "$1" verify_cmd)"
+    printf '%s\n' "$c"
+  fi
+}
+
+# sy_verify_configured <root> <package or empty>: true if there's a verify command to run
+sy_verify_configured() {
+  local c b
+  c="$(sy_verify_cmd "$1" complete "$2")"
+  [ -n "$c" ] || return 1
+  [ -n "$2" ] && return 0
+  b="${c%% *}"
+  [ -x "$1/$b" ] || command -v "$b" >/dev/null 2>&1
+}
+
+# sy_verify_passed <root> <package or empty> <quick|complete>: true if that tier (or complete)
+# has passed on exactly the current code. Sets SY_VERIFY_FP to the current fingerprint.
+sy_verify_passed() {
+  local cache="$1/.shipyard/.cache" sfx l excl=()
+  sfx="$(sy_key_suffix "$2")"
+  while IFS= read -r l; do excl+=("$l"); done < <(sy_verify_excludes "$1" "$2")
+  SY_VERIFY_FP="$(sy_fingerprint "$1${2:+/$2}" "${excl[@]}")"
+  [ "$SY_VERIFY_FP" = "$(cat "$cache/pass-complete$sfx" 2>/dev/null)" ] && return 0
+  [ "$3" = quick ] && [ "$SY_VERIFY_FP" = "$(cat "$cache/pass-quick$sfx" 2>/dev/null)" ]
+}
+
+# sy_verify_log <root> <source> <package or empty> <tier> <seconds> <result>: one timing row
+sy_verify_log() {
+  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$2" "${3:-.}" "$4" "$5" "$6" \
+    >>"$1/.shipyard/.cache/verify-times.tsv"
+}
+
+# sy_verify_run <root> <package or empty> <quick|complete> <changed-files list or ""> <source>
+# Runs the tier's command, unless a pass is already recorded for exactly this code. The command
+# runs from the root with SHIPYARD_VERIFY_TIER set, and SHIPYARD_CHANGED_FILES naming a file that
+# lists the changed paths (relative to the repo being verified; unset means check everything).
+# Records the pass, logs the timing, and returns the command's status. Afterwards SY_VERIFY_TIER
+# is the tier that ran, SY_VERIFY_FP the fingerprint, SY_VERIFY_LOG the output, and SY_VERIFY_RAN
+# is 1 if the command ran (0 if a recorded pass was reused).
+sy_verify_run() {
+  local root="$1" pkg="$2" tier="$3" list="$4" src="$5" cache sfx cmd t0 rc
+  cache="$root/.shipyard/.cache"; mkdir -p "$cache"
+  sfx="$(sy_key_suffix "$pkg")"
+  if [ "$tier" = quick ] && ! sy_has_quick "$root" "$pkg"; then tier=complete; fi
+  SY_VERIFY_TIER="$tier" SY_VERIFY_LOG="$cache/verify$sfx.log" SY_VERIFY_RAN=0
+  cmd="$(sy_verify_cmd "$root" "$tier" "$pkg")"
+  [ -n "$cmd" ] || return 0
+  if sy_verify_passed "$root" "$pkg" "$tier"; then
+    sy_verify_log "$root" "$src" "$pkg" "$tier" 0 reused
+    return 0
+  fi
+  SY_VERIFY_RAN=1
+  t0="$(date +%s)"
+  (
+    cd "$root" || exit 1
+    export SHIPYARD_VERIFY_TIER="$tier"
+    if [ -n "$list" ]; then export SHIPYARD_CHANGED_FILES="$list"; else unset SHIPYARD_CHANGED_FILES; fi
+    sh -c "$cmd"
+  ) >"$SY_VERIFY_LOG" 2>&1
+  rc=$?
+  if [ "$rc" = 0 ]; then
+    printf '%s' "$SY_VERIFY_FP" >"$cache/pass-$tier$sfx"
+    rm -f "$cache/last-fail$sfx"
+    sy_verify_log "$root" "$src" "$pkg" "$tier" "$(( $(date +%s) - t0 ))" pass
+  else
+    sy_verify_log "$root" "$src" "$pkg" "$tier" "$(( $(date +%s) - t0 ))" fail
+  fi
+  return "$rc"
+}
+
+# sy_task_done <root> [worksheet paths...]: true if the current worksheet, or one of the given
+# ones, has its Status line set to done or handed off. That's the signal for the complete tier.
+sy_task_done() {
+  local root="$1" f p
+  shift
+  f="$root/.shipyard/.cache/current-worksheet"
+  if [ -f "$f" ]; then set -- "$(cat "$f")" "$@"; fi
+  for p in "$@"; do
+    case "$p" in /*) ;; *) p="$root/$p" ;; esac
+    [ -f "$p" ] && grep -qiE '^>[[:space:]]*Status:[[:space:]]*(done|handed[[:space:]-]off)' "$p" && return 0
+  done
+  return 1
 }

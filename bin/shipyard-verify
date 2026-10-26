@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# shipyard-verify: run the project's verify command for a tier, and record the pass so the Stop
+# hook, the pre-push hook and the PR gate don't run it again on the same code.
+#
+# Usage:
+#   shipyard-verify [complete]     every fast check (verify_cmd, default bin/verify). The default
+#   shipyard-verify quick          checks scoped to the changed files (verify_quick_cmd), if the
+#                                  project defines a quick tier. Otherwise the same as complete
+#   shipyard-verify --force [tier] run even if a pass is already recorded for this code
+#   shipyard-verify status         which tiers have passed on the current code
+#   shipyard-verify times [days]   timing summary from .shipyard/.cache/verify-times.tsv (default 14)
+#
+# Run it inside the repo to verify. In workspace mode, run it inside a package repo.
+# A pass counts for the exact contents of the code, not the commit: committing verified code,
+# or changing only worksheets, evidence or the feedback log, keeps it. Any other change needs a
+# new run. The full suite (bin/verify --full) is for CI and end of shift, and isn't recorded.
+# Exit code: the verify command's, 0 when a recorded pass is reused.
+
+set -uo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
+
+die() { echo "shipyard-verify: $*" >&2; exit 2; }
+repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+root="$(sy_root "$repo")" || die "no .shipyard/ folder here or above. Run /shipyard:setup first."
+pkg=""
+if [ "$root" != "$repo" ]; then
+  pkg="$(sy_rel "$root" "$repo")"
+  sy_workspace "$root" && sy_package_of "$root" "$pkg" >/dev/null || die "$repo isn't one of the packages in $root/.shipyard/config"
+fi
+cache="$root/.shipyard/.cache"; mkdir -p "$cache"
+
+# changed_files: what the quick tier should look at. Uncommitted changes plus commits since the
+# branch left its base. Paths are relative to the repo.
+changed_files() {
+  local b base=""
+  for b in '@{upstream}' origin/main main origin/master master; do
+    if git -C "$repo" rev-parse -q --verify "$b" >/dev/null 2>&1; then
+      base="$(git -C "$repo" merge-base HEAD "$b" 2>/dev/null)" && break
+    fi
+  done
+  {
+    [ -n "$base" ] && git -C "$repo" diff --name-only "$base" HEAD
+    git -C "$repo" status --porcelain --untracked-files=all | cut -c4-
+  } | sed '/^$/d' | sort -u
+}
+
+times_summary() {
+  local f="$cache/verify-times.tsv" days="${1:-14}" since
+  [ -f "$f" ] || { echo "No timings yet. They're recorded each time the Stop hook or shipyard-verify runs."; return 0; }
+  since="$(date -v-"${days}"d '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || date -d "-$days days" '+%Y-%m-%dT%H:%M:%S')"
+  echo "Verify timings, last $days days (seconds; reused = a recorded pass covered the code)"
+  awk -F'\t' -v since="$since" '
+    $1 >= since {
+      k = $3 "\t" $2 "\t" $4
+      runs[k]++
+      if ($6 == "reused") { reused[k]++ } else { n[k]++; total[k] += $5; if ($5 > max[k]) max[k] = $5; if ($6 == "fail") fails[k]++ }
+    }
+    END {
+      printf "%-14s %-9s %-9s %5s %7s %6s %7s %5s %6s\n", "package", "source", "tier", "runs", "reused", "fails", "avg", "max", "total"
+      for (k in runs) {
+        split(k, p, "\t")
+        avg = n[k] ? total[k] / n[k] : 0
+        printf "%-14s %-9s %-9s %5d %7d %6d %7.0f %5d %6d\n", p[1], p[2], p[3], runs[k], reused[k], fails[k], avg, max[k], total[k]
+      }
+    }' "$f" | { read -r h; echo "$h"; sort; }
+}
+
+force=0
+case "${1:-}" in
+  -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  times) times_summary "${2:-}"; exit 0 ;;
+  status)
+    sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in .shipyard/config)"
+    for t in complete quick; do
+      if sy_verify_passed "$root" "$pkg" "$t"; then echo "$t: passed on the current code"
+      else echo "$t: not passed on the current code"; fi
+    done
+    sy_has_quick "$root" "$pkg" || echo "(no quick tier set, so every stop runs the complete tier)"
+    exit 0 ;;
+  --force) force=1; shift ;;
+esac
+tier="${1:-complete}"
+case "$tier" in quick|complete) ;; *) die "unknown tier: $tier (quick or complete)" ;; esac
+sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in .shipyard/config)"
+
+sfx="$(sy_key_suffix "$pkg")"
+if [ "$force" = 1 ]; then rm -f "$cache/pass-quick$sfx" "$cache/pass-complete$sfx"; fi
+list="$cache/changed-manual$sfx"
+changed_files >"$list"
+
+sy_verify_run "$root" "$pkg" "$tier" "$list" manual
+rc=$?
+if [ "$SY_VERIFY_RAN" = 0 ]; then
+  echo "shipyard-verify: $SY_VERIFY_TIER already passed on this exact code. Nothing to run (use --force to run anyway)."
+  exit 0
+fi
+cat "$SY_VERIFY_LOG"
+if [ "$rc" = 0 ]; then
+  echo "shipyard-verify: $SY_VERIFY_TIER passed. Recorded for this code."
+else
+  echo "shipyard-verify: $SY_VERIFY_TIER failed (exit $rc). Output above, also in $SY_VERIFY_LOG." >&2
+fi
+exit "$rc"
