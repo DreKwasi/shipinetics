@@ -1,0 +1,24 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Syntax check every script
+        run: for f in scripts/*.sh bin/* skills/setup/templates/bin/* skills/setup/templates/pre-* skills/setup/templates/commit-msg tests/*.sh; do bash -n "$f" || exit 1; done
+      - name: Tests (default bash)
+        run: bash tests/run.sh
+      - name: Tests (macOS system bash 3.2)
+        if: runner.os == 'macOS'
+        run: /bin/bash tests/run.sh

@@ -42,8 +42,8 @@ shipyard uses these when they're installed and falls back when they aren't. `/sh
 | Companion | Used by | Install |
 |---|---|---|
 | Cloudflare `security-audit` skill | `shipyard:security-reviewer` | `npx skills add cloudflare/security-audit-skill` |
-| Impeccable plugin | `shipyard:ui-reviewer`, `design-check`, the design-system setup step, HTML explainers | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the Codex build |
-| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs and L splits, `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `npx skills add mattpocock/skills`. Some of the others in that pack clash with shipyard's rules: `shipyard:workflow` lists which to leave alone |
+| Impeccable plugin | `shipyard:ui-reviewer`, `design-check`, the design-system setup step, HTML explainers | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the repo's `.agents/skills/` copy, written for Codex |
+| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs and L splits, `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `claude plugin install mattpocock-skills@claude-plugins-official`. Some of the others in that pack clash with shipyard's rules: `shipyard:workflow` lists which to leave alone |
 | `merge-risk` skill (Warp) | Merge-risk grades on every PR | `npx skills add warpdotdev/common-skills --skill merge-risk` |
 | NVIDIA SkillSpector | `scan-skills`, the install gate | `uv tool install git+https://github.com/NVIDIA/skillspector.git` |
 | Strix | App security testing (shipyard:security-scans) | See its README. Needs Docker and a provider key in your vault |
@@ -218,4 +218,6 @@ skills/           setup (with templates/), workflow, spec, system-docs, testing,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,
                   visual-regression, perf, end-of-shift, verification-map
+tests/            shipyard's own tests for the hooks and tools. Run tests/run.sh (CI runs it on
+                  Linux and on macOS's bash 3.2)
 ```
