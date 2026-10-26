@@ -50,7 +50,7 @@ If the project root isn't a git repo but holds several package repos, use worksp
   - **The root becomes the harness repo** (simplest): `git init` at the root, with a `.gitignore` that ignores each package folder (`api/`, `web/`) and `.claude/worktrees/`. Commit the harness files.
   - **A separate harness repo**, when the root must stay plain (a shared folder, or a repo already exists for this): a git repo whose top level holds `.shipinetics/`, `AGENTS.md`, `CLAUDE.md`, the queue and `docs/`, with the root's copies replaced by symlinks into it, and the package folder names in its `.gitignore`. Set `harness_repo` in `.shipinetics/config` to its path, relative to the root.
   Changing the root's layout is the user's call, so put the commands on the For you list unless they said yes during the audit.
-- `night-shift` doesn't support workspace mode yet. Leave the project's own night shift process in place.
+- `night-shift` runs in workspace mode once the harness files are versioned: it makes a worktree of the harness repo with a worktree of each package inside it (or of `--packages`), all on `night/<date>`, and the Stop hook verifies each package with `package_verify_cmd`.
 
 ## Audit
 

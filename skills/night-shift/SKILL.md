@@ -11,6 +11,8 @@ You're working with nobody watching. The `night-shift` launcher runs you once pe
 
 The user would rather come back to two tasks done right and one clearly blocked than five done badly.
 
+In workspace mode, the worktree you start in is a copy of the workspace: the queue, worksheets and docs at its top (a branch of the harness repo), and each package as its own worktree inside it, every one on `night/<date>`. Commit in each repo you change. The worksheet and queue updates go in the top-level repo, and the `Worksheet:` trailer goes on the commits in every repo. Verify a package with `shipinetics-verify` from inside it. The Stop hook verifies each package you touched with `package_verify_cmd`.
+
 ## Guardrails (the launcher enforces these, you respect them anyway)
 
 - **Never** push, merge, deploy, publish, change CI config, delete data, rewrite git history, or switch away from the night branch.
