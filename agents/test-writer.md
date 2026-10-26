@@ -49,6 +49,10 @@ These are what keep the suite small, fast and meaningful:
 - **Few strong assertions** over many weak ones. Exact expected values, not "truthy" or "defined".
 - **No snapshots** of large structures. Assert the fields the spec cares about.
 - **Size check:** if the test file is growing past two or three times the size of the code under test, stop and look for redundancy.
+- **Test at the highest seam** the spec describes, usually the public interface, not one test per internal function. Internals change, and tests pinned to them become waste.
+- **Two imagined edits.** For each test, imagine breaking the behavior: the test must fail. Imagine restructuring the internals without changing behavior: the test must still pass. A test that fails the second edit is testing implementation.
+- **No tautologies.** An expected value computed the same way the code computes it (the same formula, the same helper) proves nothing. Work it out by hand from the spec.
+- **No test beats a bad test.** If the only test you can write for something is weak or tautological, report the gap instead.
 
 ## Prove every test earns its place
 

@@ -68,6 +68,6 @@ The Metrics block is how the user finds out whether a change to the setup (a new
 
 1. `worksheet use <name>`, then read the whole thing.
 2. `git log --grep "Worksheet: <name>"` and look at the diffs.
-3. Check the branch and working tree match what the worksheet says. If they don't, the log is wrong or work was lost: write that down first.
+3. Check the branch and working tree match what the worksheet says. If they don't, the log is wrong or work was lost: write that down first. Treat every "done", "fixed" or "verified" in the log as a claim to check on the real artifact (run it, open it, look) before you build on it.
 4. Run `shipyard-verify` to see the real state.
 5. Add a log line: "Resumed by <agent> at <time>. State: <what you found>." Then continue from Next step.

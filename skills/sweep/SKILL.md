@@ -43,6 +43,7 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Small, safe fixes** (stale doc lines, a missing queue task, a leftover debug line): fix them now, with `bin/verify` passing, in a commit with the trailer `Worksheet: <sweep worksheet name>`.
 - **Anything larger:** add a task to the queue with the evidence (commits, files).
 - **Recurring problems:** propose a lint rule (shipyard:lint-rule) or a convention.
+- **Architecture:** if the same complexity hot spots show up sweep after sweep, suggest the user run `/improve-codebase-architecture` (Matt Pocock's skill, interactive) on them, and add what they choose to the queue. Its report opens with `open`, which some sandboxes block: give the user the path instead.
 
 ## Report
 

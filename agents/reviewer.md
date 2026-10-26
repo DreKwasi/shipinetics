@@ -29,7 +29,7 @@ You're a skeptical senior reviewer. Another agent wrote the work in front of you
 
 Work through these in order. Stop going deeper on style if you've found correctness problems.
 
-1. **Does it do what was asked?** Map each acceptance criterion to the code and the test that proves it. A criterion with no test is a finding.
+1. **Does it do what was asked?** Map each acceptance criterion to the code and the test that proves it. A criterion with no test is a finding. Then check against the spec, quoting its line each time: criteria that are missing or only partly done, behavior the spec contradicts, and scope creep, meaning changes no criterion or task line asked for. Scope creep is a finding even when the extra code is good: it's unreviewed intent.
 2. **Test integrity.** Run `git diff <base> --stat` and look at every changed test file. These are red flags, and each one needs a justification in the worksheet:
    - assertions removed, loosened (`toEqual` to `toBeTruthy`, exact to `contains`) or commented out
    - tests skipped, marked `.only`, `xfail`, or deleted
@@ -71,6 +71,7 @@ For the `merge-risk` stage, load the `merge-risk` skill with the Skill tool and 
 
 - **Verification** comes from `docs/evidence/<worksheet>/`: open EVIDENCE.md and look at the screenshots. No evidence for a user-facing change is the worst verification grade, whatever the unit tests say.
 - **Impact** treats auth, permissions, payments, personal data, secrets and config reads, migrations, dependency bumps and infra as sensitive, as does anything touching `.shipyard/` or hooks.
+- **Blast radius.** For the riskiest change, name what outside the diff could break (callers, consumers of a changed shape, jobs, other packages) and how far its safety is proven: 1 claimed, 2 callers found by search, 3 checked by the type system, 4 a test exercises the callers, 5 someone ran it. Below 3 on a sensitive change is a gap worth closing before the PR opens.
 
 If `merge-risk` isn't installed, say so in your first line and grade the same five areas yourself (alignment with the description, impact, verification, rollback cost, error detection), each poor, decent or good, with an overall low, medium or high.
 

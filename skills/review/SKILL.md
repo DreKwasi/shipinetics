@@ -31,8 +31,9 @@ Research and docs reviews return a **claims table** instead of findings: every c
 2. **Claude reviewer on a different model.** Spawn the `shipyard:reviewer` subagent and pass a model different from yours (you're Opus, use `sonnet`; you're Sonnet, use `opus`). Give it the stage, the base ref or file, the acceptance criteria, and a persona if one applies.
 3. **Cross-family reviewer.** Run `agent_review --stage <stage> [--persona <name>]` (add `--file <path>` for research and plans). It picks an installed CLI from a different model family (Codex, Gemini, Cursor) and saves the review under `docs/reviews/`. Run `agent_review --list` if you're unsure what's installed. If it warns that no other family is available, note that in the worksheet: the review is weaker.
 4. **Pick personas and specialist reviewers** (below). Run each through step 2 or 3, or the specialist agent named in the table. Don't run every one every time. Run them in parallel where you can.
-5. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option.
-6. **Re-review** only if your fixes were substantial or a reviewer said `blocked`. Stop after two rounds and flag the disagreement for a human.
+5. **Merge, then filter.** When several reviewers ran, put their findings in one table and mark where they agree: a finding two reviewers raised independently goes first. Before acting, filter each finding the way a lead would. A finding must name a concrete input or state that goes wrong: "this could fail if" without one is hypothetical, and you note it rather than fix it. "I'd do it differently" isn't a finding unless the other way removes a defect. Minor findings never block. Record filtered findings as **disagree** with the reason.
+6. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option.
+7. **Re-review** only if your fixes were substantial or a reviewer said `blocked`. Stop after two rounds and flag the disagreement for a human.
 
 ### Independent re-check at wrap-up
 
