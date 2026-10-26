@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting through spec, tests, implementation, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, and whenever you're unsure what step comes next.
+description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting through spec, tests, implementation, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (those start with a failing regression test from test-writer), and whenever you're unsure what step comes next.
 ---
 
 # The task loop

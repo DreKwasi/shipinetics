@@ -1,6 +1,6 @@
 # {{TITLE}}
 > Summary: <fill in when done: what was achieved, in one or two sentences>
-> Status: in progress | Task: <T-ID or issue> | Spec: <docs/specs/... or none>
+> Status: in progress | Type: <feature, bug, refactor or chore> | Task: <T-ID or issue> | Spec: <docs/specs/... or none>
 > Started: {{DATE}} | Branch: {{BRANCH}} | Base: {{BASE}}
 > Agent: <harness and model, e.g. Claude Code / Opus>
 > Tag: ws/{{NAME}} (applied at wrap-up) | Commits: git log --grep "Worksheet: {{NAME}}"

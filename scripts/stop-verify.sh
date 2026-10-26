@@ -17,7 +17,8 @@
 # The session's starting HEAD is recorded per repo in .shipinetics/.cache/head-<session>*.
 # Lets a stuck agent stop with a message to the user. Each run's time goes in
 # .shipinetics/.cache/verify-times.tsv (shipinetics-verify times summarises it).
-# Reminds the agent once per session to update its worksheet and feedback log.
+# Reminds the agent once per session to update its worksheet and feedback log, and, on a bug fix
+# that changed code but no tests, to have test-writer write the failing regression test first.
 # Set SHIPINETICS_SKIP_VERIFY=1 in the environment to turn it off for a session.
 
 set -uo pipefail
@@ -95,6 +96,31 @@ quick_note() {
   exit 0
 }
 
+# bug_reminder: once per session, nudge a bug fix that changed code but no tests toward a failing
+# regression test. A bug fix is a current worksheet with "Type: bug" in its header, or bug, fix,
+# crash, regression or Sentry in its title. Uses the files the agent edited this session.
+bug_reminder() {
+  local touched="$cache/touched-$session" marker="$cache/bugreminded-$session" ws f code=0 tests=0
+  [ -n "$session" ] && [ "$stop_active" != "true" ] && [ ! -e "$marker" ] && [ -s "$touched" ] || return 0
+  ws="$(cat "$cache/current-worksheet" 2>/dev/null)" && [ -n "$ws" ] || return 0
+  case "$ws" in /*) ;; *) ws="$root/$ws" ;; esac
+  [ -f "$ws" ] || return 0
+  grep -qiE '^>.*Type:[[:space:]]*bug' "$ws" ||
+    head -n 1 "$ws" | grep -qiE '(^|[^a-z])(bug|fix|fixes|fixed|crash|regression|sentry)([^a-z]|$)' || return 0
+  while IFS= read -r f; do
+    case "$f" in "$worksheets"/*|"$feedback"|"$evidence"/*|*.md|docs/*|"$dn"/*) continue ;; esac
+    if [ -f "$root/$dn/test-paths" ]; then
+      if sy_in_list "$root/$dn/test-paths" "$f"; then tests=1; else code=1; fi
+    else
+      case "$f" in *test*|*spec*) tests=1 ;; *) code=1 ;; esac
+    fi
+  done < <(sort -u "$touched")
+  [ "$code" = 1 ] && [ "$tests" = 0 ] || return 0
+  touch "$marker"
+  emit_context "shipinetics: this looks like a bug fix ($(basename "$ws" .md)), and this session changed code but no tests. A bug gets a failing regression test first: spawn shipinetics:test-writer in regression mode with the symptom and how to reproduce it, watch the test fail, then fix the code. If a test already covers it, or this isn't a bug fix, say so in the worksheet and carry on."
+  exit 0
+}
+
 # pick_tier <list of changed files> <path prefix for the folder's lists> [worksheet paths...]
 pick_tier() {
   local list="$1" prefix="$2" f
@@ -149,6 +175,7 @@ if sy_workspace "$root"; then
     fi
   fi
 
+  bug_reminder
   [ -n "$verify_tpl" ] || exit 0
   failed="" all_same=1 quick_only=""
   for p in "${candidates[@]}"; do
@@ -205,6 +232,7 @@ if [ "$stop_active" != "true" ] && [ -n "$session" ] && [ -n "$code_changed" ] &
   fi
 fi
 
+bug_reminder
 list="$cache/changed-${session:-none}"
 printf '%s\n' "$code_changed" | sed '/^$/d' | sort -u >"$list"
 ws_changed="$(printf '%s\n' "$changed" | grep "^$worksheets/.*\.md$" || true)"
