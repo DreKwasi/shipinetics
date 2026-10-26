@@ -57,28 +57,29 @@ Install SkillSpector first, then scan each skill before you install it, for exam
 Start with one pilot project, not all of them. Pick one with an existing test suite and a few small tasks waiting.
 
 1. Open the project in Claude Code on a clean branch.
-2. Run `/shipyard:setup`. It audits the project against every point, writes the status to `docs/shipyard-setup.md`, then does Phase 1:
-   - `bin/verify` with the project's real commands
-   - `AGENTS.md` and a one-line `CLAUDE.md`
-   - the `.shipyard/` lists (protected paths, test paths, env-allowed paths, secret names)
-   - `bin/with-secrets` and `.claude/settings.json` (env scrub and deny list)
-   - one smoke test, written by `shipyard:test-writer`
-3. **Check Phase 1 yourself before going on:**
+2. Run `/shipyard:setup`. It audits the project against every point and writes the status to `docs/shipyard-setup.md`.
+3. Answer its questions. They come in one message: facts it couldn't confirm from live config, secret names, git LFS, the `no-evidence` label, and which optional phases you want.
+4. It then installs every phase in the same run. It proves each phase works and commits it before starting the next:
+
+| Phase | Adds | Setup proves it by |
+|---|---|---|
+| 1 | `bin/verify`, `AGENTS.md`, `.shipyard/` lists, `bin/with-secrets`, `.claude/settings.json`, one smoke test | Running `bin/verify` and the smoke test |
+| 2 | System docs with 7-line headers, conventions | `head -n 7 docs/systems/*.md` reads like a map of the codebase |
+| 3 | Worksheet template, feedback log, `TODOS.md` | `worksheet new` then `worksheet list` |
+| 4 | Commit hooks: lint autofix with LLM fallback, a 400-line size limit, the `Worksheet:` trailer | Committing a fixable lint error, a commit without a trailer and an oversized commit |
+| 5 | CI running `bin/verify --full` | Validating the workflow YAML |
+| 6 | One visual test, one benchmark (optional) | Both run in `bin/verify --full` |
+| 7 | Night shift readiness (optional) | `night-shift --dry-run` |
+| 8 | Security tools: SkillSpector and Strix (optional) | `scan-skills` shows no DO_NOT_INSTALL |
+
+5. Read its report. It ends with a "For you" list: what only you can do, such as installing a CLI, logging in or creating a GitHub label. If the run stopped early, run `/shipyard:setup` again. It picks up at the first phase that isn't done.
+6. **Check the gates yourself:**
    - Run `bin/verify`. It should pass and take a few minutes at most.
    - Ask the agent to make a small change that breaks a test and then finish. The Stop hook should send it back with the failure.
    - Ask the agent to write a test directly. The hook should refuse and point it at `shipyard:test-writer`.
    - Ask it to run `env`. The secrets guard should refuse.
-4. Run the remaining phases one at a time, when you're ready:
 
-| Command | Adds | Check |
-|---|---|---|
-| `/shipyard:setup 2` | System docs with 7-line headers, conventions | `head -n 7 docs/systems/*.md` reads like a map of the codebase |
-| `/shipyard:setup 3` | Worksheet template, feedback log, `TODOS.md` | `worksheet new test` then `worksheet list` |
-| `/shipyard:setup 4` | Commit hooks: lint autofix with LLM fallback, a 400-line size limit, the `Worksheet:` trailer | Commit a fixable lint error. It comes out fixed. A commit without a trailer, or over 400 lines, is refused |
-| `/shipyard:setup 5` | CI running `bin/verify --full` | The next PR shows the check |
-| `/shipyard:setup 6` | One visual test, one benchmark | Both run in `bin/verify --full` |
-| `/shipyard:setup 7` | Night shift readiness | `night-shift --dry-run` |
-| `/shipyard:setup 8` | Security tools: SkillSpector and Strix | `scan-skills` shows no DO_NOT_INSTALL |
+To redo or repair one phase later, run `/shipyard:setup <phase>`, for example `/shipyard:setup 4`.
 
 ## 4. Daily: a normal task
 

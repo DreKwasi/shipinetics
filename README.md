@@ -55,7 +55,7 @@ Shipyard's paths and commands are defaults. A project can map them to what it al
 
 Workspace mode (`packages = ...`) is for a root that holds several package repos and isn't a repo itself. The Stop hook runs `package_verify_cmd` for each package the agent edited in that session, so the user's unrelated work in progress never blocks it. The PR gate and `evidence` work from whichever package repo the PR comes from. `night-shift` doesn't support workspace mode yet.
 
-`/shipyard:setup` audits first and asks before acting on anything it could only infer from comments or old docs.
+`/shipyard:setup` audits first, asks all its questions in one message (including anything it could only infer from comments or old docs), then installs every phase in one run with a commit per phase.
 
 ## How the points map to the plugin
 

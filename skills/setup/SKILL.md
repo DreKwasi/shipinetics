@@ -9,7 +9,7 @@ disable-model-invocation: true
 
 You're installing a working agentic setup into this project. The plugin carries the generic parts (skills, reviewer, hooks, scripts). This skill puts the project-specific parts into the repo so they're committed, visible to every agent and to CI, and work without the plugin.
 
-Argument: `$ARGUMENTS`. No argument means: run the audit, then Phase 1. A number means run that phase. `audit` means audit only.
+Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in one message, then run every phase in order in this one run. If `docs/shipyard-setup.md` shows phases already done, start at the first one that isn't. A number runs just that phase, to redo or repair it. `audit` means audit only.
 
 ## Rules
 
@@ -17,8 +17,9 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, then Phase 1. A number
 - **Detect, don't ask, where you can.** Read `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, CI config, lockfiles and existing scripts to find the real commands. Ask only for what you can't find out.
 - **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
-- **One phase per run unless the user says otherwise.** At the end of each phase, say what's done, what you verified, and what the next phase does.
-- **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPYARD_ALLOW_NO_WORKSHEET=1`.
+- **Ask once, then run straight through.** After the audit, put every question the phases need in one message: the Unconfirmed list, secret names you couldn't find, git LFS for evidence, the `no-evidence` label, which optional phases to run (6 visual and perf, 7 night shift, 8 security tools), which task list is the source of truth if one exists outside `TODOS.md`, and for Phase 8 which instance Strix may test. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
+- **What only the user can do goes on a list, not a pause.** Installing a CLI, logging in, creating a GitHub label they didn't approve: add it to a "For you" list in `docs/shipyard-setup.md` and carry on.
+- **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. Log each phase's result and proof in `docs/shipyard-setup.md` as you finish it, so a stopped run can resume. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPYARD_ALLOW_NO_WORKSHEET=1`.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
 - Use a branch: `shipyard-setup` unless the user is already on one for this.
 
@@ -107,7 +108,7 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 ## Phase 3: continuity (points 7, 8, 13)
 
 1. `docs/worksheets/_template.md` from `${CLAUDE_PLUGIN_ROOT}/skills/worksheet/template.md`.
-2. `docs/agent-feedback.md` and `TODOS.md` from templates. If a task list exists elsewhere (Linear, GitHub issues), ask the user which is the source of truth and record it in `AGENTS.md`.
+2. `docs/agent-feedback.md` and `TODOS.md` from templates. If a task list exists elsewhere (Linear, GitHub issues), record the source of truth the user named in `AGENTS.md`.
 3. Check: `worksheet new setup-check`, `worksheet list`, then delete the test worksheet.
 
 ## Phase 4: commit hooks (point 5)
@@ -122,13 +123,13 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 ## Phase 5: CI (automation)
 
 1. Copy `templates/github/workflows/verify.yml` to `.github/workflows/verify.yml` (or adapt to the existing CI). It runs `bin/verify --full` on every PR, and its `evidence` job fails any PR whose description has no `## Evidence` section with a screenshot, recording or transcript.
-2. Ask the user before enabling git LFS for evidence. If they agree: `git lfs install`, `git lfs track "docs/evidence/**"`, commit `.gitattributes`. Without LFS, screenshots go in git and recordings stay small or get attached to the PR by hand.
-3. Ask the user to create a `no-evidence` label in the GitHub repo for docs-only PRs (`gh label create no-evidence` needs their go-ahead, since it changes the repo).
+2. If the user said yes to git LFS for evidence: `git lfs install`, `git lfs track "docs/evidence/**"`, commit `.gitattributes`. Without LFS, screenshots go in git and recordings stay small or get attached to the PR by hand.
+3. If the user approved the `no-evidence` label for docs-only PRs, run `gh label create no-evidence`. Otherwise it goes on the For you list, since it changes the GitHub repo.
 4. Check: validate the YAML. Tell the user it runs on their next push.
 
 ## Phase 6: visual and performance (points 15, 16, 17)
 
-Follow `shipyard:visual-regression` and `shipyard:perf` to add one visual test and one benchmark with baselines. Add both to `bin/verify --full`. Ask the user before enabling git LFS.
+Follow `shipyard:visual-regression` and `shipyard:perf` to add one visual test and one benchmark with baselines. Add both to `bin/verify --full`. Use git LFS for the baselines only if the user said yes to it.
 
 ## Phase 7: night shift (points 12, 18)
 
@@ -139,10 +140,10 @@ Follow `shipyard:visual-regression` and `shipyard:perf` to add one visual test a
 ## Phase 8: security tools (shipyard:security-scans)
 
 1. Check for SkillSpector. If it's missing, give the user the install command. Once installed, run `scan-skills` and show the user the summary. Anything `DO_NOT_INSTALL` is the first thing to deal with.
-2. Check for Strix and Docker. If the user wants app security testing, help them install Strix, store its provider key in Secret Manager and add it to `.shipyard/secrets.list`.
-3. Ask the user which local or staging instance Strix may test, and record it in the Secrets or Security section of `AGENTS.md`. Don't run Strix during setup unless they say so.
+2. Check for Strix and Docker. If the user wants app security testing and they're missing, put the install on the For you list: install Strix, store its provider key in Secret Manager and add it to `.shipyard/secrets.list`.
+3. Record the local or staging instance the user said Strix may test in the Secrets or Security section of `AGENTS.md`. Don't run Strix during setup unless they say so.
 4. Add the weekly security pass to their routine (GETTING-STARTED.md in the plugin repo).
 
 ## Finish
 
-Update `docs/shipyard-setup.md` with the new status table and the date. Tell the user, in a few lines: what's in place now, what you verified, what failed or was skipped, and which phase to run next.
+Update `docs/shipyard-setup.md` with the new status table and the date. Tell the user, in a few lines: what's in place now, what you verified, what failed or was skipped, the For you list, and the gate checks to try themselves (Phase 1 step 8).

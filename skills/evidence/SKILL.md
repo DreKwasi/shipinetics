@@ -47,7 +47,7 @@ Evidence is real or it's nothing:
 4. **Look at every screenshot** with the Read tool before you list it. Confirm it shows what the row claims. If it doesn't, the feature or the recording is wrong: fix it, don't describe around it.
 5. **Fill in EVIDENCE.md:** for each criterion, the file name and one line on what it shows. Update the commit line to the commit you recorded at.
 6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, and UI changes have a recording.
-7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipyard:setup` phase 5 asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
+7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipyard:setup` asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
 
 ## Opening the PR
 
