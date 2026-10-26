@@ -21,7 +21,7 @@ Always run the app and use the feature you changed before you say it works. Test
 
 | You need | Go to |
 |---|---|
-| What a domain term means | `CONTEXT.md` (the glossary: one meaning per term, and words to avoid). Decisions that are hard to reverse: `docs/adr/` |
+| What a domain term means | `GLOSSARY.md` (the glossary: one meaning per term, and words to avoid). Decisions that are hard to reverse: `docs/adr/` |
 | How a system works | `docs/systems/`. Run `head -n 7 docs/systems/*.md` to see every system's summary, then open the one you need |
 | How we work (the task loop) | {{WORKFLOW_POINTER: "@AGENT_WORKFLOW.md" or "the shipinetics:workflow skill"}} |
 | Code conventions | `docs/conventions.md` |

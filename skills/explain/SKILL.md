@@ -40,6 +40,8 @@ ASD-STE100 (Simplified Technical English) is the controlled language used for ae
 
 The 20% you relax: technical terms and code names are fine, and so are short sentences that read naturally over strict word lists.
 
+When the user runs `/wait-what`, or says a message didn't land, re-pitch it with these rules: a little context first, then the point, in the terms from `GLOSSARY.md`.
+
 ## Diagrams
 
 - Mermaid inside Markdown is the default. It renders in GitHub and most viewers.

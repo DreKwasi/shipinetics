@@ -96,7 +96,7 @@ To redo or repair one phase later, run `/shipinetics:setup <phase>`, for example
 Tell the agent what you want, the way you do now. It follows `shipinetics:workflow`:
 
 1. Starts a worksheet.
-2. For medium tasks and up, grills you on the design first: one question at a time, each with its recommended answer, looking in the code instead of asking where it can. Then it writes a spec with acceptance criteria, and new domain terms go in `CONTEXT.md`. You approve the criteria.
+2. For medium tasks and up, grills you on the design first: numbered questions, each with its recommended answer, looking in the code instead of asking where it can. Then it writes a spec with acceptance criteria, and new domain terms go in `GLOSSARY.md`. You approve the criteria.
 3. Has `shipinetics:test-writer` write the acceptance tests, then unit tests, in its own context.
 4. Implements. While it works, each stop runs only the quick checks for what it changed. It drives the feature in the real app from the verification map, every entry point, then runs `shipinetics-verify`. When it marks the worksheet done, the next stop runs the complete checks, and a push or PR needs them to have passed on the final code.
 5. Gets reviews: `shipinetics:reviewer` on a different model, plus the security or UI reviewer when the change calls for them, plus `agent_review` for a different model family. UI changes are checked against `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet instead of adding it. For medium tasks and up, the wrap-up reviewer drives the change in the app itself.

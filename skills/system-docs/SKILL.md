@@ -66,12 +66,12 @@ One home for each, so they don't drift apart:
 
 | What | Where |
 |---|---|
-| A domain term and what it means | `CONTEXT.md`, the glossary: term, one-line definition, words to avoid. No implementation details |
+| A domain term and what it means | `GLOSSARY.md`, the glossary: term, one-line definition, words to avoid. No implementation details. A repo with several domains keeps one per domain and lists them in `GLOSSARY-MAP.md` |
 | A decision that's hard to reverse, surprising without context, and a real trade-off, across the project | `docs/adr/NNNN-<slug>.md`, 1 to 3 sentences. Link it from the system docs it affects |
 | Why one system is built the way it is | That system doc's Key decisions, one line each |
 | A choice made during one task | The worksheet's Decisions. Promote it to the system doc or an ADR only if it will matter after the task |
 
-The `domain-modeling` skill writes `CONTEXT.md` and ADRs in these formats. Use them in code and docs: a name the glossary says to avoid is a review finding.
+The `domain-modeling` skill writes `GLOSSARY.md` and ADRs in these formats, and `/wait-what` reads the glossary when it re-pitches a message. Use them in code and docs: a name the glossary says to avoid is a review finding.
 
 ## Persona ownership
 

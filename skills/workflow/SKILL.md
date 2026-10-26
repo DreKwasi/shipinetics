@@ -110,7 +110,8 @@ If they're installed, use these at the matching step. Shipinetics's rules win wh
 
 | Skill | Step | How it fits here |
 |---|---|---|
-| `grilling` with `domain-modeling` | 3, interactive only | Before the spec for M and up, and when splitting an L task (shipinetics:spec). Terms go in `CONTEXT.md`, hard-to-reverse decisions in `docs/adr/` |
+| `grilling` with `domain-modeling` | 3, interactive only | Before the spec for M and up, when splitting an L task (shipinetics:spec), and before any decision that's hard to reverse, whatever the task's size: a rename, removing a feature, a breaking change, a new public interface. Terms go in `GLOSSARY.md`, hard-to-reverse decisions in `docs/adr/` |
+| `wait-what` | any, run by the user | The user types `/wait-what` when your last message didn't land. Re-pitch it: a little context, ASD-STE100 (shipinetics:explain), and the terms in `GLOSSARY.md` |
 | `codebase-design` | 3 | When a change needs a new module or seam. Its vocabulary (depth, seam, adapter) is what reviewers use too. Its advice to delete old tests goes to test-writer, not you |
 | `prototype` | 3, interactive only | When a question needs a runnable answer. Write the answer in the spec or the worksheet's Decisions, and delete the prototype before the PR |
 | `research` | 2 | For external facts. Its findings go into the claims table with URL and date |

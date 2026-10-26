@@ -47,7 +47,7 @@ Use the next free ID (`grep -o 'T-[0-9]*' TODOS.md | sort -t- -k2 -n | tail -1`)
 
 An L task gets broken into S and M tasks that each leave the product working, each with its own acceptance criteria. This is where the hard questions get answered, so night shift only ever sees work a human already shaped.
 
-1. **Grill first** (interactive): run `grilling` with `domain-modeling` on the whole L task, as in shipinetics:spec step 2. Record terms in `CONTEXT.md` and hard-to-reverse decisions in `docs/adr/`.
+1. **Grill first** (interactive): run `grilling` with `domain-modeling` on the whole L task, as in shipinetics:spec step 2. Record terms in `GLOSSARY.md` and hard-to-reverse decisions in `docs/adr/`.
 2. **Cut vertical slices.** Each task cuts through every layer it needs (data, logic, API, UI) and delivers one thing a user or caller can see working, a tracer bullet, not a layer ("all the models", "all the endpoints"). If the code needs reshaping first, that's its own task at the front, a prefactor that changes no behavior.
 3. **Mark dependencies** with `Blocked-by:`. Keep them few: slices that can run in any order are better.
 4. **Check the split with the human** (interactive): are the slices the right size, in the right order, and is anything missing? Autonomous: you can split, but put the split in Blocked for a human to confirm before any piece goes to Ready.
