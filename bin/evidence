@@ -58,7 +58,7 @@ default_base() {
       git merge-base HEAD "$b"; return
     fi
   done
-  git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD
+  git rev-list --max-parents=0 HEAD 2>/dev/null | tail -n 1  # no main branch: the whole history
 }
 
 branch_files() { # branch_files <base>: files changed since base, committed or not

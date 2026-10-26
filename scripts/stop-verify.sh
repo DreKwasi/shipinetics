@@ -161,7 +161,7 @@ if sy_workspace "$root"; then
     if sy_verify_run "$root" "$p" "$tier" "$list" stop; then
       [ "$SY_VERIFY_RAN" = 1 ] && [ "$SY_VERIFY_TIER" = quick ] && quick_only="${quick_only:+$quick_only, }$p"
     else
-      [ "$SY_VERIFY_FP" = "$(cat "$cache/last-fail$sfx" 2>/dev/null)" ] || all_same=0
+      [ -n "$SY_VERIFY_FP" ] && [ "$SY_VERIFY_FP" = "$(cat "$cache/last-fail$sfx" 2>/dev/null)" ] || all_same=0
       printf '%s' "$SY_VERIFY_FP" >"$cache/last-fail$sfx"
       failed="${failed:+$failed }$p"
     fi
@@ -220,6 +220,6 @@ if sy_verify_run "$root" "" "$tier" "$list" stop; then
   [ "$SY_VERIFY_RAN" = 1 ] && [ "$SY_VERIFY_TIER" = quick ] && quick_note "this session's changes"
   exit 0
 fi
-[ "$stop_active" = "true" ] && [ "$SY_VERIFY_FP" = "$(cat "$cache/last-fail" 2>/dev/null)" ] && stuck_release
+[ "$stop_active" = "true" ] && [ -n "$SY_VERIFY_FP" ] && [ "$SY_VERIFY_FP" = "$(cat "$cache/last-fail" 2>/dev/null)" ] && stuck_release
 printf '%s' "$SY_VERIFY_FP" >"$cache/last-fail"
 block_with "$SY_VERIFY_LOG" "$(sy_verify_cmd "$root" "$SY_VERIFY_TIER" "")"

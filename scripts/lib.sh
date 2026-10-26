@@ -142,7 +142,9 @@ sy_verify_excludes() {
 # so the same code has the same fingerprint before and after it's committed. It builds the tree
 # in a throwaway copy of the index and never touches the real one. Falls back to hashing HEAD
 # plus the diff if that fails. Prints nothing and returns 1 if the folder isn't a usable git repo,
-# so a broken fingerprint can never match a recorded pass.
+# so a broken fingerprint can never match a recorded pass. Not covered: ignored files (build
+# output), edits inside a nested repo (it counts as one gitlink), and entries flagged
+# skip-worktree or assume-unchanged in the real index.
 sy_fingerprint() {
   local repo="$1" idx tree="" p paths=() add_excl=()
   shift
