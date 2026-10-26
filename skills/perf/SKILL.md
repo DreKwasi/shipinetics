@@ -26,9 +26,14 @@ Two jobs. **Benchmarks** run automatically and fail when a key path gets slower.
    | Go | `go test -bench` with `benchstat` |
    | CLI commands | `hyperfine` |
 
-3. **Store baselines** in `perf/baselines/<scenario>.json` with the median, the spread (p95 or stddev), the number of runs, the machine and the commit. `perf/baselines/*` is protected, so agents can't quietly reset them.
-4. **Build the comparison** as a project script, `bin/bench` (shipinetics:build-tool). It runs every scenario N times (at least 5, after a warmup), compares the median to the baseline, and fails if any scenario is slower by more than the threshold. Start with 10% and tune it for noise. Its output says which scenario, baseline vs now, and by how much.
-5. Add `bin/bench` to `bin/verify --full`.
+3. **Make the scenarios print timings.** Write a small command that runs every scenario once and prints one line per scenario: `<scenario> <milliseconds>`. Most tools can do this with a reporter option or a few lines of glue.
+4. **Compare with `bench-compare`.** It comes with the plugin. Make the project's bench command (`bench_cmd`, default `bin/bench`) a one-line wrapper: `bench-compare -- <your timing command>`. It runs the command once to warm up, then 5 times (`--runs`). It compares each scenario's median with this machine's baseline and fails if one is slower by more than the threshold (`--threshold`, default 10%). It shows baseline, now, change and spread per scenario. A scenario whose spread is bigger than the threshold is reported as too noisy to judge (exit 3), not passed.
+5. **Record baselines** with `bench-compare --init -- <your timing command>`. Baselines are per machine, `perf/baselines/<machine>.tsv` (median, spread, runs, commit), because a laptop and a CI runner don't compare. Name the machine with `--machine` or `SHIPINETICS_BENCH_MACHINE` so CI runners share one baseline. `perf/baselines/*` is in the default protected-paths, so once a baseline exists, `--init` writes the new one to `.shipinetics/pending/` for a human to apply. Absolute ceilings that hold on every machine go in `perf/baselines/budgets.tsv`: `<scenario> <max ms>` per line.
+6. Add the bench command to `bin/verify --full`.
+
+### Workspace mode
+
+Each package has its own scenarios and baselines. Set `package_bench_cmd` in `.shipinetics/config` with `{package}` where the package folder goes, for example `bin/bench-package {package}`, and keep each package's baselines in that package's repo (`<package>/perf/baselines/`). Run it for the packages a task touched, from the package repo, so the baseline paths and the commit in each result belong to that package. A slowdown in one package is that package's task to fix.
 
 ### Noise
 
@@ -37,7 +42,7 @@ Benchmarks on laptops and shared CI runners are noisy. Use medians, never single
 ### When a benchmark regresses
 
 1. Re-run it to rule out noise.
-2. If it's real, find the cause: `git bisect run bin/bench <scenario>` over the commits since the baseline.
+2. If it's real, find the cause with `git bisect run` over the commits since the baseline (the baseline file names its commit). In a single repo: `git bisect run bin/bench`. In workspace mode, bisect inside the package that regressed, with its bench command: `cd <package> && git bisect start HEAD <baseline commit> && git bisect run <package_bench_cmd for that package>`. Other packages stay where they are, so if the slowdown might come from a change in another package (a shared library, an API it calls), check that package's history first. `bench-compare` exits 3 when a run is too noisy: make the bisect script turn that into 125 (skip), not into good or bad.
 3. Fix it, or if the slowdown is an accepted cost of a feature, write that up in the worksheet under "Test change requests", with the new baseline at `.shipinetics/pending/<baseline path>`. A human applies it with `shipinetics-config apply`.
 
 ## Profiling (finding out why)

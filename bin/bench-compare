@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# bench-compare: run a benchmark command several times and compare each scenario's median with this
+# machine's baseline, so a slowdown fails and noise doesn't.
+#
+# Usage:
+#   bench-compare [options] -- <command> [args...]
+#
+# The command prints one line per scenario on each run: "<scenario> <milliseconds>" (lower is
+# better; other lines are ignored). It runs once to warm up, then --runs times.
+#
+# Options:
+#   --runs N        timed runs (default 5)
+#   --threshold P   percent slower than the baseline that counts as a regression (default 10)
+#   --dir D         baseline folder, relative to the current folder (default perf/baselines)
+#   --machine M     machine name (default $SHIPINETICS_BENCH_MACHINE, else <host>-<arch>)
+#   --init          record this machine's baseline instead of comparing. An existing baseline is
+#                   protected, so the new one goes to .shipinetics/pending/ for a human to apply
+#                   with shipinetics-config apply (outside a Shipinetics project: needs --force)
+#   --results F     also write this run's results to F (same format as a baseline)
+#
+# Baselines are per machine (<dir>/<machine>.tsv), because timings from different machines don't
+# compare. Format: "# key: value" header lines (machine, commit, date, runs), then one row per
+# scenario: scenario, median ms, spread %. Spread is the range of the runs (without the fastest
+# and slowest when there are 5 or more) as a percent of the median.
+# Budgets (<dir>/budgets.tsv, "<scenario> <max ms>" per line) are absolute ceilings, checked on
+# every machine, with or without a baseline.
+#
+# A scenario whose spread is over the threshold is too noisy to judge: it's reported, not passed.
+# Exit: 0 no regression, 1 a regression or a budget exceeded, 2 nothing to compare against or a
+# usage error, 3 no regression found but some scenario was too noisy to judge.
+
+set -uo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
+
+usage() { sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; }
+die() { echo "bench-compare: $*" >&2; exit 2; }
+
+runs=5 threshold=10 dir="perf/baselines" machine="" init=0 force=0 results=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --runs) runs="${2:-}"; shift 2 ;;
+    --threshold) threshold="${2:-}"; shift 2 ;;
+    --dir) dir="${2:-}"; shift 2 ;;
+    --machine) machine="${2:-}"; shift 2 ;;
+    --init) init=1; shift ;;
+    --force) force=1; shift ;;
+    --results) results="${2:-}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    --) shift; break ;;
+    *) die "unknown argument: $1 (the command goes after --)" ;;
+  esac
+done
+[ $# -gt 0 ] || { usage >&2; exit 2; }
+case "$runs" in ''|*[!0-9]*|0) die "--runs needs a whole number above 0" ;; esac
+case "$threshold" in ''|*[!0-9.]*) die "--threshold needs a number" ;; esac
+[ -n "$machine" ] || machine="$(sy_env BENCH_MACHINE)"
+[ -n "$machine" ] || machine="$(hostname -s 2>/dev/null || uname -n)-$(uname -m)"
+machine="$(printf '%s' "$machine" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9._-' '-')"
+baseline="$dir/$machine.tsv" budgets="$dir/budgets.tsv"
+
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/bench.XXXXXX")" || die "can't make a temp folder"
+trap 'rm -rf "$tmp"' EXIT
+
+# ---- run: one warmup, then the timed runs
+"$@" >/dev/null 2>&1 || die "the command failed on its warmup run: $*"
+for i in $(seq 1 "$runs"); do
+  "$@" >"$tmp/run" 2>"$tmp/err" || { cat "$tmp/err" >&2; die "the command failed on run $i: $*"; }
+  awk 'NF >= 2 && $1 ~ /^[A-Za-z0-9_.:\/-]+$/ && $2 ~ /^[0-9]+(\.[0-9]+)?$/ { print $1 "\t" $2 }' "$tmp/run" >>"$tmp/all"
+done
+[ -s "$tmp/all" ] || die "the command printed no \"<scenario> <milliseconds>\" lines"
+
+# ---- stats per scenario: median and spread
+sort -t "$(printf '\t')" -k1,1 -k2,2g "$tmp/all" | awk -F'\t' '
+  function flush() {
+    if (name == "") return
+    med = (n % 2) ? v[(n + 1) / 2] : (v[n / 2] + v[n / 2 + 1]) / 2
+    lo = (n >= 5) ? v[2] : v[1]; hi = (n >= 5) ? v[n - 1] : v[n]
+    printf "%s\t%.3f\t%.1f\n", name, med, (med > 0 ? (hi - lo) / med * 100 : 0)
+  }
+  $1 != name { flush(); name = $1; n = 0 }
+  { v[++n] = $2 }
+  END { flush() }' >"$tmp/stats"
+
+write_results() { # write_results <file>
+  {
+    echo "# machine: $machine"
+    echo "# commit: $(git rev-parse --short HEAD 2>/dev/null || echo none)"
+    echo "# date: $(date '+%Y-%m-%d')"
+    echo "# runs: $runs"
+    cat "$tmp/stats"
+  } >"$1"
+}
+[ -n "$results" ] && write_results "$results"
+
+# ---- init: record the baseline
+if [ "$init" = 1 ]; then
+  if [ ! -e "$baseline" ]; then
+    mkdir -p "$dir"; write_results "$baseline"
+    echo "bench-compare: recorded the baseline for $machine in $baseline ($runs runs). Commit it."
+    exit 0
+  fi
+  root="$(sy_root 2>/dev/null)" || root=""
+  if [ -n "$root" ]; then
+    rel="$(sy_rel "$root" "$(cd "$(dirname "$baseline")" && pwd)/$(basename "$baseline")")"
+    prop="$(sy_dir "$root")/pending/$rel"
+    mkdir -p "$(dirname "$prop")"; write_results "$prop"
+    echo "bench-compare: $baseline already exists, and baselines are protected. The new one is a proposal in ${prop#"$root"/}."
+    echo "Say why it should change under 'Test change requests' in your worksheet. A human applies it with: shipinetics-config apply"
+    exit 0
+  fi
+  [ "$force" = 1 ] || die "$baseline already exists. Pass --force to replace it."
+  write_results "$baseline"; echo "bench-compare: replaced $baseline."
+  exit 0
+fi
+
+# ---- compare
+[ -f "$baseline" ] || [ -f "$budgets" ] ||
+  die "no baseline for this machine ($baseline) and no budgets. Record one with: bench-compare --init -- $*"
+[ -f "$baseline" ] || echo "bench-compare: no baseline for $machine yet, so only budgets are checked. Record one with --init." >&2
+touch "$tmp/base" "$tmp/budget"
+[ -f "$baseline" ] && grep -v '^#' "$baseline" >"$tmp/base"
+[ -f "$budgets" ] && grep -v '^#' "$budgets" | awk 'NF >= 2 { print $1 "\t" $2 }' >"$tmp/budget"
+
+awk -F'\t' -v thr="$threshold" '
+  FILENAME == ARGV[1] { base[$1] = $2; next }
+  FILENAME == ARGV[2] { budget[$1] = $2; next }
+  {
+    name = $1; now = $2; spread = $3; verdict = "ok"; change = "-"
+    if (name in base && base[name] > 0) {
+      pct = (now - base[name]) / base[name] * 100
+      change = sprintf("%+.1f%%", pct)
+      if (spread > thr) { verdict = "noisy"; noisy++ }
+      else if (pct > thr) { verdict = "SLOWER"; bad++ }
+      else if (pct < -thr) verdict = "faster"
+    } else if (spread > thr) { verdict = "noisy"; noisy++ }
+    if ((name in budget) && now > budget[name]) { verdict = verdict " OVER BUDGET (" budget[name] ")"; bad++ }
+    printf "%-28s %10s %10.1f %9s %8.1f%%  %s\n", name, (name in base ? sprintf("%.1f", base[name]) : "-"), now, change, spread, verdict
+  }
+  END { exit bad ? 1 : (noisy ? 3 : 0) }' "$tmp/base" "$tmp/budget" "$tmp/stats" >"$tmp/table"
+rc=$?
+printf '%-28s %10s %10s %9s %9s  %s\n' scenario "base ms" "now ms" change spread verdict
+cat "$tmp/table"
+case "$rc" in
+  0) echo "bench-compare: no regressions ($machine, $runs runs, threshold ${threshold}%)." ;;
+  1) echo "bench-compare: regression. Re-run once to rule out noise, then find the cause (git bisect run). See shipinetics:perf." >&2 ;;
+  3) echo "bench-compare: no regression found, but some scenarios are too noisy to judge at ${threshold}%. Make them steadier or raise the threshold." >&2 ;;
+esac
+exit "$rc"

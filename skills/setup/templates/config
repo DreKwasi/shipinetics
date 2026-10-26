@@ -42,6 +42,10 @@
 # the test account and clean up after themselves. See the verification-map skill.
 # launch = agent
 
+# ---- Benchmarks (shipinetics:perf). bin/bench usually wraps: bench-compare -- <the bench command>
+# bench_cmd = bin/bench
+# package_bench_cmd = bin/bench-package {package}  # workspace mode, {package} is the package folder
+
 # ---- Worksheets: hand off to the project's own scripts if it has them
 # worksheet_new_cmd = scripts/new_trace.sh          # receives <slug>, prints the new path
 # worksheet_tag_cmd = scripts/tag_trace.sh          # receives [<package>] <worksheet path>

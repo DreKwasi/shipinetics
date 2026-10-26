@@ -195,6 +195,7 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one ve
 | `SHIPINETICS_CLAUDE_REVIEW_EFFORT`, `SHIPINETICS_CODEX_EFFORT`, `SHIPINETICS_FIX_EFFORT` | Effort for review and lint-fix CLIs (default `high`) |
 | `SHIPINETICS_FIX_CLI`, `SHIPINETICS_FIX_MODEL` | CLI and model for `bin/llm-fix` (default `claude`, `sonnet`) |
 | `SHIPINETICS_LLM_FIX=0` | Skip the LLM pass in `bin/lint-fix` |
+| `SHIPINETICS_BENCH_MACHINE` | Machine name for `bench-compare` baselines (default `<host>-<arch>`). Set it in CI so runners share one baseline |
 | `GOOGLE_CLOUD_PROJECT` | Default project for `bin/with-secrets` (else gcloud's configured project) |
 
 ## Known limits
@@ -214,7 +215,7 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one ve
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
-bin/              agent_review, design-check, evidence, night-shift, scan-skills, shipinetics-config,
+bin/              agent_review, bench-compare, design-check, evidence, night-shift, scan-skills, shipinetics-config,
                   shipinetics-verify, worksheet   (on the agent's PATH; shipyard-config and
                   shipyard-verify are deprecated shims, kept for one version)
 hooks/            hooks.json
