@@ -37,6 +37,26 @@ EOF"
 blocked "grep through a credential file" "grep token ~/.npmrc"
 has "deny names the project's secrets runner" "$OUT" "use bin/secrets <command>"
 blocked "the runner doesn't hide a dump" "bin/secrets env"
+# Text the shell would still run is never dropped (each was a hole in a first version).
+blocked "unquoted heredoc to a file expands \$(...)" 'cat > /tmp/e <<EOF
+$(env >&2)
+EOF'
+blocked "heredoc written by tee and piped to sh" "tee f <<'EOF' | sh
+printenv
+EOF"
+blocked "heredoc written to a script that then runs" "cat > x.sh <<'EOF'
+printenv
+EOF
+bash x.sh"
+blocked "a here-string isn't a heredoc" 'cat > f <<<"hi"
+env'
+blocked "<< inside a comment isn't a heredoc" "cat > f # <<EOF
+env
+EOF"
+blocked "a grep pattern with a substitution" 'grep "$(env >&2)" /dev/null'
+blocked "an ANSI-C quoted pattern doesn't hide what follows" "grep \$'\\'' ; env ; echo ''"
+blocked "grep -T takes no argument, so the path stays visible" "grep -a -T . /proc/self/environ"
+blocked "grep -f has no pattern argument, so the path stays visible" "grep -f pats ~/.aws/credentials"
 
 allowed "printenv of safe variables" "printenv HOME PATH"
 allowed "inline script reading NODE_ENV" "node -e '$js_safe'"
@@ -51,6 +71,8 @@ allowed "git grep -e pattern" "git grep -e 'echo \$SECRET_KEY' -- scripts"
 
 edit_hook src/app.ts "$js_secret"; has "code: new secret read is blocked" "$OUT" "would read environment variables"
 edit_hook src/app.ts "$js_safe"; eq "code: NODE_ENV read is allowed" "$OUT" ""
+edit_hook src/app.ts 'x = os.environ["CI" if 0 else "API_KEY"]'; has "code: a safe name can't hide a secret read" "$OUT" "would read environment variables"
+edit_hook src/app.ts 'tmp = os.environ.get("HOME", "/tmp")'; eq "code: a safe read with a default is allowed" "$OUT" ""
 edit_hook README.md "$js_secret"; eq "docs: an example in Markdown is allowed" "$OUT" ""
 edit_hook docs/setup.txt "$js_secret"; eq "docs: plain text is allowed" "$OUT" ""
 done_testing

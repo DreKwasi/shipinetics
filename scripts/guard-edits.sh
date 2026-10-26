@@ -48,6 +48,7 @@ path="$(jget tool_input.file_path)"
 [ -n "$path" ] || path="$(jget tool_input.notebook_path)"
 [ -n "$path" ] || exit 0
 case "$path" in /*) ;; *) path="$root/$path" ;; esac
+path="$(sy_norm_path "$path")"   # so .. can't step out of the pending folder past the rules
 rel="$(sy_rel "$root" "$path")"
 agent="$(jget agent_type)"
 session="$(jget session_id)"
@@ -59,6 +60,14 @@ target_rel="$rel"
 case "$rel" in "$dn/pending/"*) target_rel="${rel#"$dn/pending/"}" ;; esac
 testing_guide="$(sy_cfg "$root" testing_guide_file)"
 test_index="$(sy_cfg "$root" test_index_file)"
+
+# ---- 0. a project still on the legacy folder ----
+# Creating .shipinetics/ there would switch the guards to an empty folder, so only migrate does it.
+if [ "$dn" = "$SY_LEGACY_DIR_NAME" ] && ! sy_flag UNLOCK; then
+  case "$rel" in "$SY_DIR_NAME"/*|"$SY_DIR_NAME")
+    deny "This project still uses $SY_LEGACY_DIR_NAME/. Writing $rel would create $SY_DIR_NAME/, and the guards would switch to it, leaving its rules behind. To move to the new name, a human runs shipinetics-config migrate. Put proposals in $SY_LEGACY_DIR_NAME/pending/ until then." ;;
+  esac
+fi
 
 # ---- 1. protected paths: existing files only ----
 if ! sy_flag UNLOCK && [ -e "$path" ] && sy_list_match "$root" protected-paths "$rel"; then

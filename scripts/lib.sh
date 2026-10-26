@@ -125,6 +125,20 @@ sy_package_of() {
   return 1
 }
 
+# sy_norm_path <absolute path>: the same path without . and .. parts (no symlinks resolved)
+sy_norm_path() {
+  local part parts out=()
+  IFS=/ read -r -a parts <<<"$1"
+  for part in ${parts[@]+"${parts[@]}"}; do
+    case "$part" in
+      ''|.) ;;
+      ..) [ "${#out[@]}" -gt 0 ] && unset "out[$((${#out[@]} - 1))]" ;;
+      *) out+=("$part") ;;
+    esac
+  done
+  if [ "${#out[@]}" -gt 0 ]; then printf '/%s' "${out[@]}"; echo; else echo /; fi
+}
+
 # sy_rel <root> <absolute path>: the path relative to root (unchanged if outside it).
 # Compares resolved paths too, so a symlinked prefix (macOS /tmp is /private/tmp) still matches.
 sy_rel() {
@@ -169,9 +183,10 @@ sy_safe_env_names() {
 }
 
 # sy_sanitize <cmd|code> <safe names>: stdin to stdout, minus the text the env guards shouldn't
-# judge. Both modes turn reads of safe variables into SAFE_ENV. cmd mode (a Bash command) also
-# drops heredoc bodies written to a file with cat or tee (a heredoc fed to a program stays), the
-# pattern argument of grep, egrep, fgrep, rg, ag, ack and git grep, and printenv of safe names.
+# judge. Both modes turn complete reads of safe variables into SAFE_ENV. cmd mode (a Bash command)
+# also drops heredoc bodies that can't run, the inert pattern of grep, egrep, fgrep, git grep and
+# rg, and printenv of safe names. Whenever it can't be sure text is inert, it leaves it in, so the
+# guards judge it.
 sy_sanitize() { perl -e "$SY_SANITIZE_PL" "$1" "$2"; }
 read -r -d '' SY_SANITIZE_PL <<'PL' || true
 use strict; use warnings;
@@ -179,49 +194,96 @@ my ($mode, $names) = @ARGV;
 my $t = do { local $/; <STDIN> }; $t = '' unless defined $t;
 my $n = join '|', map { quotemeta } grep { /^[A-Za-z_][A-Za-z0-9_]*$/ } split ' ', ($names // '');
 
+# A heredoc body is dropped only when bash can't run any of it: the command is a plain
+# "cat > file", "cat >> file" or "tee [-a] file" alone on its line (no quotes, comments, pipes,
+# substitutions or other commands around it), the file isn't a device and isn't named anywhere
+# else in the command (so it isn't run afterwards), and the body can't expand: the delimiter is
+# quoted, or the body has no $, ` or \.
 sub heredocs {
-  my @out; my @open;
-  for my $line (split /\n/, $_[0], -1) {
+  my $all = shift;
+  my (@out, @open);
+  my $id = qr/[A-Za-z_][A-Za-z0-9_]*/;
+  for my $line (split /\n/, $all, -1) {
     if (@open) {
-      my ($delim, $drop, $dash) = @{$open[0]};
-      my $cmp = $dash ? ($line =~ s/^\t+//r) : $line;
-      if ($cmp eq $delim) { shift @open; push @out, $line } else { push @out, $drop ? '' : $line }
+      my $h = $open[0];
+      my $cmp = $h->{dash} ? ($line =~ s/^\t+//r) : $line;
+      if ($cmp eq $h->{delim}) {
+        shift @open;
+        my $inert = $h->{quoted} || !grep { /[\$`\\]/ } @{$h->{body}};
+        push @out, ($h->{drop} && $inert) ? map { '' } @{$h->{body}} : @{$h->{body}};
+        push @out, $line;
+      } else {
+        push @{$h->{body}}, $line;
+      }
       next;
     }
     push @out, $line;
-    while ($line =~ /<<(-?)[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2/g) {
-      my ($dash, $delim) = ($1, $3);
-      (my $before = substr($line, 0, $-[0])) =~ s/.*[;&|]//s;
-      (my $after = substr($line, $+[0])) =~ s/[;&|].*//s;
-      my $cmd = "$before $after";
-      my $to_file = ($cmd =~ /^\s*cat\b/ && $cmd =~ />/) || $cmd =~ /^\s*tee\b/;
-      push @open, [$delim, $to_file, $dash];
+    while ($line =~ /(?<!<)<<(?!<)(-?)[ \t]*(?:'($id)'|"($id)"|\\($id)|($id))(?=[\s;&|<>()]|$)/g) {
+      my $h = { dash => $1, delim => $2 // $3 // $4 // $5, quoted => !defined $5, body => [], drop => 0 };
+      my $cmd = substr($line, 0, $-[0]) . ' ' . substr($line, $+[0]);
+      if ($cmd =~ /^\s*(?:cat\s*>>?\s*([^\s<>&|;()'"`\$#]+)|tee(?:\s+-a)?\s+([^\s<>&|;()'"`\$#-][^\s<>&|;()'"`\$#]*))\s*$/) {
+        my $file = $1 // $2;
+        (my $base = $file) =~ s{.*/}{};
+        my $mentions = () = $all =~ /\Q$base\E/g;
+        $h->{drop} = 1 if $file !~ m{^/dev/} && $mentions == 1;
+      }
+      push @open, $h;
     }
   }
+  push @out, @{$_->{body}} for @open;   # unterminated: keep everything
   return join "\n", @out;
 }
 
-sub unquote { my $w = shift; $w =~ s/^'(.*)'$/$1/s or $w =~ s/^"(.*)"$/$1/s; return $w }
-
-sub search_patterns {
+# tokens: [type, text], type 'w' (word), 'sp' (blanks) or 's' (separator)
+sub tokens {
   my $s = shift; my @tok; my ($i, $len) = (0, length $s);
   while ($i < $len) {
     my $c = substr($s, $i, 1);
     if ($c =~ /[ \t]/) { my $j = $i; $j++ while $j < $len && substr($s, $j, 1) =~ /[ \t]/; push @tok, ['sp', substr($s, $i, $j - $i)]; $i = $j; next }
     if (substr($s, $i, 2) eq '$(') { push @tok, ['s', '$(']; $i += 2; next }
-    if ($c =~ /[;&|()`\n]/) { push @tok, ['s', $c]; $i++; next }
+    if ($c =~ /[;&|()`\n<>]/) { push @tok, ['s', $c]; $i++; next }
     my $j = $i;
     while ($j < $len) {
       my $d = substr($s, $j, 1);
-      last if $d =~ /[ \t;&|()`\n]/ || substr($s, $j, 2) eq '$(';
+      last if $d =~ /[ \t;&|()`\n<>]/ || substr($s, $j, 2) eq '$(';
       if ($d eq "'") { my $k = index($s, "'", $j + 1); $j = $k < 0 ? $len : $k + 1; next }
+      if ($d eq '$' && substr($s, $j + 1, 1) eq "'") {   # $'...' with backslash escapes
+        my $k = $j + 2; while ($k < $len && substr($s, $k, 1) ne "'") { $k++ if substr($s, $k, 1) eq '\\'; $k++ }
+        $j = $k < $len ? $k + 1 : $len; next;
+      }
       if ($d eq '"') { my $k = $j + 1; while ($k < $len && substr($s, $k, 1) ne '"') { $k++ if substr($s, $k, 1) eq '\\'; $k++ } $j = $k < $len ? $k + 1 : $len; next }
       $j += $d eq '\\' ? 2 : 1;
     }
     push @tok, ['w', substr($s, $i, $j - $i)]; $i = $j;
   }
-  my %takes_arg = map { $_ => 1 } qw(-A -B -C -m -g -t -T -j -M -d -D -f --file --type --type-not --glob --iglob
-    --max-count --context --after-context --before-context --include --exclude --exclude-dir --max-depth --threads);
+  return @tok;
+}
+
+sub unquote { my $w = shift; $w =~ s/^'(.*)'$/$1/s or $w =~ s/^"(.*)"$/$1/s; return $w }
+
+# A pattern is blanked only if the shell can't run anything in it: all in single quotes, or
+# without $, ` and \. Any option this doesn't know stops the stripping for that command.
+sub search_patterns {
+  my @tok = tokens(shift);
+  my %opts = (
+    grep => { arg => [qw(-A -B -C -m -d -D --context --after-context --before-context --max-count
+                         --include --exclude --exclude-dir --devices --directories --label)],
+              flag => [qw(-r -R -n -i -l -L -c -v -w -x -o -q -s -h -H -E -F -G -P -a -I -z -Z -b -U -T
+                          --recursive --dereference-recursive --line-number --ignore-case --files-with-matches
+                          --files-without-match --count --invert-match --word-regexp --line-regexp
+                          --only-matching --quiet --silent --no-messages --no-filename --with-filename
+                          --extended-regexp --fixed-strings --basic-regexp --perl-regexp --text --null
+                          --null-data --byte-offset --binary --initial-tab --line-buffered --color)] },
+    rg   => { arg => [qw(-A -B -C -m -g -t -T -j -M -E -r -d --context --after-context --before-context
+                         --max-count --glob --iglob --type --type-not --threads --max-columns --encoding
+                         --replace --max-depth --pre --pre-glob --sort --sortr --type-add --max-filesize)],
+              flag => [qw(-n -i -S -s -l -c -v -w -x -o -q -u -uu -uuu -L -H -I -N -F -U -a -z -0 -p
+                          --line-number --ignore-case --smart-case --case-sensitive --files-with-matches
+                          --files-without-match --count --invert-match --word-regexp --line-regexp
+                          --only-matching --quiet --unrestricted --follow --with-filename --no-filename
+                          --no-line-number --fixed-strings --multiline --text --hidden --no-ignore
+                          --no-heading --heading --json --vimgrep --stats --pretty --color --null)] },
+  );
   my @seg;
   for my $k (0 .. $#tok + 1) {
     if ($k <= $#tok && $tok[$k][0] ne 's') { push @seg, $k if $tok[$k][0] eq 'w'; next }
@@ -229,20 +291,37 @@ sub search_patterns {
     shift @w while @w && (unquote($tok[$w[0]][1]) =~ /^[A-Za-z_][A-Za-z0-9_]*=/ || $tok[$w[0]][1] =~ /^(sudo|command|time|nohup|exec)$/);
     next unless @w;
     my $cmd = unquote($tok[$w[0]][1]); $cmd =~ s{.*/}{};
-    if ($cmd eq 'git' && @w > 1 && $tok[$w[1]][1] eq 'grep') { shift @w }
-    elsif ($cmd !~ /^(grep|egrep|fgrep|rg|ag|ack)$/) { next }
+    my $tool;
+    if ($cmd eq 'git' && @w > 1 && $tok[$w[1]][1] eq 'grep') { shift @w; $tool = 'grep' }
+    elsif ($cmd =~ /^[ef]?grep$/) { $tool = 'grep' }
+    elsif ($cmd eq 'rg') { $tool = 'rg' }
+    else { next }
     shift @w;
-    my ($have_e, $done, $only_pos) = (0, 0, 0);
+    my %arg = map { $_ => 1 } @{$opts{$tool}{arg}};
+    my %flag = map { $_ => 1 } @{$opts{$tool}{flag}};
+    my (@blank, $pattern_given, $only_pos);
+    my $ok = 1;
     for (my $a = 0; $a < @w; $a++) {
-      my $u = unquote($tok[$w[$a]][1]);
+      my $raw = $tok[$w[$a]][1]; my $u = unquote($raw);
       if (!$only_pos && $u eq '--') { $only_pos = 1; next }
-      if (!$only_pos && $u =~ /^-/) {
-        if ($u eq '-e' || $u eq '--regexp') { $tok[$w[$a]][1] = ''; $tok[$w[$a + 1]][1] = '' if $a + 1 < @w; $a++; $have_e = 1; next }
-        if ($u =~ /^(-e.|--regexp=)/) { $tok[$w[$a]][1] = ''; $have_e = 1; next }
-        $a++ if $takes_arg{$u};
-        next;
+      if (!$only_pos && $u =~ /^-./) {
+        if ($u eq '-e' || $u eq '--regexp') { push @blank, $a, $a + 1; $a++; $pattern_given = 1; next }
+        if ($u =~ /^(?:-e.|--regexp=)/) { push @blank, $a; $pattern_given = 1; next }
+        if ($u eq '-f' || $u eq '--file') { $a++; $pattern_given = 1; next }
+        if ($u =~ /^(?:-f.|--file=)/) { $pattern_given = 1; next }
+        if ($u =~ /^--[\w-]+=/) { next }
+        if ($arg{$u}) { $a++; next }
+        if ($flag{$u}) { next }
+        if ($u =~ /^-([A-Za-z0-9]+)$/ && !grep { !$flag{"-$_"} } split //, $1) { next }   # a cluster of flags
+        $ok = 0; last;
       }
-      if (!$have_e && !$done) { $tok[$w[$a]][1] = ''; $done = 1 }
+      if (!$pattern_given) { push @blank, $a; $pattern_given = 1 }
+    }
+    next unless $ok;
+    for my $a (@blank) {
+      next if $a >= @w;
+      my $raw = $tok[$w[$a]][1];
+      $tok[$w[$a]][1] = '' if $raw =~ /^'[^']*'$/ || $raw !~ /[\$`\\]/;
     }
   }
   return join '', map { $_->[1] } @tok;
@@ -253,8 +332,14 @@ if ($mode eq 'cmd') {
   $t =~ s/(?<![\w-])printenv((?:[ \t]+(?:$n))+)(?=[ \t]*(?:$|[;&|>)\n]))/:/g if length $n;
 }
 if (length $n) {
-  $t =~ s/(?:process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|ENV)(?:\.(?:get|fetch))?\s*(?:\.|\[|\()\s*(["']?)(?:$n)\1(?!\w)\s*[\])]?/SAFE_ENV/g;
-  $t =~ s/(?:os\.getenv|os\.Getenv|os\.LookupEnv|std::env::var|env::var|System\.getenv|getenv)\s*\(\s*(["'])(?:$n)\1\s*\)/SAFE_ENV/g;
+  # Only whole reads: the accessor, the safe name, and the closing bracket, with at most a plain
+  # literal as the default. Anything more stays visible.
+  my $acc = qr/(?:process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|ENV)/;
+  my $lit = qr/(?:"[^"\\\$`]*"|'[^'\\]*'|-?[0-9][0-9.]*|None|nil|null|undefined|true|false)/;
+  $t =~ s/$acc\.(?:$n)(?![\w(\[])/SAFE_ENV/g;
+  $t =~ s/$acc\s*\[\s*(["'])(?:$n)\1\s*\]/SAFE_ENV/g;
+  $t =~ s/$acc\.(?:get|fetch)\s*\(\s*(["'])(?:$n)\1\s*(?:,\s*$lit\s*)?\)/SAFE_ENV/g;
+  $t =~ s/(?:os\.getenv|os\.Getenv|os\.LookupEnv|std::env::var|env::var|System\.getenv|getenv)\s*\(\s*(["'])(?:$n)\1\s*(?:,\s*$lit\s*)?\)/SAFE_ENV/g;
 }
 print $t;
 PL

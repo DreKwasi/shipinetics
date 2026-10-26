@@ -77,9 +77,9 @@ rb="${runner%% *}"; rb="${rb##*/}"
 [ -n "$rb" ] && [ "$rb" != "with-secrets" ] && wrap="$wrap|$(printf '%s' "$rb" | sed 's/[][\.*^$+?(){}|]/\\&/g')"
 pos='(^|[;&|(`'"$nl"']|\$\(|[[:space:]]--[[:space:]])[[:space:]]*((sudo|exec|command|nohup|time|[^[:space:];&|]*('"$wrap"'))[[:space:]]+)*'
 
-r_env="$pos"'env([[:space:]]+-[A-Za-z0-9]+)*[[:space:]]*($|[|;&>)`])'
+r_env="$pos"'env([[:space:]]+-[A-Za-z0-9]+)*[[:blank:]]*($|[|;&>)`'"$nl"'])'
 r_printenv="$pos"'printenv([[:space:]]|$)'
-r_export="$pos"'(export[[:space:]]+-p|export[[:space:]]*($|[;&|>])|declare[[:space:]]+-[A-Za-z]*[xp]|typeset[[:space:]]+-[A-Za-z]*x|set[[:space:]]*($|[;&|>])|compgen[[:space:]]+-[A-Za-z]*e)'
+r_export="$pos"'(export[[:space:]]+-p|export[[:blank:]]*($|[;&|>'"$nl"'])|declare[[:space:]]+-[A-Za-z]*[xp]|typeset[[:space:]]+-[A-Za-z]*x|set[[:blank:]]*($|[;&|>'"$nl"'])|compgen[[:space:]]+-[A-Za-z]*e)'
 r_proc='/proc/[^[:space:]]*/environ'
 r_ps="$pos"'ps[[:space:]]+([^;&|]*[[:space:]])?(e|eww?|auxe|axe|-[A-Za-z]*E)([[:space:]]|$)'
 r_inline='(^|[^A-Za-z0-9_])(node|nodejs|deno|bun|tsx|ts-node|python|python3|ruby|perl|php|irb)([^A-Za-z0-9_].*)?(process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|os\.getenv|ENV\[|ENV\.(fetch|to_h|each|keys)|getenv\(|System\.getenv|\$env:|GetEnvironmentVariable)'

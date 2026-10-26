@@ -36,6 +36,8 @@ git checkout -q a.txt
 eq "legacy folder: shipinetics-config reads it" "$(shipinetics-config get verify_quick_cmd 2>/dev/null)" "bin/verify --quick"
 edit_hook "$p" "$p/.shipyard/config"
 has "legacy folder: its policy files are protected" "$OUT" "is protected"
+edit_hook "$p" "$p/.shipinetics/config"
+has "legacy folder: creating .shipinetics/ is blocked" "$OUT" "shipinetics-config migrate"
 SHIPYARD_UNLOCK=1 edit_hook "$p" "$p/.shipyard/config"
 eq "legacy SHIPYARD_UNLOCK unlocks protected paths" "$OUT" ""
 

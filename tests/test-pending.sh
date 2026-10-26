@@ -26,6 +26,8 @@ eq "test-writer can revise its proposal" "$OUT" ""
 edit_hook .shipinetics/pending/e2e/acceptance/a.spec.ts
 has "a proposal for a test file is still test-writer's" "$OUT" "is a test file"
 
+edit_hook .shipinetics/pending/../../e2e/acceptance/a.spec.ts shipinetics:test-writer
+has "a .. path can't use the pending folder to reach a protected file" "$OUT" "is protected"
 has "pending lists the proposal" "$(shipinetics-config pending 2>&1)" "e2e/acceptance/a.spec.ts (+1 -1 lines)"
 out="$(shipinetics-config apply </dev/null 2>&1)"; rc=$?
 eq "apply without a terminal refuses" "$rc:$(cat e2e/acceptance/a.spec.ts)" "1:old"
