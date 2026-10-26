@@ -37,7 +37,7 @@ Every doc in `docs/systems/` starts with a 7-line header (title, summary, owns, 
 ## Every session
 
 1. Start or resume a worksheet: `worksheet new <slug>` or `worksheet use <name>`. Keep it current as you go. Another agent should be able to finish your task from it alone.
-2. Commits carry a trailer line: `Worksheet: <worksheet-name>`.
+2. Commit each working step as you go, not one big commit at the end. Every commit carries a trailer line, `Worksheet: <worksheet-name>`, and changes at most 400 lines. The git hooks refuse commits that break either rule.
 3. At the end: tag with `worksheet tag`, and append an entry to `docs/agent-feedback.md` about what slowed you down.
 
 ## Review

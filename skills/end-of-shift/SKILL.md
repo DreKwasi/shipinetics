@@ -11,6 +11,8 @@ The human is about to come back. Leave the repo in a state where they can see, i
 
 **Honesty rule:** the report says exactly what passed and what didn't. A red check reported as red is fine. A red check hidden or explained away is a broken shift.
 
+**Commits:** end-of-shift work belongs to no single task, so commit it with `SHIPYARD_ALLOW_NO_WORKSHEET=1 git commit ...`. The fix, the metrics and the report each go in their own commit.
+
 ## 1. Full checks
 
 Run each and record the result (pass, fail with summary, or not run with reason):

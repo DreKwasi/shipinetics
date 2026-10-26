@@ -74,7 +74,7 @@ Start with one pilot project, not all of them. Pick one with an existing test su
 |---|---|---|
 | `/shipyard:setup 2` | System docs with 7-line headers, conventions | `head -n 7 docs/systems/*.md` reads like a map of the codebase |
 | `/shipyard:setup 3` | Worksheet template, feedback log, `TODOS.md` | `worksheet new test` then `worksheet list` |
-| `/shipyard:setup 4` | Pre-commit lint with autofix and LLM fallback | Commit a fixable lint error. It comes out fixed |
+| `/shipyard:setup 4` | Commit hooks: lint autofix with LLM fallback, a 400-line size limit, the `Worksheet:` trailer | Commit a fixable lint error. It comes out fixed. A commit without a trailer, or over 400 lines, is refused |
 | `/shipyard:setup 5` | CI running `bin/verify --full` | The next PR shows the check |
 | `/shipyard:setup 6` | One visual test, one benchmark | Both run in `bin/verify --full` |
 | `/shipyard:setup 7` | Night shift readiness | `night-shift --dry-run` |
@@ -91,7 +91,7 @@ Tell the agent what you want, the way you do now. It follows `shipyard:workflow`
 5. Gets reviews: `shipyard:reviewer` on a different model, plus the security or UI reviewer when the change calls for them, plus `agent_review` for a different model family.
 6. Records evidence from the running app: screenshots per acceptance criterion, a recording for UI changes, transcripts for CLIs and APIs.
 7. For medium tasks and up, authors a Whiteboard of the change for you.
-8. Commits with a `Worksheet:` trailer, tags the worksheet, fills in its metrics, leaves feedback.
+8. Commits each working step as it goes, each with a `Worksheet:` trailer and under 400 changed lines (the git hooks refuse anything else). Then tags the worksheet, fills in its metrics and leaves feedback.
 9. For a PR: builds the body with the Evidence section and an independent merge-risk grade. The PR can't open without the evidence.
 
 What you do: approve the acceptance criteria, then let the merge-risk grade set how closely you review. Low: check the evidence, skim, merge. Medium: read the Whiteboard and the flagged files. High: full review. Fill in the three human fields in the worksheet's Metrics (corrections, review minutes, accepted).

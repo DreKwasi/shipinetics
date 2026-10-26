@@ -51,7 +51,7 @@ The Metrics block is how the user finds out whether a change to the setup (a new
 
 ## Linking to git
 
-- Every commit made under a worksheet gets a trailer as the last line of its message:
+- Every commit made under a worksheet gets a trailer in the last paragraph of its message. Other trailers, such as Co-Authored-By, can share that paragraph. In set-up projects a commit-msg hook refuses commits without it:
 
   ```
   Fix refund rounding for JPY

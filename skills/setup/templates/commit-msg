@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# commit-msg: refuse a commit whose message has no "Worksheet: <name>" trailer, so every commit
+# leads back to the worksheet that explains it (git log --grep "Worksheet: <name>").
+# Install as .githooks/commit-msg next to pre-commit. Enable with: git config core.hooksPath .githooks
+#
+# Merges, reverts and fixup!/squash!/amend! commits pass: their history lives in other commits.
+# For a commit that belongs to no task (a shift report, an approved feedback fix), set
+# SHIPYARD_ALLOW_NO_WORKSHEET=1 for that one commit.
+
+set -uo pipefail
+msg="$1"
+
+[ "${SHIPYARD_ALLOW_NO_WORKSHEET:-0}" = "1" ] && exit 0
+git rev-parse -q --verify MERGE_HEAD >/dev/null && exit 0
+
+subject="$(git stripspace --strip-comments < "$msg" | head -n 1)"
+case "$subject" in "Merge "*|"Revert \""*|"fixup! "*|"squash! "*|"amend! "*) exit 0 ;; esac
+
+git interpret-trailers --parse < "$msg" | grep -qE '^Worksheet: *[^[:space:]]' && exit 0
+
+cat >&2 <<'EOF'
+commit-msg: no "Worksheet: <name>" trailer. Add it to the last paragraph of the message:
+
+  Fix refund rounding for JPY
+
+  Refunds in zero-decimal currencies were divided by 100 twice.
+
+  Worksheet: 2026-10-25-refund-rounding
+
+Other trailers, such as Co-Authored-By, can sit in the same paragraph.
+If this commit is part of no task, commit again with SHIPYARD_ALLOW_NO_WORKSHEET=1.
+EOF
+exit 1

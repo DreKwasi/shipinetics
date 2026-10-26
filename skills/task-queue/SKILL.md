@@ -21,7 +21,7 @@ The queue is where work waits. `TODOS.md` by default. If `AGENTS.md` says the so
 ## Picking a task
 
 1. Take the top item in Ready. Skip any that's L size (split it first, see below) or that touches files another In progress task is changing.
-2. Claim it: move it to In progress, add `Worksheet: <name>`, and commit just that change (`git commit -m "Claim T-012"`). In night shift this matters: the commit is what stops two runs taking the same task.
+2. Claim it: move it to In progress, add `Worksheet: <name>`, and commit just that change (`git commit -m "Claim T-012" -m "Worksheet: <name>"`). In night shift this matters: the commit is what stops two runs taking the same task.
 3. If it lacks runnable acceptance criteria, write them (shipyard:spec) before starting. If you can't without a product decision, move it to Blocked with the question.
 
 ## Finishing

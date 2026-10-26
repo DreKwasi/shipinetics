@@ -66,7 +66,7 @@ Workspace mode (`packages = ...`) is for a root that holds several package repos
 | 2 | Self-healing docs | `shipyard:system-docs` (with claims checked against sources) | `docs/systems/*.md` with 7-line headers |
 | 3 | Run the app | `shipyard:workflow` step 6 | "Run the app yourself" in `AGENTS.md` |
 | 4 | Tests | `shipyard:testing`, `shipyard:test-writer`, `shipyard:spec` | `docs/testing/`, `e2e/`, `.shipyard/test-paths` |
-| 5 | Linters that fix | `shipyard:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` |
+| 5 | Linters that fix | `shipyard:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (also caps commits at 400 changed lines), `.githooks/commit-msg` (requires the `Worksheet:` trailer) |
 | 6 | Cross-agent review | `shipyard:review`, four reviewer agents, `agent_review`, 7 personas | `docs/review/personas/` for domain personas |
 | 7 | Worksheets and tags | `shipyard:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` commit trailers |
 | 8 | Session feedback | `shipyard:feedback`, Stop hook reminder | `docs/agent-feedback.md` |
@@ -153,6 +153,8 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 | `SHIPYARD_ALLOW_ENV_READ=1` | Turn off both env guards for a session |
 | `SHIPYARD_ALLOW_NO_EVIDENCE=1` | Turn off the PR gate for a session |
 | `SHIPYARD_ALLOW_INSTALLS=1` | Turn off the install gate for a session |
+| `SHIPYARD_ALLOW_NO_WORKSHEET=1` | Let one commit through without a `Worksheet:` trailer (work that belongs to no task) |
+| `SHIPYARD_ALLOW_BIG_COMMIT=1` | Let one commit through over the size limit (a codemod, a vendored library). Say why in the message |
 | `CLAUDE_CODE_EFFORT_LEVEL` | One effort level for the session and every agent |
 | `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` | Claude Code's own credential scrub. Setup puts it in the project settings |
 | `SHIPYARD_AUTHOR` | Model family that wrote the code, for `agent_review` (default `claude`) |

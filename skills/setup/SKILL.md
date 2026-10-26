@@ -18,6 +18,7 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, then Phase 1. A number
 - **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
 - **One phase per run unless the user says otherwise.** At the end of each phase, say what's done, what you verified, and what the next phase does.
+- **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPYARD_ALLOW_NO_WORKSHEET=1`.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
 - Use a branch: `shipyard-setup` unless the user is already on one for this.
 
@@ -38,7 +39,7 @@ If the project root isn't a git repo but holds several package repos, use worksp
 - Keep `verify_scope = touched` (the default). The Stop hook then verifies only the packages the agent edited in that session, so the user's own unrelated work in progress never blocks an agent.
 - If packages keep committed copies of worksheets, set `package_worksheets_dir` so the evidence tool can find them on a branch.
 - Lists in `.shipyard/` use paths relative to the workspace root, such as `api/src/config/*`.
-- **Don't write into package repos that have uncommitted work.** Per-package pieces (the CI evidence job, git LFS, the `no-evidence` label) go on a list for the user to do one package at a time.
+- **Don't write into package repos that have uncommitted work.** Per-package pieces (the commit hooks, the CI evidence job, git LFS, the `no-evidence` label) go on a list for the user to do one package at a time. Leave out the commit-msg hook in packages that record worksheets through `package_worksheets_dir` instead of trailers.
 - `night-shift` doesn't support workspace mode yet. Leave the project's own night shift process in place.
 
 ## Audit
@@ -52,7 +53,7 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 | 2 | System docs | `docs/systems/*.md` with 7-line greppable headers, rule in `AGENTS.md` |
 | 3 | Run the app | `AGENTS.md` says exactly how to start the app, seed data and log in |
 | 4 | Tests | e2e suite, `docs/testing/how-to-write-tests.md`, `docs/testing/test-index.md` |
-| 5 | Lint and fix | pre-commit hook that auto-fixes, with LLM fallback |
+| 5 | Lint and fix | pre-commit hook that auto-fixes, with LLM fallback, and a commit size limit. commit-msg hook that requires the `Worksheet:` trailer |
 | 6 | Review | `agent_review` works and finds a non-Claude CLI, project personas if any |
 | 7 | Worksheets | `docs/worksheets/`, tagging convention |
 | 8 | Feedback | `docs/agent-feedback.md` |
@@ -109,10 +110,14 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 2. `docs/agent-feedback.md` and `TODOS.md` from templates. If a task list exists elsewhere (Linear, GitHub issues), ask the user which is the source of truth and record it in `AGENTS.md`.
 3. Check: `worksheet new setup-check`, `worksheet list`, then delete the test worksheet.
 
-## Phase 4: lint and auto-fix (point 5)
+## Phase 4: commit hooks (point 5)
 
-1. Copy `templates/bin/lint-fix`, `templates/bin/llm-fix` and `templates/pre-commit` (to `.githooks/pre-commit`). Fill in the project's fixers and checkers. Run `git config core.hooksPath .githooks`, and add that command to the setup section of `AGENTS.md` so fresh clones get it. If the project already uses husky, lefthook or pre-commit, wire `bin/lint-fix --staged` into that instead.
-2. Check: stage a file with a fixable lint error and commit. The hook should fix it and the commit should succeed with clean code.
+1. Copy `templates/bin/lint-fix` and `templates/bin/llm-fix` to `bin/`, `templates/pre-commit` to `.githooks/pre-commit` and `templates/commit-msg` to `.githooks/commit-msg`. Fill in the project's fixers and checkers in `bin/lint-fix`. In `.githooks/pre-commit`, add the project's generated files to `ignore`, and change the worksheets and evidence paths there if `.shipyard/config` maps them elsewhere. Keep `max_lines` at 400 unless the user asks otherwise.
+2. Run `git config core.hooksPath .githooks`, and add that command to the setup section of `AGENTS.md` so fresh clones get it. If the project already uses husky, lefthook or pre-commit, keep both hooks in `.githooks/` and call them from that tool's pre-commit and commit-msg stages instead (the commit-msg hook takes the message file as its argument).
+3. Check on a scratch branch, then delete it:
+   - Stage a file with a fixable lint error and commit without a trailer. The commit-msg hook should refuse.
+   - Commit again with `Worksheet: setup-check` as the last line. The lint error should be fixed and the commit should succeed.
+   - Stage more than 400 changed lines and commit. The pre-commit hook should refuse and list the largest files.
 
 ## Phase 5: CI (automation)
 

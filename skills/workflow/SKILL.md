@@ -54,6 +54,7 @@ Read its report. "Suspected bugs" are yours to fix. "Gaps" usually mean the spec
 ## 5. Implement
 
 - Small steps. After each one, run the targeted tests for what you touched, not the whole suite.
+- Commit each step once it works, with the `Worksheet:` trailer. A reviewer reads a few hundred lines closely and skims anything bigger, so the pre-commit hook refuses commits over the size limit (400 changed lines by default). If a step comes out bigger, split it into commits that each leave the code working.
 - Read config and secrets through the project's config module only. Never read environment variables directly in code, and never try to see a secret's value. To run something that needs secrets, use `bin/with-secrets <command>` (shipyard:secrets).
 - Follow `docs/conventions.md`. Look for an existing helper before writing a new one.
 - Update the worksheet log as you go: what you did, what happened, what you decided and why. Write it so another agent could take over mid-step.
@@ -91,7 +92,7 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipya
 ## 10. Wrap up
 
 1. Wrap-up review for S and up (shipyard:review wrapup).
-2. Commit, evidence included. Message says why, not just what. Add the trailer line `Worksheet: <name>`. Small, coherent commits beat one giant one.
+2. Commit what's left: evidence, docs, the worksheet. Message says why, not just what. Add the trailer line `Worksheet: <name>`.
 3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, add your summary above the Evidence section, get the merge-risk grade from an independent reviewer and add it below (shipyard:review), then `gh pr create --body-file "$TMPDIR/pr-body.md"` (shipyard:evidence).
 4. Mark the worksheet done with a summary and exact next steps, if any. Fill in its Metrics block (shipyard:worksheet). `worksheet tag`.
 5. Update the task queue: done, or follow-ups added.
