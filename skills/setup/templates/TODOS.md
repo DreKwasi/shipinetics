@@ -1,6 +1,6 @@
 # Task queue
 
-Agents pick from **Ready**, top first. See the shipyard:task-queue skill for the rules.
+Agents pick from **Ready**, top first. See the shipinetics:task-queue skill for the rules.
 
 Task format:
 

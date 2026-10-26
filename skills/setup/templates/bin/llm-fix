@@ -5,10 +5,10 @@
 #
 # The model may only read and edit that one file. If anything else in the working tree
 # changes, the change is rolled back and this exits 1.
-# Pick the model with SHIPYARD_FIX_CLI:
-#   claude  (default) claude -p with SHIPYARD_FIX_MODEL (default sonnet)
-#   cursor  cursor-agent with SHIPYARD_FIX_MODEL (e.g. a Composer model)
-# Effort for the claude CLI: SHIPYARD_FIX_EFFORT (default high; set it empty for the model's default).
+# Pick the model with SHIPINETICS_FIX_CLI:
+#   claude  (default) claude -p with SHIPINETICS_FIX_MODEL (default sonnet)
+#   cursor  cursor-agent with SHIPINETICS_FIX_MODEL (e.g. a Composer model)
+# Effort for the claude CLI: SHIPINETICS_FIX_EFFORT (default high; set it empty for the model's default).
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -26,10 +26,10 @@ before="$(git status --porcelain | grep -v -F " $file" || true)"
 backup="$(mktemp "${TMPDIR:-/tmp}/llm-fix.XXXXXX")"; cp "$file" "$backup"
 trap 'rm -f "$backup"' EXIT
 
-case "${SHIPYARD_FIX_CLI:-claude}" in
-  claude) fx="${SHIPYARD_FIX_EFFORT-high}"; claude -p --model "${SHIPYARD_FIX_MODEL:-sonnet}" ${fx:+--effort "$fx"} --tools "Read,Edit" --permission-mode acceptEdits "$prompt" >/dev/null ;;
-  cursor) cursor-agent -p --force ${SHIPYARD_FIX_MODEL:+--model "$SHIPYARD_FIX_MODEL"} "$prompt" >/dev/null ;;
-  *) echo "llm-fix: unknown SHIPYARD_FIX_CLI" >&2; exit 1 ;;
+case "${SHIPINETICS_FIX_CLI:-claude}" in
+  claude) fx="${SHIPINETICS_FIX_EFFORT-high}"; claude -p --model "${SHIPINETICS_FIX_MODEL:-sonnet}" ${fx:+--effort "$fx"} --tools "Read,Edit" --permission-mode acceptEdits "$prompt" >/dev/null ;;
+  cursor) cursor-agent -p --force ${SHIPINETICS_FIX_MODEL:+--model "$SHIPINETICS_FIX_MODEL"} "$prompt" >/dev/null ;;
+  *) echo "llm-fix: unknown SHIPINETICS_FIX_CLI" >&2; exit 1 ;;
 esac
 
 after="$(git status --porcelain | grep -v -F " $file" || true)"

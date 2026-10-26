@@ -9,7 +9,7 @@
 # Exits 1 only if problems remain after both passes.
 # Files with unstaged changes aren't auto-fixed in --staged mode, because fixing them would
 # mix unstaged work into the commit. They're checked and reported instead.
-# Set SHIPYARD_LLM_FIX=0 to skip the LLM pass.
+# Set SHIPINETICS_LLM_FIX=0 to skip the LLM pass.
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -37,7 +37,7 @@ done
 
 if [ "${#fixable[@]}" -gt 0 ]; then
   fix "${fixable[@]}" >/dev/null 2>&1 || true
-  if [ "${SHIPYARD_LLM_FIX:-1}" != "0" ]; then
+  if [ "${SHIPINETICS_LLM_FIX:-1}" != "0" ]; then
     for f in "${fixable[@]}"; do
       if ! out="$(check "$f" 2>&1)"; then
         echo "lint-fix: $f still has problems after --fix, asking an LLM to fix them"
@@ -51,7 +51,7 @@ fi
 
 if ! check "${files[@]}"; then
   echo
-  echo "lint-fix: problems remain. Fix them by hand, or add a lint rule with an autofix so this doesn't come back (shipyard:lint-rule)."
+  echo "lint-fix: problems remain. Fix them by hand, or add a lint rule with an autofix so this doesn't come back (shipinetics:lint-rule)."
   [ "${#checkonly[@]}" -gt 0 ] && echo "lint-fix: not auto-fixed because they have unstaged changes: ${checkonly[*]}"
   exit 1
 fi

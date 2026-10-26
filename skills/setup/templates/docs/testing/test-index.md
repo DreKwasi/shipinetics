@@ -3,7 +3,7 @@
 > Owns: this list only. The tests themselves are documented in how-to-write-tests.md
 > Entry points: grep this file for a system or behavior name
 > Depends on: docs/systems/*.md for system names
-> Gotchas: an entry here doesn't prove the test works. The false-confidence audit (shipyard:test-audit) checks that
+> Gotchas: an entry here doesn't prove the test works. The false-confidence audit (shipinetics:test-audit) checks that
 > Owner persona: test-integrity | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
 Format: `path` | kind (unit, e2e, acceptance, visual, bench) | what it proves | last audited

@@ -1,8 +1,8 @@
-# Shipyard project settings. "key = value", one per line. "#" starts a comment.
+# Shipinetics project settings. "key = value", one per line. "#" starts a comment.
 # Every setting is optional: anything left out uses the default shown.
-# Paths are relative to this folder's parent (the Shipyard root), except evidence_dir,
+# Paths are relative to this folder's parent (the Shipinetics root), except evidence_dir,
 # which is relative to the git repo a PR comes from.
-# Print the effective settings with: shipyard-config
+# Print the effective settings with: shipinetics-config
 
 # ---- Where the project keeps things (map these to an existing harness instead of moving files)
 # worksheets_dir = docs/worksheets
@@ -19,11 +19,11 @@
 
 # ---- Verify (single repo)
 # Checks run in tiers, each at the moment its result is needed. Nothing is skipped:
-#   verify_quick_cmd  mid-task stops, scoped to the changed files ($SHIPYARD_CHANGED_FILES)
+#   verify_quick_cmd  mid-task stops, scoped to the changed files ($SHIPINETICS_CHANGED_FILES)
 #   verify_cmd        the complete fast checks: the "done" stop (worksheet Status: done), any stop
-#                     that changes a path in .shipyard/complete-paths, pre-push and the PR gate
+#                     that changes a path in .shipinetics/complete-paths, pre-push and the PR gate
 #   bin/verify --full CI and end of shift
-# Leave verify_quick_cmd unset and every stop runs verify_cmd. Timings: shipyard-verify times
+# Leave verify_quick_cmd unset and every stop runs verify_cmd. Timings: shipinetics-verify times
 # verify_cmd = bin/verify
 # verify_quick_cmd = bin/verify --quick
 

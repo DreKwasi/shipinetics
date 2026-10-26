@@ -1,7 +1,7 @@
-# Test files. Only the shipyard:test-writer subagent may create or edit these, and it may
+# Test files. Only the shipinetics:test-writer subagent may create or edit these, and it may
 # edit nothing else (apart from docs/testing/). One bash glob per line, relative to the repo
 # root. * matches across folders. Adjust to this project's layout.
-# Override for a session: start Claude Code with SHIPYARD_ALLOW_AUTHOR_TESTS=1.
+# Override for a session: start Claude Code with SHIPINETICS_ALLOW_AUTHOR_TESTS=1.
 
 *.test.*
 *.spec.*

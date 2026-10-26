@@ -5,12 +5,12 @@
 #
 # Merges, reverts and fixup!/squash!/amend! commits pass: their history lives in other commits.
 # For a commit that belongs to no task (a shift report, an approved feedback fix), set
-# SHIPYARD_ALLOW_NO_WORKSHEET=1 for that one commit.
+# SHIPINETICS_ALLOW_NO_WORKSHEET=1 for that one commit.
 
 set -uo pipefail
 msg="$1"
 
-[ "${SHIPYARD_ALLOW_NO_WORKSHEET:-0}" = "1" ] && exit 0
+[ "${SHIPINETICS_ALLOW_NO_WORKSHEET:-0}" = "1" ] && exit 0
 git rev-parse -q --verify MERGE_HEAD >/dev/null && exit 0
 
 subject="$(git stripspace --strip-comments < "$msg" | head -n 1)"
@@ -28,6 +28,6 @@ commit-msg: no "Worksheet: <name>" trailer. Add it to the last paragraph of the 
   Worksheet: 2026-10-25-refund-rounding
 
 Other trailers, such as Co-Authored-By, can sit in the same paragraph.
-If this commit is part of no task, commit again with SHIPYARD_ALLOW_NO_WORKSHEET=1.
+If this commit is part of no task, commit again with SHIPINETICS_ALLOW_NO_WORKSHEET=1.
 EOF
 exit 1

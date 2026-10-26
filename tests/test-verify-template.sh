@@ -11,11 +11,11 @@ s = re.sub(r"\{\{([A-Z_]+)\}\}", lambda m: fill.get(m.group(1), "true"), s)
 open(sys.argv[2], "w").write(s)
 PY
 chmod +x bin/verify; echo x >a.ts; printf 'a.ts\nb.md\n' >list; printf 'b.md\n' >list2
-start=$(date +%s); out="$(SHIPYARD_CHANGED_FILES=list bin/verify --quick)"; rc=$?; took=$(( $(date +%s) - start ))
+start=$(date +%s); out="$(SHIPINETICS_CHANGED_FILES=list bin/verify --quick)"; rc=$?; took=$(( $(date +%s) - start ))
 eq "quick tier passes" "$rc" 0
 [ "$took" -le 2 ] && ok "quick steps run in parallel (${took}s)" || bad "quick steps run in parallel" "took ${took}s"
 eq "changed() lists matching changed files" "$(cat lint.out)" "a.ts"
-SHIPYARD_CHANGED_FILES=list2 bin/verify --quick >/dev/null; eq "nothing relevant changed: step skips" "$(cat lint.out)" none
+SHIPINETICS_CHANGED_FILES=list2 bin/verify --quick >/dev/null; eq "nothing relevant changed: step skips" "$(cat lint.out)" none
 bin/verify --quick >/dev/null; eq "no list means check everything" "$(cat lint.out)" "__all__"
 touch FAIL; out="$(bin/verify)"; rc=$?
 eq "complete tier fails when a step fails" "$rc" 1

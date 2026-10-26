@@ -1,8 +1,8 @@
 
-# shipyard
-.shipyard/.cache/
+# shipinetics
+.shipinetics/.cache/
 .claude/worktrees/
-.shipyard/explainers/
+.shipinetics/explainers/
 .env
 .env.*
 test-results/

@@ -2,7 +2,7 @@
 > Summary: How tests are organized in this repo, which kind to write for which change, how to run them, and the patterns that make tests lie. Read before writing or changing any test.
 > Owns: {{test folders, e.g. src/**/*.test.ts, e2e/**}}
 > Entry points: {{UNIT_TEST_CMD}}, {{E2E_CMD}}, bin/verify
-> Depends on: docs/testing/test-index.md (what exists), .shipyard/protected-paths (what can't change)
+> Depends on: docs/testing/test-index.md (what exists), .shipinetics/protected-paths (what can't change)
 > Gotchas: {{e.g. "e2e needs the dev server and seeded DB; run the seed first"}}
 > Owner persona: test-integrity | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
@@ -14,8 +14,8 @@
 | Bug fix | A regression test that fails without the fix. Watch it fail first |
 | Pure logic (parsing, calculation, state machines) | Unit tests, including edge cases and invalid input |
 | Refactor | No new tests. Existing ones must pass unchanged. If you had to change a test, it wasn't a pure refactor |
-| UI appearance | A screenshot test (shipyard:visual-regression) |
-| Performance-sensitive path | A benchmark (shipyard:perf) |
+| UI appearance | A screenshot test (shipinetics:visual-regression) |
+| Performance-sensitive path | A benchmark (shipinetics:perf) |
 
 ## Layout and commands
 

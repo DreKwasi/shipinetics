@@ -7,7 +7,7 @@
 # and paths matching ignore don't count. Reviewers read a few hundred lines closely and skim
 # anything bigger, so big work goes in as several commits that each leave the code working.
 # Merges, cherry-picks and reverts pass. For one commit that can't be split (a codemod, a
-# vendored library, a generated migration), set SHIPYARD_ALLOW_BIG_COMMIT=1 and say why in
+# vendored library, a generated migration), set SHIPINETICS_ALLOW_BIG_COMMIT=1 and say why in
 # the message.
 
 set -uo pipefail
@@ -18,7 +18,7 @@ ignore='(^|/)(package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml
 # ---------------------------------------
 
 busy() { git rev-parse -q --verify "$1" >/dev/null; }
-if [ "$max_lines" -gt 0 ] && [ "${SHIPYARD_ALLOW_BIG_COMMIT:-0}" != "1" ] &&
+if [ "$max_lines" -gt 0 ] && [ "${SHIPINETICS_ALLOW_BIG_COMMIT:-0}" != "1" ] &&
    ! busy MERGE_HEAD && ! busy CHERRY_PICK_HEAD && ! busy REVERT_HEAD; then
   counted="$(git diff --cached --numstat -M | IGNORE="$ignore" awk -F'\t' \
     '$1 != "-" && $3 !~ ENVIRON["IGNORE"] { print $1 + $2 "\t" $3 }' | sort -rn)"
@@ -29,7 +29,7 @@ if [ "$max_lines" -gt 0 ] && [ "${SHIPYARD_ALLOW_BIG_COMMIT:-0}" != "1" ] &&
       echo "Split it into smaller commits that each leave the code working: unstage files with"
       echo "git restore --staged <file> and commit them separately. Largest files:"
       printf '%s\n' "$counted" | head -n 10 | sed 's/^/  /'
-      echo "If it really can't be split, commit with SHIPYARD_ALLOW_BIG_COMMIT=1 and say why in the message."
+      echo "If it really can't be split, commit with SHIPINETICS_ALLOW_BIG_COMMIT=1 and say why in the message."
     } >&2
     exit 1
   fi

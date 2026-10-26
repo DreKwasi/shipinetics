@@ -7,7 +7,7 @@
 #   bin/verify --full   everything, including slow suites. CI and end of shift
 #
 # Every check still runs before work counts as done: --quick only moves the expensive ones to
-# the moment their result is needed. The Stop hook sets SHIPYARD_CHANGED_FILES to a file listing
+# the moment their result is needed. The Stop hook sets SHIPINETICS_CHANGED_FILES to a file listing
 # the changed paths, one per line, relative to this repo. If it's unset (a human, CI), --quick
 # checks everything.
 # Independent steps run in parallel. Caches are fine here (eslint --cache, tsc --incremental,
@@ -27,8 +27,8 @@ case "$mode" in --quick) mode=quick ;; --full) mode=full ;; complete|"") mode=co
 # changed [extended regex]: the changed files matching the pattern, one per line. Empty output
 # with a list present means nothing relevant changed, so the step can be skipped.
 changed() {
-  if [ -n "${SHIPYARD_CHANGED_FILES:-}" ] && [ -f "$SHIPYARD_CHANGED_FILES" ]; then
-    grep -E "${1:-.}" "$SHIPYARD_CHANGED_FILES" | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+  if [ -n "${SHIPINETICS_CHANGED_FILES:-}" ] && [ -f "$SHIPINETICS_CHANGED_FILES" ]; then
+    grep -E "${1:-.}" "$SHIPINETICS_CHANGED_FILES" | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
   else
     echo "__all__"
   fi
