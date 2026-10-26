@@ -64,7 +64,8 @@ verify_bin="$(sy_cfg "$sy" verify_cmd)"; verify_bin="${verify_bin%% *}"
 day="$(date +%Y-%m-%d)"
 branch="night/$day"
 wt="$root/.claude/worktrees/night-$day"
-logs="$root/.shipinetics/.cache/night/$day"
+dn="$(sy_dir_name "$sy")"
+logs="$root/$dn/.cache/night/$day"
 mkdir -p "$logs"
 
 if [ -d "$wt" ]; then
@@ -155,11 +156,11 @@ while :; do
 done
 
 echo "[$(date +%H:%M)] stopping task loop: $stop_reason. Running end-of-shift validation."
-mkdir -p "$wt/.shipinetics/.cache" && cp "$metrics" "$wt/.shipinetics/.cache/night-metrics.csv"
+mkdir -p "$wt/$dn/.cache" && cp "$metrics" "$wt/$dn/.cache/night-metrics.csv"
 left=$(add "$budget" "-$spent")
 eos_budget="$task_budget"; ge "$left" "$task_budget" || eos_budget="$left"
 t0=$(date +%s)
-run_claude "Use the shipinetics:end-of-shift skill. The task loop stopped because: $stop_reason. Total spend so far: \$$spent. Per-run metrics are in .shipinetics/.cache/night-metrics.csv. Write the shift report." \
+run_claude "Use the shipinetics:end-of-shift skill. The task loop stopped because: $stop_reason. Total spend so far: \$$spent. Per-run metrics are in $dn/.cache/night-metrics.csv. Write the shift report." \
   "$eos_budget" "$logs/end-of-shift.json"
 eos_cost="$(jq -r '.total_cost_usd // 0' "$logs/end-of-shift.json" 2>/dev/null || echo 0)"
 spent=$(add "$spent" "$eos_cost")

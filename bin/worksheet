@@ -23,8 +23,8 @@ die() { echo "worksheet: $*" >&2; exit 1; }
 
 root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a Shipinetics project or a git repo"
 dir="$root/$(sy_cfg "$root" worksheets_dir)"
-state="$root/.shipinetics/.cache/current-worksheet"
-mkdir -p "$dir" "$root/.shipinetics/.cache"
+state="$(sy_dir "$root")/.cache/current-worksheet"
+mkdir -p "$dir" "$(dirname "$state")"
 name_of() { basename "$1" .md; }
 
 cmd="${1:-}"; shift || true

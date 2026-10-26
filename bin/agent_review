@@ -25,23 +25,26 @@ plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$plugin_root/scripts/lib.sh"
 
-stage="" base="" persona="" cli="auto" file="" author="${SHIPINETICS_AUTHOR:-claude}"
-order="${SHIPINETICS_REVIEW_ORDER:-codex gemini cursor claude}"
+stage="" base="" persona="" cli="auto" file="" author="$(sy_env AUTHOR)"; author="${author:-claude}"
+order="$(sy_env REVIEW_ORDER)"; order="${order:-codex gemini cursor claude}"
 max_bytes=300000
-codex_effort="${SHIPINETICS_CODEX_EFFORT-high}"
-claude_effort="${SHIPINETICS_CLAUDE_REVIEW_EFFORT-high}"
+codex_effort="$(sy_env CODEX_EFFORT high)"
+claude_effort="$(sy_env CLAUDE_REVIEW_EFFORT high)"
+codex_model="$(sy_env CODEX_MODEL)" gemini_model="$(sy_env GEMINI_MODEL)" cursor_model="$(sy_env CURSOR_MODEL)"
+claude_model="$(sy_env CLAUDE_REVIEW_MODEL)"; claude_model="${claude_model:-sonnet}"
+cursor_family="$(sy_env CURSOR_FAMILY)"; cursor_family="${cursor_family:-cursor}"
 
 die() { echo "agent_review: $*" >&2; exit 1; }
 
 # ---- CLI runners: each reads the prompt file given as $1 and prints the review ----
-run_codex()  { codex exec --sandbox read-only --skip-git-repo-check ${SHIPINETICS_CODEX_MODEL:+--model "$SHIPINETICS_CODEX_MODEL"} ${codex_effort:+-c "model_reasoning_effort=$codex_effort"} - <"$1"; }
-run_gemini() { gemini ${SHIPINETICS_GEMINI_MODEL:+-m "$SHIPINETICS_GEMINI_MODEL"} -p "Follow the review instructions in the input." <"$1"; }
-run_cursor() { cursor-agent -p --output-format text ${SHIPINETICS_CURSOR_MODEL:+--model "$SHIPINETICS_CURSOR_MODEL"} "$(cat "$1")"; }
-run_claude() { claude -p --model "${SHIPINETICS_CLAUDE_REVIEW_MODEL:-sonnet}" ${claude_effort:+--effort "$claude_effort"} --permission-mode plan --disallowedTools Edit Write NotebookEdit <"$1"; }
+run_codex()  { codex exec --sandbox read-only --skip-git-repo-check ${codex_model:+--model "$codex_model"} ${codex_effort:+-c "model_reasoning_effort=$codex_effort"} - <"$1"; }
+run_gemini() { gemini ${gemini_model:+-m "$gemini_model"} -p "Follow the review instructions in the input." <"$1"; }
+run_cursor() { cursor-agent -p --output-format text ${cursor_model:+--model "$cursor_model"} "$(cat "$1")"; }
+run_claude() { claude -p --model "$claude_model" ${claude_effort:+--effort "$claude_effort"} --permission-mode plan --disallowedTools Edit Write NotebookEdit <"$1"; }
 
 bin_for()    { case "$1" in codex) echo codex ;; gemini) echo gemini ;; cursor) echo cursor-agent ;; claude) echo claude ;; esac; }
 # Cursor can run models from any family. Set SHIPINETICS_CURSOR_FAMILY to match SHIPINETICS_CURSOR_MODEL.
-family_for() { case "$1" in codex) echo openai ;; gemini) echo google ;; cursor) echo "${SHIPINETICS_CURSOR_FAMILY:-cursor}" ;; claude) echo claude ;; esac; }
+family_for() { case "$1" in codex) echo openai ;; gemini) echo google ;; cursor) echo "$cursor_family" ;; claude) echo claude ;; esac; }
 author_family() { case "$1" in codex|openai|gpt*) echo openai ;; gemini|google) echo google ;; cursor|composer*) echo cursor ;; *) echo claude ;; esac; }
 
 usage() { sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }

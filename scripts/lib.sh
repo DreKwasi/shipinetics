@@ -6,6 +6,10 @@
 # evidence_dir, which is relative to the git repo a PR comes from.
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
+#
+# Compatibility, for one version: Shipinetics was called Shipyard. A project that only has the
+# old .shipyard/ folder still works (sy_dir picks it, with a notice), and every SHIPINETICS_*
+# setting falls back to its old SHIPYARD_* name (sy_env). See MIGRATING.md.
 
 SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args"
 
@@ -31,12 +35,45 @@ sy_default() {
   esac
 }
 
-# sy_root [start]: nearest folder at or above start (default: the project dir, else PWD) holding .shipinetics/
+SY_DIR_NAME=".shipinetics"
+SY_LEGACY_DIR_NAME=".shipyard"
+
+# sy_env <NAME> [default]: $SHIPINETICS_<NAME>, else the legacy $SHIPYARD_<NAME>, else the
+# default. A variable set to empty counts as set.
+sy_env() {
+  local n="SHIPINETICS_$1" o="SHIPYARD_$1"
+  if [ -n "${!n+x}" ]; then printf '%s\n' "${!n}"
+  elif [ -n "${!o+x}" ]; then printf '%s\n' "${!o}"
+  else printf '%s\n' "${2:-}"; fi
+}
+
+# sy_flag <NAME>: true if the setting (see sy_env) is 1
+sy_flag() { [ "$(sy_env "$1" 0)" = "1" ]; }
+
+# sy_dir_name <root>: the name of the project's folder. .shipinetics, or the legacy .shipyard
+# when that's the only one there.
+sy_dir_name() {
+  if [ ! -d "$1/$SY_DIR_NAME" ] && [ -d "$1/$SY_LEGACY_DIR_NAME" ]; then
+    printf '%s\n' "$SY_LEGACY_DIR_NAME"
+  else
+    printf '%s\n' "$SY_DIR_NAME"
+  fi
+}
+
+# sy_dir <root>: the project's folder (settings, policy lists and .cache)
+sy_dir() { printf '%s/%s\n' "$1" "$(sy_dir_name "$1")"; }
+
+# sy_root [start]: nearest folder at or above start (default: the project dir, else PWD) holding
+# .shipinetics/ (or the legacy .shipyard/, with a one-line notice on stderr)
 sy_root() {
   local d="${1:-${CLAUDE_PROJECT_DIR:-$PWD}}"
   d="$(cd "$d" 2>/dev/null && pwd)" || return 1
   while :; do
-    if [ -d "$d/.shipinetics" ]; then printf '%s\n' "$d"; return 0; fi
+    if [ -d "$d/$SY_DIR_NAME" ]; then printf '%s\n' "$d"; return 0; fi
+    if [ -d "$d/$SY_LEGACY_DIR_NAME" ]; then
+      echo "shipinetics: $d uses the old .shipyard/ folder. Run shipinetics-config migrate there (see MIGRATING.md)." >&2
+      printf '%s\n' "$d"; return 0
+    fi
     [ "$d" = "/" ] && return 1
     d="$(dirname "$d")"
   done
@@ -44,7 +81,8 @@ sy_root() {
 
 # sy_cfg <root> <key>: the configured value, or the default
 sy_cfg() {
-  local f="$1/.shipinetics/config" v=""
+  local f v=""
+  f="$(sy_dir "$1")/config"
   if [ -f "$f" ]; then
     v="$(sed -n "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*//p" "$f" | tail -n 1 | sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//')"
   fi
@@ -53,7 +91,9 @@ sy_cfg() {
 
 # sy_is_set <root> <key>: true if the project config sets the key itself
 sy_is_set() {
-  [ -f "$1/.shipinetics/config" ] && grep -qE "^[[:space:]]*$2[[:space:]]*=[[:space:]]*[^[:space:]#]" "$1/.shipinetics/config"
+  local f
+  f="$(sy_dir "$1")/config"
+  [ -f "$f" ] && grep -qE "^[[:space:]]*$2[[:space:]]*=[[:space:]]*[^[:space:]#]" "$f"
 }
 
 # sy_workspace <root>: true in workspace mode
@@ -128,7 +168,7 @@ sy_key_suffix() { if [ -n "$1" ]; then printf -- '-%s' "${1//\//_}"; fi; }
 # sy_verify_excludes <root> <package or empty>: pathspecs that aren't code as far as verify goes
 sy_verify_excludes() {
   local pkg_ws
-  printf '%s\n' ':(exclude).shipinetics/.cache' ":(exclude)$(sy_cfg "$1" evidence_dir)"
+  printf '%s\n' ":(exclude)$(sy_dir_name "$1")/.cache" ":(exclude)$(sy_cfg "$1" evidence_dir)"
   if [ -n "$2" ]; then
     pkg_ws="$(sy_cfg "$1" package_worksheets_dir)"
     if [ -n "$pkg_ws" ]; then printf '%s\n' ":(exclude)$pkg_ws"; fi
@@ -232,7 +272,8 @@ sy_verify_configured() {
 # sy_verify_passed <root> <package or empty> <quick|complete>: true if that tier (or complete)
 # has passed on exactly the current code. Sets SY_VERIFY_FP to the current fingerprint.
 sy_verify_passed() {
-  local cache="$1/.shipinetics/.cache" sfx l excl=()
+  local cache sfx l excl=()
+  cache="$(sy_dir "$1")/.cache"
   sfx="$(sy_key_suffix "$2")"
   while IFS= read -r l; do excl+=("$l"); done < <(sy_verify_excludes "$1" "$2")
   SY_VERIFY_FP="$(sy_fingerprint "$1${2:+/$2}" "${excl[@]}")"
@@ -244,19 +285,20 @@ sy_verify_passed() {
 # sy_verify_log <root> <source> <package or empty> <tier> <seconds> <result>: one timing row
 sy_verify_log() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$2" "${3:-.}" "$4" "$5" "$6" \
-    >>"$1/.shipinetics/.cache/verify-times.tsv"
+    >>"$(sy_dir "$1")/.cache/verify-times.tsv"
 }
 
 # sy_verify_run <root> <package or empty> <quick|complete> <changed-files list or ""> <source>
 # Runs the tier's command, unless a pass is already recorded for exactly this code. The command
-# runs from the root with SHIPINETICS_VERIFY_TIER set, and SHIPINETICS_CHANGED_FILES naming a file that
-# lists the changed paths (relative to the repo being verified; unset means check everything).
+# runs from the root with SHIPINETICS_VERIFY_TIER set, and SHIPINETICS_CHANGED_FILES naming a file
+# that lists the changed paths (relative to the repo being verified; unset means check everything).
+# Both are also exported under their old SHIPYARD_* names, for verify scripts copied before the rename.
 # Records the pass, logs the timing, and returns the command's status. Afterwards SY_VERIFY_TIER
 # is the tier that ran, SY_VERIFY_FP the fingerprint, SY_VERIFY_LOG the output, and SY_VERIFY_RAN
 # is 1 if the command ran (0 if a recorded pass was reused).
 sy_verify_run() {
   local root="$1" pkg="$2" tier="$3" list="$4" src="$5" cache sfx cmd t0 rc
-  cache="$root/.shipinetics/.cache"; mkdir -p "$cache"
+  cache="$(sy_dir "$root")/.cache"; mkdir -p "$cache"
   sfx="$(sy_key_suffix "$pkg")"
   if [ "$tier" = quick ] && ! sy_has_quick "$root" "$pkg"; then tier=complete; fi
   SY_VERIFY_TIER="$tier" SY_VERIFY_LOG="$cache/verify$sfx.log" SY_VERIFY_RAN=0
@@ -270,8 +312,9 @@ sy_verify_run() {
   t0="$(date +%s)"
   (
     cd "$root" || exit 1
-    export SHIPINETICS_VERIFY_TIER="$tier"
-    if [ -n "$list" ]; then export SHIPINETICS_CHANGED_FILES="$list"; else unset SHIPINETICS_CHANGED_FILES; fi
+    export SHIPINETICS_VERIFY_TIER="$tier" SHIPYARD_VERIFY_TIER="$tier"
+    if [ -n "$list" ]; then export SHIPINETICS_CHANGED_FILES="$list" SHIPYARD_CHANGED_FILES="$list"
+    else unset SHIPINETICS_CHANGED_FILES SHIPYARD_CHANGED_FILES; fi
     sh -c "$cmd"
   ) >"$SY_VERIFY_LOG" 2>&1
   rc=$?
@@ -290,7 +333,7 @@ sy_verify_run() {
 sy_task_done() {
   local root="$1" f p
   shift
-  f="$root/.shipinetics/.cache/current-worksheet"
+  f="$(sy_dir "$root")/.cache/current-worksheet"
   if [ -f "$f" ]; then set -- "$(cat "$f")" "$@"; fi
   for p in "$@"; do
     case "$p" in /*) ;; *) p="$root/$p" ;; esac

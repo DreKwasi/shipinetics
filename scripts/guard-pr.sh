@@ -12,9 +12,9 @@
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPINETICS_ALLOW_NO_EVIDENCE:-0}" = "1" ] && exit 0
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
+sy_flag ALLOW_NO_EVIDENCE && exit 0
 
 cmd="$(sy_json_field "$input" tool_input.command)"
 re='gh[[:space:]]+pr[[:space:]]+(create|ready)([[:space:]]|$)'
@@ -57,7 +57,7 @@ case "$out" in *docs-only*) exit 0 ;; esac
 pkg=""; [ "$root" != "$repo" ] && pkg="$(sy_rel "$root" "$repo")"
 enrolled=1
 if [ -n "$pkg" ]; then sy_workspace "$root" && sy_package_of "$root" "$pkg" >/dev/null || enrolled=0; fi
-if [ "${SHIPINETICS_SKIP_VERIFY:-0}" != "1" ] && [ "$enrolled" = 1 ] && sy_verify_configured "$root" "$pkg" &&
+if ! sy_flag SKIP_VERIFY && [ "$enrolled" = 1 ] && sy_verify_configured "$root" "$pkg" &&
    ! sy_verify_passed "$root" "$pkg" complete; then
   deny "shipinetics: the complete verify hasn't passed on this exact code, so the PR can't open yet. Run shipinetics-verify (it runs $(sy_verify_cmd "$root" complete "$pkg") and records the pass), fix anything that fails, then open the PR again."
 fi

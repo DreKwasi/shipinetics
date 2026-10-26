@@ -7,7 +7,9 @@
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPINETICS_ALLOW_INSTALLS:-0}" = "1" ] && exit 0
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
+sy_flag ALLOW_INSTALLS && exit 0
 
 if command -v jq >/dev/null 2>&1; then
   cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"

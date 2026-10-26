@@ -26,7 +26,8 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 die() { echo "evidence: $*" >&2; exit 1; }
 repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
 cd "$repo"
-root="${SHIPINETICS_ROOT:-$(sy_root "$repo" || echo "$repo")}"
+root="$(sy_env ROOT)"; [ -n "$root" ] || root="$(sy_root "$repo" || echo "$repo")"
+dn="$(sy_dir_name "$root")"
 ev_base="$(sy_cfg "$root" evidence_dir)"
 wsdir="$root/$(sy_cfg "$root" worksheets_dir)"
 pkg_ws="$(sy_cfg "$root" package_worksheets_dir)"
@@ -36,7 +37,7 @@ artifacts='\.(png|jpe?g|gif|webm|mp4|mov|log|txt)'
 recordings='\.(webm|mp4|gif|mov)$'
 
 current_ws() {
-  local f="$root/.shipinetics/.cache/current-worksheet" p
+  local f="$root/$dn/.cache/current-worksheet" p
   [ -f "$f" ] || die "no current worksheet. Name one, or start one with: worksheet new <slug>"
   p="$(cat "$f")"; case "$p" in /*) ;; *) p="$root/$p" ;; esac
   [ -f "$p" ] || die "the current worksheet ($p) no longer exists"
@@ -69,8 +70,8 @@ branch_worksheets() { # branch_worksheets <base>
   {
     git log "$1..HEAD" --format='%(trailers:key=Worksheet,valueonly)' 2>/dev/null
     if [ -n "$pkg_ws" ]; then branch_files "$1" | grep "^$pkg_ws/.*\.md$" | sed 's#.*/##; s#\.md$##'; fi
-    if [ -f "$root/.shipinetics/.cache/current-worksheet" ] && [ -n "$(git status --porcelain)" ]; then
-      basename "$(cat "$root/.shipinetics/.cache/current-worksheet")" .md
+    if [ -f "$root/$dn/.cache/current-worksheet" ] && [ -n "$(git status --porcelain)" ]; then
+      basename "$(cat "$root/$dn/.cache/current-worksheet")" .md
     fi
   } | sed '/^$/d' | sort -u
 }
@@ -84,7 +85,7 @@ changed_files_of() { # changed_files_of <worksheet> <base>: files under that wor
   local by_trailer
   by_trailer="$(git log --grep "Worksheet: $1" --name-only --format= 2>/dev/null | sed '/^$/d')"
   if [ -n "$by_trailer" ]; then printf '%s\n' "$by_trailer"; else branch_files "$2"; fi
-  if [ -f "$root/.shipinetics/.cache/current-worksheet" ] && [ "$(basename "$(cat "$root/.shipinetics/.cache/current-worksheet")" .md)" = "$1" ]; then
+  if [ -f "$root/$dn/.cache/current-worksheet" ] && [ "$(basename "$(cat "$root/$dn/.cache/current-worksheet")" .md)" = "$1" ]; then
     git status --porcelain --untracked-files=all | cut -c4-
   fi
 }
@@ -101,10 +102,10 @@ fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if 
   mine="$(branch_files "$3")"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
-    case "$f" in "$ev_base"/*|docs/*|*.md|.shipinetics/*) continue ;; esac
+    case "$f" in "$ev_base"/*|docs/*|*.md|"$SY_DIR_NAME"/*|"$SY_LEGACY_DIR_NAME"/*) continue ;; esac
     printf '%s\n' "$mine" | grep -qxF -- "$f" || continue
     if [ -n "$pkg_ws" ]; then case "$f" in "$pkg_ws"/*) continue ;; esac; fi
-    sy_in_list "$root/.shipinetics/test-paths" "$prefix$f" && continue
+    sy_in_list "$root/$dn/test-paths" "$prefix$f" && continue
     n=$((n + 1)); [ "$n" -le 5 ] && stale="${stale:+$stale, }$f"
   done < <({ git -c core.quotePath=false diff --name-only --no-renames "$rec" -- . 2>/dev/null; git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)
   [ "$n" -eq 0 ] && return 0
@@ -136,10 +137,10 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
     fi
   done
   fresh_one "$ws" "$ev" "$2" || bad=1
-  if [ -f "$root/.shipinetics/ui-paths" ]; then
+  if [ -f "$root/$dn/ui-paths" ]; then
     while IFS= read -r f; do
       [ -z "$f" ] && continue
-      if sy_in_list "$root/.shipinetics/ui-paths" "$prefix$f"; then
+      if sy_in_list "$root/$dn/ui-paths" "$prefix$f"; then
         if ! ls "$dir" 2>/dev/null | grep -qE "$recordings"; then
           echo "  $ws: changes UI ($prefix$f) but has no screen recording (.webm, .mp4, .gif or .mov)"; bad=1
         fi

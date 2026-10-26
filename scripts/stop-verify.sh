@@ -23,14 +23,15 @@
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPINETICS_SKIP_VERIFY:-0}" = "1" ] && exit 0
-
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
+sy_flag SKIP_VERIFY && exit 0
+
 root="$(sy_root)" || exit 0
 cd "$root" || exit 0
 
-cache="$root/.shipinetics/.cache"
+dn="$(sy_dir_name "$root")"
+cache="$root/$dn/.cache"
 mkdir -p "$cache"
 
 stop_active="$(sy_json_field "$input" stop_hook_active)"
@@ -82,7 +83,7 @@ block_with() { # block_with <log> <label>
 }
 
 stuck_release() {
-  printf '%s\n' '{"systemMessage": "shipinetics: verify is still failing and the agent stopped without changing anything. Logs are in .shipinetics/.cache/."}'
+  printf '{"systemMessage": "shipinetics: verify is still failing and the agent stopped without changing anything. Logs are in %s/.cache/."}\n' "$dn"
   exit 0
 }
 
@@ -94,14 +95,14 @@ quick_note() {
   exit 0
 }
 
-# pick_tier <list of changed files> <path prefix for .shipinetics lists> [worksheet paths...]
+# pick_tier <list of changed files> <path prefix for the folder's lists> [worksheet paths...]
 pick_tier() {
   local list="$1" prefix="$2" f
   shift 2
   if sy_task_done "$root" "$@"; then echo complete; return; fi
-  if [ -f "$root/.shipinetics/complete-paths" ]; then
+  if [ -f "$root/$dn/complete-paths" ]; then
     while IFS= read -r f; do
-      [ -n "$f" ] && sy_in_list "$root/.shipinetics/complete-paths" "$prefix$f" && { echo complete; return; }
+      [ -n "$f" ] && sy_in_list "$root/$dn/complete-paths" "$prefix$f" && { echo complete; return; }
     done <"$list"
   fi
   echo quick
@@ -181,9 +182,9 @@ verify_bin="${verify_cmd%% *}"
 [ -x "$root/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || exit 0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
-changed="$(sy_changed_paths "$root" | grep -v '^\.shipinetics/\.cache/' || true)"
+changed="$(sy_changed_paths "$root" | grep -v "^$dn/\.cache/" || true)"
 if [ -n "$session" ]; then
-  changed="$(printf '%s\n' "$changed" "$(committed_since_start "$root" "" ':(exclude).shipinetics/.cache')" | sed '/^$/d')"
+  changed="$(printf '%s\n' "$changed" "$(committed_since_start "$root" "" ":(exclude)$dn/.cache")" | sed '/^$/d')"
 fi
 [ -z "$changed" ] && exit 0
 

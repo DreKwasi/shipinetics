@@ -19,7 +19,9 @@
 set -uo pipefail
 
 input="$(cat)"
-[ "${SHIPINETICS_ALLOW_ENV_READ:-0}" = "1" ] && exit 0
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
+sy_flag ALLOW_ENV_READ && exit 0
 
 jget() {
   if command -v jq >/dev/null 2>&1; then

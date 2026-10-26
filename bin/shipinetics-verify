@@ -28,9 +28,9 @@ root="$(sy_root "$repo")" || die "no .shipinetics/ folder here or above. Run /sh
 pkg=""
 if [ "$root" != "$repo" ]; then
   pkg="$(sy_rel "$root" "$repo")"
-  sy_workspace "$root" && sy_package_of "$root" "$pkg" >/dev/null || die "$repo isn't one of the packages in $root/.shipinetics/config"
+  sy_workspace "$root" && sy_package_of "$root" "$pkg" >/dev/null || die "$repo isn't one of the packages in $(sy_dir "$root")/config"
 fi
-cache="$root/.shipinetics/.cache"; mkdir -p "$cache"
+cache="$(sy_dir "$root")/.cache"; mkdir -p "$cache"
 
 # changed_files: what the quick tier should look at. Uncommitted changes plus commits since the
 # branch left its base. Paths are relative to the repo.
@@ -69,7 +69,7 @@ force=0
 case "${1:-}" in
   times) times_summary "${2:-}"; exit 0 ;;
   status)
-    sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in .shipinetics/config)"
+    sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in $(sy_dir_name "$root")/config)"
     for t in complete quick; do
       if sy_verify_passed "$root" "$pkg" "$t"; then echo "$t: passed on the current code"
       else echo "$t: not passed on the current code"; fi
@@ -80,7 +80,7 @@ case "${1:-}" in
 esac
 tier="${1:-complete}"
 case "$tier" in quick|complete) ;; *) die "unknown tier: $tier (quick or complete)" ;; esac
-sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in .shipinetics/config)"
+sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in $(sy_dir_name "$root")/config)"
 
 sfx="$(sy_key_suffix "$pkg")"
 if [ "$force" = 1 ]; then rm -f "$cache/pass-quick$sfx" "$cache/pass-complete$sfx"; fi

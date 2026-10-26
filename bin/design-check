@@ -63,7 +63,7 @@ if [ "$all" = 0 ] && [ -z "$base" ]; then
   [ -n "$base" ] || die "no base found. Pass one: design-check <ref>"
 fi
 
-ui="$root/.shipinetics/ui-paths"
+ui="$(sy_dir "$root")/ui-paths"
 [ -f "$ui" ] || die "no .shipinetics/ui-paths, so there's no way to tell UI files apart. Run /shipinetics:setup."
 files=()
 while IFS= read -r f; do
