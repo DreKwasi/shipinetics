@@ -11,7 +11,7 @@
 # old .shipyard/ folder still works (sy_dir picks it, with a notice), and every SHIPINETICS_*
 # setting falls back to its old SHIPYARD_* name (sy_env). See MIGRATING.md.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo"
 
 sy_default() {
   case "$1" in
@@ -100,6 +100,21 @@ sy_is_set() {
 
 # sy_workspace <root>: true in workspace mode
 sy_workspace() { [ -n "$(sy_cfg "$1" packages)" ]; }
+
+# sy_harness_repo <root>: the git repo that versions the root's own files (.shipinetics/, the queue,
+# root docs). That's the root itself when it's the top of a repo, else the repo harness_repo names
+# (its top level mirrors the root's harness files, which the root links to). Fails if neither.
+sy_harness_repo() {
+  local top h
+  if top="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" &&
+     [ "$(cd "$top" && pwd -P)" = "$(cd "$1" && pwd -P)" ]; then
+    printf '%s\n' "$1"; return 0
+  fi
+  h="$(sy_cfg "$1" harness_repo)"
+  [ -n "$h" ] || return 1
+  case "$h" in /*) ;; *) h="$1/$h" ;; esac
+  git -C "$h" rev-parse --show-toplevel 2>/dev/null
+}
 
 # sy_package_of <root> <path relative to root>: the package folder the path belongs to, if any
 sy_package_of() {

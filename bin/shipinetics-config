@@ -143,7 +143,11 @@ case "${1:-}" in
   apply) shift; apply_pending "$@" ;;
   ""|list)
     echo "root: $root"
-    if sy_workspace "$root"; then echo "mode: workspace (packages: $(sy_cfg "$root" packages))"; else echo "mode: single repo"; fi
+    if sy_workspace "$root"; then
+      echo "mode: workspace (packages: $(sy_cfg "$root" packages))"
+      if h="$(sy_harness_repo "$root")"; then echo "harness files versioned in: $h"
+      else echo "warning: the root isn't a git repo and harness_repo isn't set, so .shipinetics/, the queue and the root's docs aren't versioned. Run /shipinetics:setup to fix it."; fi
+    else echo "mode: single repo"; fi
     for k in $SY_KEYS; do
       v="$(sy_cfg "$root" "$k")"
       if sy_is_set "$root" "$k"; then mark="set"; else mark="default"; fi

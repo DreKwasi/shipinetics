@@ -46,6 +46,10 @@ If the project root isn't a git repo but holds several package repos, use worksp
 - If packages keep committed copies of worksheets, set `package_worksheets_dir` so the evidence tool can find them on a branch.
 - Lists in `.shipinetics/` use paths relative to the workspace root, such as `api/src/config/*`.
 - **Don't write into package repos that have uncommitted work.** Per-package pieces (the commit hooks, the CI evidence job, git LFS, the `no-evidence` label) go on a list for the user to do one package at a time. Leave out the commit-msg hook in packages that record worksheets through `package_worksheets_dir` instead of trailers.
+- **Version the harness files.** A root that isn't a git repo leaves `.shipinetics/`, the queue, the worksheets and the root's docs unversioned: one bad edit loses them, nobody reviews changes to the policy lists, and `night-shift` can't run. `shipinetics-config` warns about it. Flag it in the audit, and offer the user one of these:
+  - **The root becomes the harness repo** (simplest): `git init` at the root, with a `.gitignore` that ignores each package folder (`api/`, `web/`) and `.claude/worktrees/`. Commit the harness files.
+  - **A separate harness repo**, when the root must stay plain (a shared folder, or a repo already exists for this): a git repo whose top level holds `.shipinetics/`, `AGENTS.md`, `CLAUDE.md`, the queue and `docs/`, with the root's copies replaced by symlinks into it, and the package folder names in its `.gitignore`. Set `harness_repo` in `.shipinetics/config` to its path, relative to the root.
+  Changing the root's layout is the user's call, so put the commands on the For you list unless they said yes during the audit.
 - `night-shift` doesn't support workspace mode yet. Leave the project's own night shift process in place.
 
 ## Audit

@@ -35,6 +35,10 @@
 # package_verify_cmd = scripts/validate.sh {package}
 # package_verify_quick_cmd = scripts/validate.sh {package} --quick
 # verify_scope = touched
+# The root's own files (.shipinetics/, the queue, worksheets, docs) need a git repo too, or they
+# aren't versioned and night-shift can't run. Either make the root a repo that ignores the package
+# folders, or keep them in another repo whose top level mirrors them and link the root to it:
+# harness_repo = ../my-workspace-harness
 
 # ---- Running the app
 # agent: agents launch, seed and stop their own instances (the default).
