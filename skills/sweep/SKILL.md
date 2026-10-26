@@ -6,6 +6,8 @@ argument-hint: "[since: date, ref or 'last-sweep']"
 
 # Commit sweep
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Per-task reviews look at one diff. Problems that span diffs slip through: two agents writing the same helper on different days, a pattern that drifts a bit with each change, a migration started and never finished. A sweep reads across commits to catch those.
 
 Range: `$ARGUMENTS`. Default is since the last sweep tag: `git describe --tags --match 'sweep/*' --abbrev=0`. If there's no sweep tag, use the last 7 days.

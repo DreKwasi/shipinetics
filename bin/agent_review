@@ -10,7 +10,8 @@
 # --cli:    auto (default) | codex | cursor | gemini | claude
 # --author: model family that wrote the work (default $SHIPYARD_AUTHOR, else "claude").
 #           auto picks the first installed CLI whose family differs from the author.
-# Output:   docs/reviews/<timestamp>-<stage>-<cli>.md. The path is the last line printed.
+# Output:   <reviews_dir>/<timestamp>-<stage>-<cli>.md under the Shipyard root (default docs/reviews).
+#           The path is the last line printed. Conventions and personas come from .shipyard/config.
 #
 # Edit the run_* functions below if a CLI changes its flags. Optional model overrides:
 # SHIPYARD_CODEX_MODEL, SHIPYARD_CURSOR_MODEL, SHIPYARD_GEMINI_MODEL, SHIPYARD_CLAUDE_REVIEW_MODEL.
@@ -21,6 +22,8 @@
 set -euo pipefail
 
 plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$plugin_root/scripts/lib.sh"
 
 stage="" base="" persona="" cli="auto" file="" author="${SHIPYARD_AUTHOR:-claude}"
 order="${SHIPYARD_REVIEW_ORDER:-codex gemini cursor claude}"
@@ -64,6 +67,10 @@ done
 case "$stage" in research|plan|impl|wrapup|docs) ;; *) die "--stage must be research, plan, impl, wrapup or docs" ;; esac
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
 cd "$root"
+sy="$(sy_root "$root" || echo "$root")"
+conventions="$sy/$(sy_cfg "$sy" conventions_file)"
+personas="$sy/$(sy_cfg "$sy" personas_dir)"
+reviews="$sy/$(sy_cfg "$sy" reviews_dir)"
 
 # ---- pick the CLI ----
 afam="$(author_family "$author")"
@@ -102,10 +109,10 @@ esac
 persona_text="General review. No specific persona."
 if [ -n "$persona" ]; then
   pf=""
-  for cand in "docs/review/personas/$persona.md" "$plugin_root/skills/review/personas/$persona.md"; do
+  for cand in "$personas/$persona.md" "$plugin_root/skills/review/personas/$persona.md"; do
     [ -f "$cand" ] && { pf="$cand"; break; }
   done
-  [ -n "$pf" ] || die "no persona file for '$persona' in docs/review/personas/ or the plugin"
+  [ -n "$pf" ] || die "no persona file for '$persona' in $personas or the plugin"
   persona_text="$(cat "$pf")"
 fi
 
@@ -122,9 +129,9 @@ trap 'rm -f "$prompt"' EXIT
   echo "## Persona"
   echo "$persona_text"
   echo
-  if [ -f docs/conventions.md ]; then
-    echo "## Project conventions (docs/conventions.md)"
-    head -n 400 docs/conventions.md
+  if [ -f "$conventions" ]; then
+    echo "## Project conventions ($(sy_rel "$sy" "$conventions"))"
+    head -n 400 "$conventions"
     echo
   fi
   echo "## Material to review"
@@ -158,8 +165,8 @@ trap 'rm -f "$prompt"' EXIT
   echo "Skip praise and style nitpicks that the conventions don't ask for. If there's nothing wrong, say so in one line."
 } >"$prompt"
 
-mkdir -p docs/reviews
-out="docs/reviews/$(date +%Y-%m-%d-%H%M%S)-$stage-$cli${persona:+-$persona}.md"
+mkdir -p "$reviews"
+out="$reviews/$(date +%Y-%m-%d-%H%M%S)-$stage-$cli${persona:+-$persona}.md"
 {
   echo "# Review: $stage by $cli${persona:+ ($persona persona)}"
   echo "> Base: ${base:-n/a} | File: ${file:-n/a} | Author family: $afam | Reviewer family: $(family_for "$cli") | $(date '+%Y-%m-%d %H:%M')"

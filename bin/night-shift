@@ -51,9 +51,14 @@ done
 
 command -v claude >/dev/null || die "claude isn't on PATH"
 command -v jq >/dev/null || die "jq is required"
+# shellcheck source=../scripts/lib.sh
+. "$plugin_root/scripts/lib.sh"
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
 cd "$root"
-[ -d .shipyard ] && [ -x bin/verify ] || die "this repo isn't set up. Run /shipyard:setup first."
+sy="$(sy_root "$root")" || die "this repo isn't set up. Run /shipyard:setup first."
+sy_workspace "$sy" && die "workspace mode ($sy) isn't supported by night-shift yet: each package needs its own worktree and verify. Use the project's own night shift process, or set up Shipyard inside one package repo."
+verify_bin="$(sy_cfg "$sy" verify_cmd)"; verify_bin="${verify_bin%% *}"
+[ -x "$sy/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || die "the verify command ($verify_bin) isn't there. Run /shipyard:setup first."
 [ -z "$(git status --porcelain)" ] || die "commit or stash your changes first, so the shift starts from a known state"
 
 day="$(date +%Y-%m-%d)"

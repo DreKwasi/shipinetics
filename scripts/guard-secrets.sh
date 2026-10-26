@@ -43,7 +43,7 @@ deny() {
   exit 0
 }
 
-creds='\.config/gcloud|application_default_credentials\.json|\.aws/credentials|\.aws/config|\.azure/|\.ssh/id_|\.netrc|\.npmrc|\.pypirc|\.docker/config\.json|\.kube/config|\.git-credentials|\.infisical|\.railway'
+creds='\.config/gcloud|application_default_credentials\.json|\.aws/credentials|\.aws/config|\.azure/|\.ssh/id_|\.netrc|\.npmrc|\.pypirc|\.docker/config\.json|\.kube/config|\.git-credentials|\.infisical(/|[[:space:]"]|$)|\.railway(/|[[:space:]"]|$)'
 
 tool="$(jget tool_name)"
 

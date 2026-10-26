@@ -6,6 +6,8 @@ argument-hint: "[skills|app|all]"
 
 # Security scans
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Shipping faster is only good if you aren't shipping vulnerabilities faster. Two tools cover what code review alone misses:
 
 - **SkillSpector** (NVIDIA) answers "is this skill safe to install?" for agent skills, agent definitions, plugins and MCP servers. Your agents run with your permissions, so a malicious or careless skill is a supply-chain risk.

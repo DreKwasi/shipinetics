@@ -1,0 +1,38 @@
+# Shipyard project settings. "key = value", one per line. "#" starts a comment.
+# Every setting is optional: anything left out uses the default shown.
+# Paths are relative to this folder's parent (the Shipyard root), except evidence_dir,
+# which is relative to the git repo a PR comes from.
+# Print the effective settings with: shipyard-config
+
+# ---- Where the project keeps things (map these to an existing harness instead of moving files)
+# worksheets_dir = docs/worksheets
+# feedback_file = docs/agent-feedback.md
+# systems_dir = docs/systems
+# conventions_file = docs/conventions.md
+# testing_guide_file = docs/testing/how-to-write-tests.md
+# test_index_file = docs/testing/test-index.md
+# tools_index_file = docs/tools.md
+# queue_file = TODOS.md
+# reviews_dir = docs/reviews
+# personas_dir = docs/review/personas
+# evidence_dir = docs/evidence
+
+# ---- Verify (single repo)
+# verify_cmd = bin/verify
+
+# ---- Workspace mode: the root holds several package repos and isn't a repo itself.
+# Setting packages turns it on. {package} is replaced with the package folder.
+# verify_scope = touched verifies only packages the agent edited this session; changed verifies
+# every package with uncommitted changes.
+# packages = api web
+# package_verify_cmd = scripts/validate.sh {package}
+# verify_scope = touched
+
+# ---- Worksheets: hand off to the project's own scripts if it has them
+# worksheet_new_cmd = scripts/new_trace.sh          # receives <slug>, prints the new path
+# worksheet_tag_cmd = scripts/tag_trace.sh          # receives [<package>] <worksheet path>
+# package_worksheets_dir = .agent-traces            # where packages keep committed worksheet copies
+# tag_prefix = ws/
+
+# ---- Secrets: how to run a command with secrets from the vault
+# secrets_runner = bin/with-secrets                 # or: infisical run --env=dev --

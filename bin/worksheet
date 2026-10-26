@@ -2,26 +2,29 @@
 # worksheet: create, find and tag session worksheets.
 #
 # Usage:
-#   worksheet new <slug> ["Title"]   create docs/worksheets/YYYY-MM-DD-<slug>.md and make it current
+#   worksheet new <slug> ["Title"]   create a worksheet for today and make it current
 #   worksheet current                print the current worksheet's path
 #   worksheet use <name>             make an existing worksheet current (to resume someone else's)
 #   worksheet list                   list worksheets with their one-line summaries
-#   worksheet tag [name]             add annotated tag ws/<name> at HEAD (default: current worksheet)
+#   worksheet tag [name]             tag HEAD of the current repo for the worksheet
 #
-# Commits made under a worksheet should carry a trailer line: "Worksheet: <name>".
-# Find everything for one later with: git log --grep "Worksheet: <name>"  or  git show ws/<name>
+# Where worksheets live and how they're tagged come from .shipyard/config (see shipyard-config).
+# If the project has its own scripts (worksheet_new_cmd, worksheet_tag_cmd), this hands off to them,
+# so one command works the same in every project.
+# Commits made under a worksheet should carry a trailer line: "Worksheet: <name>" unless the project
+# records worksheets another way (package_worksheets_dir).
 
 set -euo pipefail
 
-plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
 die() { echo "worksheet: $*" >&2; exit 1; }
 
-root="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
-cd "$root"
-dir="docs/worksheets"
-state=".shipyard/.cache/current-worksheet"
-mkdir -p "$dir" .shipyard/.cache
-
+root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a Shipyard project or a git repo"
+dir="$root/$(sy_cfg "$root" worksheets_dir)"
+state="$root/.shipyard/.cache/current-worksheet"
+mkdir -p "$dir" "$root/.shipyard/.cache"
 name_of() { basename "$1" .md; }
 
 cmd="${1:-}"; shift || true
@@ -29,18 +32,25 @@ case "$cmd" in
   new)
     slug="${1:-}"; [ -n "$slug" ] || die "usage: worksheet new <slug> [\"Title\"]"
     case "$slug" in *[!a-z0-9-]*) die "slug must be lowercase letters, digits and dashes" ;; esac
-    title="${2:-$slug}"
-    name="$(date +%Y-%m-%d)-$slug"
-    path="$dir/$name.md"
-    [ -e "$path" ] && die "$path already exists. Use: worksheet use $name"
-    tpl="$dir/_template.md"; [ -f "$tpl" ] || tpl="$plugin_root/skills/worksheet/template.md"
-    content="$(cat "$tpl")"
-    content="${content//"{{NAME}}"/$name}"
-    content="${content//"{{TITLE}}"/$title}"
-    content="${content//"{{DATE}}"/$(date '+%Y-%m-%d %H:%M')}"
-    content="${content//"{{BRANCH}}"/$(git branch --show-current 2>/dev/null || echo detached)}"
-    content="${content//"{{BASE}}"/$(git rev-parse --short HEAD 2>/dev/null || echo none)}"
-    printf '%s\n' "$content" >"$path"
+    custom="$(sy_cfg "$root" worksheet_new_cmd)"
+    if [ -n "$custom" ]; then
+      path="$(cd "$root" && sh -c "$custom \"\$1\"" _ "$slug" | tail -n 1)"
+      case "$path" in /*) ;; *) path="$root/$path" ;; esac
+      [ -f "$path" ] || die "$custom didn't print a worksheet path (got: $path)"
+    else
+      title="${2:-$slug}"
+      name="$(date +%Y-%m-%d)-$slug"
+      path="$dir/$name.md"
+      [ -e "$path" ] && die "$path already exists. Use: worksheet use $name"
+      tpl="$dir/_template.md"; [ -f "$tpl" ] || tpl="$here/skills/worksheet/template.md"
+      content="$(cat "$tpl")"
+      content="${content//"{{NAME}}"/$name}"
+      content="${content//"{{TITLE}}"/$title}"
+      content="${content//"{{DATE}}"/$(date '+%Y-%m-%d %H:%M')}"
+      content="${content//"{{BRANCH}}"/$(git -C "$PWD" branch --show-current 2>/dev/null || echo none)}"
+      content="${content//"{{BASE}}"/$(git -C "$PWD" rev-parse --short HEAD 2>/dev/null || echo none)}"
+      printf '%s\n' "$content" >"$path"
+    fi
     printf '%s' "$path" >"$state"
     echo "$path"
     ;;
@@ -57,20 +67,29 @@ case "$cmd" in
     for f in "$dir"/*.md; do
       [ -e "$f" ] || continue
       [ "$(basename "$f")" = "_template.md" ] && continue
-      summary="$(sed -n '2p' "$f" | sed 's/^> *//')"
+      summary="$(grep -m1 -iE '^> ?summary|^summary:' "$f" | sed -E 's/^> ?//; s/^[Ss]ummary:? *//')"
       printf '%s  %s\n' "$(name_of "$f")" "$summary"
     done
     ;;
   tag)
-    if [ -n "${1:-}" ]; then name="${1%.md}"; else
+    if [ -n "${1:-}" ]; then path="$dir/${1%.md}.md"; else
       [ -f "$state" ] || die "no current worksheet and no name given"
-      name="$(name_of "$(cat "$state")")"
+      path="$(cat "$state")"
     fi
-    path="$dir/$name.md"; [ -f "$path" ] || die "no worksheet at $path"
-    [ -z "$(git status --porcelain)" ] || echo "worksheet: warning: uncommitted changes won't be in the tag. Commit first." >&2
-    git tag -a "ws/$name" -m "$(head -n 7 "$path")" || die "tag ws/$name exists. Delete it first if you mean to move it."
-    echo "ws/$name -> $(git rev-parse --short HEAD)"
+    [ -f "$path" ] || die "no worksheet at $path"
+    repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run worksheet tag inside the git repo you committed to"
+    custom="$(sy_cfg "$root" worksheet_tag_cmd)"
+    if [ -n "$custom" ]; then
+      pkg="$(sy_package_of "$root" "$(sy_rel "$root" "$repo")" || true)"
+      relpath="$(sy_rel "$root" "$path")"
+      (cd "$root" && sh -c "$custom ${pkg:+\"\$1\"} \"\$2\"" _ "$pkg" "$relpath")
+    else
+      name="$(name_of "$path")"; tag="$(sy_cfg "$root" tag_prefix)$name"
+      [ -z "$(git status --porcelain)" ] || echo "worksheet: warning: uncommitted changes won't be in the tag. Commit first." >&2
+      git tag -a "$tag" -m "$(head -n 7 "$path")" || die "tag $tag exists. Delete it first if you mean to move it."
+      echo "$tag -> $(git rev-parse --short HEAD)"
+    fi
     ;;
-  ""|-h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
+  ""|-h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) die "unknown command: $cmd (try --help)" ;;
 esac

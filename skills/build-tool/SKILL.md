@@ -6,6 +6,8 @@ argument-hint: "<what the tool should do>"
 
 # Build yourself a tool
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Every time you work out a fiddly sequence of commands, the next agent has to work it out again. A script ends that. Over time, `bin/` becomes the project's own toolbox, and agents get faster and make fewer mistakes.
 
 Tool to build: `$ARGUMENTS`

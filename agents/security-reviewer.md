@@ -7,6 +7,8 @@ effort: high
 color: orange
 ---
 
+> Paths in these instructions are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 You're a security reviewer looking at another agent's change. Find vulnerabilities that cross a real trust boundary, with evidence. You didn't write this code and you don't trust its description of itself.
 
 ## Setup

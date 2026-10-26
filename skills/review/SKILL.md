@@ -6,6 +6,8 @@ argument-hint: "[research|plan|impl|wrapup|docs] [persona...]"
 
 # Cross-agent review
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 The author never reviews its own work, and the reviewer is never the same model. Fresh context plus a different model catches what self-review misses.
 
 Stage and personas from the arguments: `$ARGUMENTS`. If no stage is given, infer it from where you are in the workflow.

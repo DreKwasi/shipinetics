@@ -6,6 +6,8 @@ argument-hint: "[ingest]"
 
 # Agent feedback
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Mode: `$ARGUMENTS` (empty means write an entry, `ingest` means process the backlog).
 
 Agents hit the same friction over and over: a missing doc, a confusing instruction, a slow command, a tool that should exist. Feedback captures it while it's fresh. Ingesting turns it into fixes so the next session doesn't hit it.

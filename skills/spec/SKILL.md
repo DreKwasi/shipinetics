@@ -6,6 +6,8 @@ argument-hint: "<issue URL, task ID or description>"
 
 # Spec: intent to acceptance criteria
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Input: `$ARGUMENTS`. Fetch it if it's an issue URL (`gh issue view`) or a task ID (`TODOS.md`).
 
 The human's job is intent and acceptance criteria. Your job is to make those criteria concrete enough that a test can check them, and to get those tests written, by an independent agent, before anyone writes the code.

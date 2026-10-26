@@ -6,6 +6,8 @@ argument-hint: "<problem or convention ID>"
 
 # Encode it in a linter
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Every problem a linter catches is one reviewers and agents never have to think about again. The goal isn't to flag problems, it's to end up with clean code automatically.
 
 Problem: `$ARGUMENTS`

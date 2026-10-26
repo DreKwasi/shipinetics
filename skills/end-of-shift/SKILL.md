@@ -5,6 +5,8 @@ description: Full validation at the end of an autonomous shift or a long session
 
 # End-of-shift validation
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 The human is about to come back. Leave the repo in a state where they can see, in two minutes, what happened, what's solid and what needs them.
 
 **Honesty rule:** the report says exactly what passed and what didn't. A red check reported as red is fine. A red check hidden or explained away is a broken shift.

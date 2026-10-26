@@ -6,6 +6,8 @@ argument-hint: "[topic] [prose|diagram|whiteboard|html|video]"
 
 # Explain it so a human gets it fast
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 As agents do more of the work, the human's job moves up to oversight and understanding. Your output is only useful if they can take it in quickly. Code and intelligence are cheap now, so it's fine to build a large, custom, throwaway artifact (a web page, a video) just to explain one thing.
 
 Topic and format: `$ARGUMENTS`. If no format is given, pick one with the ladder below.

@@ -5,6 +5,8 @@ description: Keep a session worksheet that records what the agent is doing so an
 
 # Worksheets
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 A worksheet is the trace of one task: goal, plan, what happened, what was decided, what's verified, what's next. It's committed with the work and tagged, so months later you can find out why the code is the way it is. If an agent dies halfway through, another agent picks up the worksheet and finishes.
 
 ## Commands

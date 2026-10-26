@@ -5,6 +5,8 @@ description: How tests get written here. The implementing agent never writes its
 
 # Testing: independent and lean
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 **The agent that writes the code doesn't write the tests.** Tests written by the author share the author's blind spots: the same misreading of the spec shows up in both the code and the test, and the test passes. So tests come from `shipyard:test-writer`, a subagent with its own fresh context that works from the spec and the public interface. A hook enforces it: in a set-up project, only test-writer can create or edit files matching `.shipyard/test-paths`, and test-writer can't edit source.
 
 The project's own commands, layout and fixtures are in `docs/testing/how-to-write-tests.md`.

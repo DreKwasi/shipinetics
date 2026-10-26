@@ -1,14 +1,16 @@
 ---
 name: secrets
-description: How secrets work in shipyard projects. They live in a vault (such as Google Secret Manager), reach the app as environment variables, are read only by the config module, and are never seen by agents. Use when code needs a secret or config value, when running something that needs secrets, when adding a new secret, or when a hook blocks an environment read.
+description: How secrets work in shipyard projects. They live in a vault (such as Google Secret Manager or Infisical), reach the app as environment variables, are read only by the config module, and are never seen by agents. Use when code needs a secret or config value, when running something that needs secrets, when adding a new secret, or when a hook blocks an environment read.
 ---
 
 # Secrets: vault in, config module out, never in the agent's context
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 ## The model
 
 1. **Secrets live in a vault**, such as Google Secret Manager. Never in files: no `.env`, no committed config, no fixtures, no docs.
-2. **They reach processes as environment variables.** In production, the platform injects them (Cloud Run secret environment variables, for example). Locally and for agents, `bin/with-secrets <command>` fetches them from the vault and runs the command with them set.
+2. **They reach processes as environment variables.** In production, the platform injects them (Cloud Run secret environment variables, for example). Locally and for agents, the project's secrets runner fetches them from the vault and runs the command with them set. That's `secrets_runner` in `.shipyard/config`: `bin/with-secrets <command>` by default, or for example `infisical run --env=dev -- <command>` in an Infisical project.
 3. **Only the config module reads the environment.** One place (listed in `.shipyard/env-allowed-paths`, usually `src/config/`) reads, validates and types every variable, fails fast at startup if one is missing, and exports values to the rest of the code. Everything else imports from it.
 4. **Agents never see secret values.** You work with names, never values.
 

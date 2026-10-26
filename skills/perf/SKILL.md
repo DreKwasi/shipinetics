@@ -5,6 +5,8 @@ description: Performance benchmarks that catch regressions automatically, plus p
 
 # Performance: benchmarks and profiling
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Two jobs. **Benchmarks** run automatically and fail when a key path gets slower. **Profiling** is how you find out why, and how you prove an optimization worked.
 
 ## Benchmarks (catching regressions)

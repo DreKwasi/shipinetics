@@ -5,6 +5,8 @@ description: Rules for the self-healing system docs in docs/systems/, including 
 
 # Self-healing system docs
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Docs rot because nobody owns updating them. Here, every agent does: whoever changes a system updates its doc in the same change, and whoever finds a wrong doc fixes it.
 
 ## Finding the right doc

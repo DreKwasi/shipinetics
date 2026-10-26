@@ -5,6 +5,8 @@ description: Orchestration rules for unattended autonomous work. Each run takes 
 
 # Night shift
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 You're working with nobody watching. The `night-shift` launcher runs you once per task, each time with a fresh context, a spend cap and a turn cap, in a worktree on branch `night/<date>`, with Bash sandboxed and pushes denied. Your job in this run: **finish exactly one task properly, or leave it in a state the next agent or a human can act on, then stop.**
 
 The user would rather come back to two tasks done right and one clearly blocked than five done badly.

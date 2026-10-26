@@ -15,14 +15,35 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, then Phase 1. A number
 
 - **Audit before you build.** Never overwrite an existing file. If a file exists, merge into it and show the user the diff. If an existing setup does something differently (a different test runner, a `tools/` folder instead of `bin/`), adapt to it, don't replace it.
 - **Detect, don't ask, where you can.** Read `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, CI config, lockfiles and existing scripts to find the real commands. Ask only for what you can't find out.
+- **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
 - **One phase per run unless the user says otherwise.** At the end of each phase, say what's done, what you verified, and what the next phase does.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
 - Use a branch: `shipyard-setup` unless the user is already on one for this.
 
+## Projects that already have a harness
+
+Many projects already have their own versions of these pieces under other names: a router, worksheet scripts, a validate script, review and testing docs. Shipyard fits over them instead of replacing them.
+
+- **Map, don't duplicate.** For each point the audit marks in place, set the matching key in `.shipyard/config` (from `templates/config`) to the existing file or command: `worksheets_dir`, `feedback_file`, `systems_dir`, `conventions_file`, `test_index_file`, `testing_guide_file`, `verify_cmd`, `worksheet_new_cmd`, `worksheet_tag_cmd`, `tag_prefix`, `secrets_runner`. Shipyard's skills, hooks and tools then use the project's own files. Show the user the mapping, and check it with `shipyard-config`.
+- **Only add what's missing.** Skip any template that duplicates something the project already has (`bin/verify`, the docs templates, `TODOS.md`). Add the `.shipyard/` lists and a short Shipyard section in the existing router that points to the new capabilities.
+- **Leave the router and CLAUDE.md alone** beyond that section. If `CLAUDE.md` is very long, tell the user what it costs (it loads into every session) and suggest trimming, but don't do it during setup.
+- **Secrets:** match how the project already runs things with secrets. For Infisical, set `secrets_runner = infisical run --env=<env> --` (and `vault = infisical` if the project copies `bin/with-secrets`).
+
+## Multi-repo workspaces
+
+If the project root isn't a git repo but holds several package repos, use workspace mode:
+
+- Put `.shipyard/` at the workspace root. Set `packages` to the package folders and `package_verify_cmd` to the per-package check, with `{package}` where the folder name goes.
+- Keep `verify_scope = touched` (the default). The Stop hook then verifies only the packages the agent edited in that session, so the user's own unrelated work in progress never blocks an agent.
+- If packages keep committed copies of worksheets, set `package_worksheets_dir` so the evidence tool can find them on a branch.
+- Lists in `.shipyard/` use paths relative to the workspace root, such as `api/src/config/*`.
+- **Don't write into package repos that have uncommitted work.** Per-package pieces (the CI evidence job, git LFS, the `no-evidence` label) go on a list for the user to do one package at a time.
+- `night-shift` doesn't support workspace mode yet. Leave the project's own night shift process in place.
+
 ## Audit
 
-Check each point and fill this table. Status is **in place**, **partial** or **missing**, and evidence is a file path or a one-line reason. Write the table to `docs/shipyard-setup.md` (create it from scratch, this is the setup log) and show it to the user.
+Check each point and fill this table. Status is **in place**, **partial** or **missing**, and evidence is a file path or a one-line reason. Evidence must be live config or code, not a comment or a log entry. Anything you could only infer goes in an "Unconfirmed" list at the end of the audit, and you ask the user about it before Phase 1. Write the table to `docs/shipyard-setup.md` (create it from scratch, this is the setup log) and show it to the user.
 
 | # | Point | What to look for |
 |---|---|---|

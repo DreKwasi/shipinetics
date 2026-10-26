@@ -5,6 +5,8 @@ description: Set up and run screenshot-based visual regression tests, combining 
 
 # Visual regression
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 Two layers, because each misses what the other catches:
 
 - **Pixel comparison** (Playwright `toHaveScreenshot`) catches every unintended change, including ones a human would miss.

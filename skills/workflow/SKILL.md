@@ -5,6 +5,8 @@ description: The standard task loop for any coding task in a shipyard-set-up rep
 
 # The task loop
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 This is how every task runs, interactive or autonomous. Skip steps only where the size table says you can. If the project has its own `AGENT_WORKFLOW.md`, it overrides anything here that conflicts.
 
 ## Sizes
@@ -27,7 +29,7 @@ This is how every task runs, interactive or autonomous. Skip steps only where th
 
 Read the code paths you'll change, end to end. Write what you learned in the worksheet's Research section: how it works now, what you'll need to change, what surprised you.
 
-Record every factual claim the plan will rely on in the worksheet's claims table, with its evidence: `file:line` for the codebase, an official primary source URL and the date you checked it for anything external (API behavior, limits, versions). Don't write a claim you haven't checked. If you can't find evidence, mark it unresolved and say what's missing. An unresolved claim that the plan depends on is a blocker, not an assumption.
+Record every factual claim the plan will rely on in the worksheet's claims table, with its evidence: `file:line` for the codebase, an official primary source URL and the date you checked it for anything external (API behavior, limits, versions). Don't write a claim you haven't checked. If you can't find evidence, mark it unresolved and say what's missing. Comments, TODOs, feedback logs and old worksheets are history, not evidence of how things work now: confirm against live config and code, and if you can't, ask the user (interactive) or mark it unresolved (autonomous). An unresolved claim that the plan depends on is a blocker, not an assumption.
 
 If the system doc was wrong or thin, fix it now. For unfamiliar or risky systems, get a research review (shipyard:review research), which checks the claims table row by row.
 

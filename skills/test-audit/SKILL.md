@@ -6,6 +6,8 @@ argument-hint: "[path or system to focus on]"
 
 # False-confidence test audit
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 A passing suite only means something if the tests would fail when the product breaks. This audit checks that, test by test, and fixes the ones that wouldn't.
 
 Focus: `$ARGUMENTS` (if empty, use the selection below).

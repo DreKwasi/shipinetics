@@ -32,12 +32,14 @@ while [ $# -gt 0 ]; do
 done
 
 plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
-root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+# shellcheck source=../scripts/lib.sh
+. "$plugin_root/scripts/lib.sh"
+root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null || true)"
 
 if [ "${#targets[@]}" -eq 0 ]; then
   for d in "$HOME/.claude/skills"/*/ "$HOME/.agents/skills"/*/ \
            "$HOME/.claude/plugins/cache"/*/*/*/skills/*/ \
-           ${root:+"$root/.claude/skills"/*/} "$plugin_root/skills"/*/; do
+           ${root:+"$root/.claude/skills"/*/ "$root/.agents/skills"/*/} "$plugin_root/skills"/*/; do
     [ -f "$d/SKILL.md" ] && targets+=("${d%/}")
   done
   for f in "$HOME/.claude/agents"/*.md "$HOME/.claude/plugins/cache"/*/*/*/agents/*.md \

@@ -1,8 +1,9 @@
 # Files agents may create but not modify. One bash glob per line, relative to the repo root.
 # * matches across folders, so e2e/* covers everything under e2e/.
 # To edit these on purpose, start Claude Code with SHIPYARD_UNLOCK=1.
+# .shipyard/* covers the policy lists and config, so agents can't loosen their own rules.
 
-.shipyard/protected-paths
+.shipyard/*
 e2e/acceptance/*
 *-snapshots/*
 perf/baselines/*

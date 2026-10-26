@@ -3,23 +3,32 @@
 # complete evidence (screenshots, recordings or terminal transcripts for every acceptance
 # criterion; see shipyard:evidence) and the PR body carries the "## Evidence" section.
 #
-# Active only in set-up projects (a .shipyard/ folder). Docs-only branches pass.
+# Works from the repo the command runs in, so in workspace mode it checks the package repo.
+# Active only when a .shipyard/ folder exists at or above that repo. Docs-only branches pass.
 # Start Claude Code with SHIPYARD_ALLOW_NO_EVIDENCE=1 to skip it for a session.
 
 set -uo pipefail
 
 input="$(cat)"
 [ "${SHIPYARD_ALLOW_NO_EVIDENCE:-0}" = "1" ] && exit 0
-root="${CLAUDE_PROJECT_DIR:-$PWD}"
-[ -d "$root/.shipyard" ] || exit 0
+# shellcheck source=lib.sh
+. "$(dirname "$0")/lib.sh"
 
-if command -v jq >/dev/null 2>&1; then
-  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
-else
-  cmd="$(printf '%s' "$input" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))')"
-fi
+cmd="$(sy_json_field "$input" tool_input.command)"
 re='gh[[:space:]]+pr[[:space:]]+(create|ready)([[:space:]]|$)'
 [[ "$cmd" =~ $re ]] || exit 0
+
+cwd="$(sy_json_field "$input" cwd)"
+[ -n "$cwd" ] || cwd="${CLAUDE_PROJECT_DIR:-$PWD}"
+# A leading "cd <dir> &&" decides where gh runs. Follow it when it's a plain path.
+cd_re='^[[:space:]]*cd[[:space:]]+([^[:space:];&|]+)[[:space:]]*&&'
+if [[ "$cmd" =~ $cd_re ]]; then
+  d="${BASH_REMATCH[1]}"; d="${d/#\~/$HOME}"
+  case "$d" in /*) ;; *) d="$cwd/$d" ;; esac
+  [ -d "$d" ] && cwd="$d"
+fi
+repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
+root="$(sy_root "$repo")" || exit 0
 
 deny() {
   if command -v jq >/dev/null 2>&1; then
@@ -31,7 +40,7 @@ deny() {
 }
 
 evidence="$(cd "$(dirname "$0")/.." && pwd)/bin/evidence"
-if ! out="$(cd "$root" && "$evidence" check --branch 2>&1)"; then
+if ! out="$(cd "$repo" && SHIPYARD_ROOT="$root" "$evidence" check --branch 2>&1)"; then
   deny "shipyard: this PR has no complete evidence yet, so it can't be opened.
 $out
 Capture it (shipyard:evidence): screenshots per acceptance criterion, a screen recording for UI changes, terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
@@ -46,7 +55,7 @@ if [[ "$cmd" =~ $file_re ]]; then
   f="${BASH_REMATCH[2]}"; f="${f%\"}"; f="${f#\"}"; f="${f%\'}"; f="${f#\'}"
   # Expand only the variables a body file path usually uses. Never eval: this runs before permissions.
   f="${f/#\~/$HOME}"; f="${f//\$\{TMPDIR\}/${TMPDIR:-/tmp}}"; f="${f//\$TMPDIR/${TMPDIR:-/tmp}}"
-  case "$f" in /*) ;; *) f="$root/$f" ;; esac
+  case "$f" in /*) ;; *) f="$cwd/$f" ;; esac
   [ -f "$f" ] && body="$(cat "$f")"
 elif [[ "$cmd" =~ $text_re ]]; then
   body="$cmd"

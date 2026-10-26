@@ -49,6 +49,14 @@ shipyard uses these when they're installed and falls back when they aren't. `/sh
 
 They aren't declared as hard plugin dependencies on purpose. A missing hard dependency stops the whole plugin from loading, and some of them (Whiteboard, Docker) won't exist in CI or on every machine.
 
+## Projects with their own setup, and multi-repo workspaces
+
+Shipyard's paths and commands are defaults. A project can map them to what it already has in `.shipyard/config` (template: `skills/setup/templates/config`): worksheet folder, feedback log, system docs, conventions, test docs, verify command, worksheet scripts, tag prefix and secrets runner. Skills, hooks and tools then use the project's own files. `shipyard-config` prints the effective settings.
+
+Workspace mode (`packages = ...`) is for a root that holds several package repos and isn't a repo itself. The Stop hook runs `package_verify_cmd` for each package the agent edited in that session, so the user's unrelated work in progress never blocks it. The PR gate and `evidence` work from whichever package repo the PR comes from. `night-shift` doesn't support workspace mode yet.
+
+`/shipyard:setup` audits first and asks before acting on anything it could only infer from comments or old docs.
+
 ## How the points map to the plugin
 
 | # | Point | Plugin | In the project |
@@ -164,7 +172,7 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 - `agent_review`'s runners for Codex, Gemini and Cursor use each CLI's non-interactive mode as documented when this was written. Check them against `--help` the first time you use one.
 - SkillSpector and Strix weren't installed where this was built, so `scan-skills` was tested against a stand-in with SkillSpector's documented JSON format. Run `scan-skills` once after installing the real tool and check the summary.
 - `evidence pr-body` links to files on the pushed branch, so push before opening the PR. Without git LFS, keep recordings small.
-- `bin/with-secrets` is written for Google Secret Manager via gcloud. Other vaults need its one fetch line changed.
+- `bin/with-secrets` reads Google Secret Manager via gcloud, or runs `infisical run` when `.shipyard/config` sets `vault = infisical`. Projects with their own runner set `secrets_runner` instead.
 - `bin/verify` runs on every agent stop where something changed, so keep fast mode to a few minutes, and never let it print environment values.
 
 ## Layout
@@ -172,9 +180,9 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
-bin/              agent_review, evidence, night-shift, scan-skills, worksheet   (on the agent's PATH)
+bin/              agent_review, evidence, night-shift, scan-skills, shipyard-config, worksheet   (on the agent's PATH)
 hooks/            hooks.json
-scripts/          stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
+scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,

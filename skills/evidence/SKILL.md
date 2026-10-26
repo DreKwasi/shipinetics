@@ -6,6 +6,8 @@ argument-hint: "[worksheet]"
 
 # Evidence: show it working
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 A PR without proof that it works isn't worth a reviewer's time. Passing tests are necessary, not sufficient: tests can be wrong, and they never show what the user sees. So every PR carries evidence recorded from the real, running app at the PR's code: screenshots for each acceptance criterion, a screen recording for anything visual, and terminal transcripts for CLIs, APIs and jobs.
 
 Worksheet: `$ARGUMENTS` (default: the current one).

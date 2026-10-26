@@ -5,6 +5,8 @@ description: Rules for reading, claiming, updating and adding to the project's t
 
 # The task queue
 
+> Paths below are Shipyard's defaults. A project can map them elsewhere in `.shipyard/config`: run `shipyard-config` to see this project's actual paths and commands, and use those.
+
 The queue is where work waits. `TODOS.md` by default. If `AGENTS.md` says the source of truth is somewhere else (Linear, GitHub issues), use that system's CLI with the same rules and states.
 
 ## States
