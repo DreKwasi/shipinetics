@@ -1,6 +1,8 @@
 # Files agents may create but not modify. One bash glob per line, relative to the repo root.
 # * matches across folders, so e2e/* covers everything under e2e/.
-# To edit these on purpose, start Claude Code with SHIPINETICS_UNLOCK=1.
+# Agents propose changes by writing the new version to .shipinetics/pending/<path>, and a human
+# applies it with: shipinetics-config apply. To edit these directly for a whole session, start
+# Claude Code with SHIPINETICS_UNLOCK=1.
 # .shipinetics/* covers the policy lists and config, so agents can't loosen their own rules.
 
 .shipinetics/*

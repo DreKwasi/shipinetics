@@ -54,7 +54,7 @@ Evidence: docs/evidence/{{NAME}}/EVIDENCE.md (shipinetics:evidence). Also what y
 
 ## Test change requests
 
-<Protected tests or baselines you believe are wrong, with your reasoning. A human decides.>
+<Protected tests or baselines you believe are wrong, with your reasoning, and the proposed version's path under .shipinetics/pending/ if you wrote one. A human decides and applies it with shipinetics-config apply.>
 
 ## Design-system change requests
 

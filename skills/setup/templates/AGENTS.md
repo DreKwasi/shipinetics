@@ -68,7 +68,7 @@ Write reports and summaries in plain controlled English (about 80% of ASD-STE100
 
 ## Protected files
 
-Files matching `.shipinetics/protected-paths` (acceptance and e2e tests, baselines) can be created but not modified by agents. If one looks wrong, write it up under "Test change requests" in your worksheet and keep going.
+Files matching `.shipinetics/protected-paths` (acceptance and e2e tests, baselines) can be created but not modified by agents. If one looks wrong, write the new version to `.shipinetics/pending/<path>`, explain why under "Test change requests" in your worksheet, and keep going. A human applies it with `shipinetics-config apply`.
 
 ## Setup for a fresh clone
 

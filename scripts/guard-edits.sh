@@ -3,7 +3,9 @@
 # list exists in .shipinetics/ (so the hook does nothing in projects that aren't set up):
 #
 #   protected-paths     Existing files matching these globs can't be modified. New files are fine,
-#                       so acceptance tests can be written first and then stay fixed.
+#                       so acceptance tests can be written first and then stay fixed. To change one,
+#                       an agent writes the full new version to .shipinetics/pending/<path>, and a
+#                       human reviews and applies it with shipinetics-config apply.
 #   test-paths          Only the shipinetics:test-writer subagent may create or edit test files, and
 #                       test-writer may edit nothing except test files and the testing docs.
 #   env-allowed-paths   New environment-variable reads (process.env and friends) are only allowed
@@ -51,6 +53,10 @@ agent="$(jget agent_type)"
 session="$(jget session_id)"
 is_test_writer=0
 case "$agent" in *test-writer) is_test_writer=1 ;; esac
+# A proposal in the pending folder is never protected itself, and the other rules check it as the
+# file it would replace.
+pending=0 target_rel="$rel"
+case "$rel" in "$dn/pending/"*) pending=1; target_rel="${rel#"$dn/pending/"}" ;; esac
 testing_guide="$(sy_cfg "$root" testing_guide_file)"
 test_index="$(sy_cfg "$root" test_index_file)"
 
@@ -61,19 +67,19 @@ case "$rel" in
   "$SY_LEGACY_DIR_NAME"/*) alias_rel="$SY_DIR_NAME/${rel#"$SY_LEGACY_DIR_NAME"/}" ;;
   *) alias_rel="" ;;
 esac
-if ! sy_flag UNLOCK && [ -e "$path" ] &&
+if [ "$pending" = 0 ] && ! sy_flag UNLOCK && [ -e "$path" ] &&
    { sy_in_list "$dir/protected-paths" "$rel" || { [ -n "$alias_rel" ] && sy_in_list "$dir/protected-paths" "$alias_rel"; }; }; then
-  deny "$rel is protected (matches '$SY_MATCHED' in $dn/protected-paths). These files define what done means, so they don't change to fit the implementation. If you think the file is wrong, add it and your reasoning under 'Test change requests' in your worksheet and carry on with the rest of the task. A human decides."
+  deny "$rel is protected (matches '$SY_MATCHED' in $dn/protected-paths). These files define what done means, so they don't change to fit the implementation. If you think the file is wrong, write the full new version to $dn/pending/$rel, add your reasoning under 'Test change requests' in your worksheet, and carry on with the rest of the task. A human reviews it and applies it with shipinetics-config apply."
 fi
 
 # ---- 2. test ownership ----
 if ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
-  if sy_in_list "$dir/test-paths" "$rel"; then
+  if sy_in_list "$dir/test-paths" "$target_rel"; then
     if [ "$is_test_writer" != 1 ]; then
       deny "$rel is a test file (matches '$SY_MATCHED' in $dn/test-paths). The agent that writes the code doesn't write its tests. Spawn the shipinetics:test-writer subagent with the spec or acceptance criteria and the files under test, and let it write or change tests in its own context. If an existing test looks wrong, give test-writer your reasoning and the spec, and it decides."
     fi
   elif [ "$is_test_writer" = 1 ]; then
-    case "$rel" in
+    case "$target_rel" in
       docs/testing/*|"$testing_guide"|"$test_index") ;;
       *) deny "test-writer only edits test files ($dn/test-paths) and the testing docs ($testing_guide, $test_index). $rel is source. Report the change you need (a bug, an export, a test seam) in your final report instead." ;;
     esac
@@ -81,7 +87,7 @@ if ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
 fi
 
 # ---- 3. environment reads in code ----
-if ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths" ] && ! sy_in_list "$dir/env-allowed-paths" "$rel"; then
+if ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths" ] && ! sy_in_list "$dir/env-allowed-paths" "$target_rel"; then
   re='process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|os\.getenv|os\.Getenv|os\.LookupEnv|std::env::var|env::var\(|System\.getenv|ENV\[|ENV\.fetch|getenv\('
   count() { grep -oE "$re" | wc -l | tr -d ' '; }
   tool="$(jget tool_name)"

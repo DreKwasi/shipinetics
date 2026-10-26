@@ -48,7 +48,7 @@ test('invoice page @visual', async ({ page }) => {
 2. Decide: **intended** (the task changed this UI on purpose) or **regression** (it shouldn't have changed).
 3. **Regression:** fix the code. Never update the baseline to make a regression pass.
 4. **Intended:** look at the actual image as a designer would. Is anything clipped, overlapping, misaligned, unreadable, or off-brand (against DESIGN.md and the existing components)? Check dark mode and a narrow viewport if the change could affect them.
-5. Baselines are protected, so updating them is a human decision. Write in the worksheet under "Test change requests": which screenshot, why it changed, and your visual review of the new version. Attach or link the actual image. A human runs the update with `SHIPINETICS_UNLOCK=1` or approves it in the PR.
+5. Baselines are protected, so updating them is a human decision. Write in the worksheet under "Test change requests": which screenshot, why it changed, and your visual review of the new version. Put the new screenshot at `.shipinetics/pending/<baseline path>`. A human reviews it with `shipinetics-config apply`, or approves it in the PR.
 
 ## Agent visual review without a failing test
 

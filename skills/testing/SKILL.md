@@ -63,7 +63,7 @@ A suite is good when it fails if the product breaks and passes when it doesn't. 
 ## When a test fails
 
 - **The code is wrong** (usual case): fix the code.
-- **The spec changed:** update the spec first (with the human's agreement), then have test-writer update the tests. Protected acceptance tests need a human to unlock (`SHIPINETICS_UNLOCK=1`).
+- **The spec changed:** update the spec first (with the human's agreement), then have test-writer update the tests. For a protected acceptance test, test-writer writes the new version to `.shipinetics/pending/<test path>`, and a human applies it with `shipinetics-config apply`.
 - **Flaky:** find the race or shared state. No retries, no sleeps. If it can't be fixed now, a queue task names the test and what you found.
 
 Never make a test pass by loosening, deleting, skipping or re-snapshotting it. The hooks block the direct route and the reviewers check for the indirect ones.

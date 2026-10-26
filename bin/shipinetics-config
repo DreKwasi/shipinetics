@@ -11,6 +11,10 @@
 #                                   shipyard-verify, shipyard-config and shipyard:<skill or agent>
 #                                   references in the project's files are rewritten. Leaves the
 #                                   changes uncommitted for you to review. See MIGRATING.md.
+#   shipinetics-config pending      list proposed changes to protected files (.shipinetics/pending/)
+#   shipinetics-config apply [path...]
+#                                   review each proposal as a diff and apply it or not. Needs a
+#                                   human at a terminal, so an agent can't apply its own proposals.
 #
 # Skills and tools use these values in place of their default paths.
 
@@ -81,12 +85,62 @@ migrate() {
   echo "Review the changes (git diff), then commit them. Rename any SHIPYARD_* variables you set outside the repo too: your shell profile, CI settings."
 }
 
+# proposals [path...]: "<proposal file>\t<target path relative to root>" for each pending change
+proposals() {
+  local dir f t
+  dir="$(sy_dir "$root")/pending"
+  [ -d "$dir" ] || return 0
+  find "$dir" -type f | LC_ALL=C sort | while IFS= read -r f; do
+    t="${f#"$dir"/}"
+    if [ $# -gt 0 ]; then
+      case " $* " in *" $t "*|*" $root/$t "*) ;; *) continue ;; esac
+    fi
+    printf '%s\t%s\n' "$f" "$t"
+  done
+}
+
+list_pending() {
+  local f t n=0
+  while IFS="$(printf '\t')" read -r f t; do
+    n=$((n + 1))
+    if [ ! -e "$root/$t" ]; then echo "$t (new file)"
+    elif cmp -s "$f" "$root/$t"; then echo "$t (same as the current file)"
+    else echo "$t (+$(diff "$root/$t" "$f" | grep -c '^>') -$(diff "$root/$t" "$f" | grep -c '^<') lines)"; fi
+  done < <(proposals)
+  [ "$n" -gt 0 ] && echo "Review and apply them with: shipinetics-config apply" || echo "No pending changes."
+}
+
+apply_pending() {
+  local f t reply applied=0 dir
+  [ -t 0 ] || { echo "shipinetics-config: apply needs a human at a terminal. Pending changes are for a person to review; an agent can list them with: shipinetics-config pending" >&2; exit 1; }
+  dir="$(sy_dir "$root")/pending"
+  while IFS="$(printf '\t')" read -r f t <&3; do
+    echo "== $t"
+    if [ -e "$root/$t" ]; then diff -u --label "$t (current)" --label "$t (proposed)" "$root/$t" "$f" || true
+    else echo "(new file)"; sed 's/^/+ /' "$f"; fi
+    printf 'Apply this change to %s? [y/N/q] ' "$t"
+    read -r reply || reply=q
+    case "$reply" in
+      y|Y|yes)
+        mkdir -p "$(dirname "$root/$t")"
+        cat "$f" >"$root/$t" && rm -f "$f" && applied=$((applied + 1))
+        echo "applied." ;;
+      q|Q) break ;;
+      *) echo "left pending." ;;
+    esac
+  done 3< <(proposals "$@")
+  find "$dir" -depth -type d -empty -delete 2>/dev/null || true
+  echo "$applied applied. Review with git diff and commit."
+}
+
 root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder here or above. Run /shipinetics:setup first." >&2; exit 1; }
 
 case "${1:-}" in
   get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
   root) echo "$root" ;;
   migrate) shift; migrate "$@" ;;
+  pending) list_pending ;;
+  apply) shift; apply_pending "$@" ;;
   ""|list)
     echo "root: $root"
     if sy_workspace "$root"; then echo "mode: workspace (packages: $(sy_cfg "$root" packages))"; else echo "mode: single repo"; fi
@@ -96,6 +150,6 @@ case "${1:-}" in
       printf '%-24s %-8s %s\n' "$k" "$mark" "${v:-(none)}"
     done
     ;;
-  -h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "shipinetics-config: unknown command: $1" >&2; exit 2 ;;
 esac

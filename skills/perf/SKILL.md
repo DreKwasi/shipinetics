@@ -38,7 +38,7 @@ Benchmarks on laptops and shared CI runners are noisy. Use medians, never single
 
 1. Re-run it to rule out noise.
 2. If it's real, find the cause: `git bisect run bin/bench <scenario>` over the commits since the baseline.
-3. Fix it, or if the slowdown is an accepted cost of a feature, write that up in the worksheet under "Test change requests". A human updates the baseline.
+3. Fix it, or if the slowdown is an accepted cost of a feature, write that up in the worksheet under "Test change requests", with the new baseline at `.shipinetics/pending/<baseline path>`. A human applies it with `shipinetics-config apply`.
 
 ## Profiling (finding out why)
 

@@ -50,7 +50,7 @@ If the stack has a mutation testing tool (Stryker, mutmut, cargo-mutants, go-mut
 
 - **Test survives the mutation:** strengthen the assertion until it fails on the mutation, then passes on the real code.
 - **Smell, but the mutation was caught:** fix it if it's cheap, otherwise note it.
-- **Test is protected:** don't edit it. Write it up under "Test change requests" in the worksheet with the mutation that survived.
+- **Test is protected:** don't edit it. Have test-writer put the stronger version at `.shipinetics/pending/<test path>`, and write it up under "Test change requests" in the worksheet with the mutation that survived. A human applies it with `shipinetics-config apply`.
 - **Test is worthless and can't be saved:** replace it with one that tests the behavior properly. Never delete without a replacement unless the behavior itself is gone.
 
 Test fixes go through `shipinetics:test-writer`: the hook only lets it edit tests. Give it the test, the smell and the mutation that survived, and it strengthens or replaces the test.
