@@ -23,6 +23,10 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in 
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
 - Use a branch: `shipinetics-setup` unless the user is already on one for this.
 
+## Projects set up under the old name
+
+Shipinetics used to be called Shipyard. A project with a `.shipyard/` folder and no `.shipinetics/` was set up before the rename. It still works for one version, but migrate it before anything else: with a clean tree, run `shipinetics-config migrate --dry-run`, show the user the plan, then run `shipinetics-config migrate` and commit the result on its own (see `${CLAUDE_SKILL_DIR}/../../MIGRATING.md`). The setup log moves to `docs/shipinetics-setup.md` and still says which phases are done.
+
 ## Projects that already have a harness
 
 Many projects already have their own versions of these pieces under other names: a router, worksheet scripts, a validate script, review and testing docs. Shipinetics fits over them instead of replacing them.

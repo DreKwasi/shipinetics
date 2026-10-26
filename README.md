@@ -35,6 +35,8 @@ claude plugin install shipinetics@shipinetics
 
 Once it's in a GitHub repo, use `claude plugin marketplace add <owner>/<repo>` on any machine, then the same install command. To try it for one session without installing, run `claude --plugin-dir ~/Projects/shipinetics`.
 
+Shipinetics used to be called Shipyard. A project set up under that name (it has a `.shipyard/` folder) keeps working for one version. Move it over with `shipinetics-config migrate`, as described in [MIGRATING.md](MIGRATING.md).
+
 ### Companions (install separately)
 
 shipinetics uses these when they're installed and falls back when they aren't. `/shipinetics:setup` checks for them. Scan each with SkillSpector before installing it.
@@ -172,6 +174,8 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 
 ## Environment variables
 
+Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one version. The new name wins if both are set.
+
 | Variable | Effect |
 |---|---|
 | `SHIPINETICS_SKIP_VERIFY=1` | Turn off the Stop hook, and the PR gate's verify check, for a session |
@@ -211,13 +215,15 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
 bin/              agent_review, design-check, evidence, night-shift, scan-skills, shipinetics-config,
-                  shipinetics-verify, worksheet   (on the agent's PATH)
+                  shipinetics-verify, worksheet   (on the agent's PATH; shipyard-config and
+                  shipyard-verify are deprecated shims, kept for one version)
 hooks/            hooks.json
 scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,
                   visual-regression, perf, end-of-shift, verification-map
+MIGRATING.md      moving a project from Shipyard to Shipinetics
 tests/            shipinetics's own tests for the hooks and tools. Run tests/run.sh (CI runs it on
                   Linux and on macOS's bash 3.2)
 ```
