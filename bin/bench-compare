@@ -20,12 +20,14 @@
 #
 # Baselines are per machine (<dir>/<machine>.tsv), because timings from different machines don't
 # compare. Format: "# key: value" header lines (machine, commit, date, runs), then one row per
-# scenario: scenario, median ms, spread %. Spread is the range of the runs (without the fastest
-# and slowest when there are 5 or more) as a percent of the median.
+# scenario: scenario, median ms, spread %, fastest ms. Spread is the range of the runs (without
+# the fastest and slowest when there are 5 or more) as a percent of the median.
 # Budgets (<dir>/budgets.tsv, "<scenario> <max ms>" per line) are absolute ceilings, checked on
 # every machine, with or without a baseline.
 #
-# A scenario whose spread is over the threshold is too noisy to judge: it's reported, not passed.
+# A scenario whose spread is over the threshold is too noisy to judge: it's reported, not passed,
+# unless even its fastest run is slower than the threshold allows, which is a regression however
+# noisy. A scenario in the baseline or budgets that the command no longer prints fails (MISSING).
 # Exit: 0 no regression, 1 a regression or a budget exceeded, 2 nothing to compare against or a
 # usage error, 3 no regression found but some scenario was too noisy to judge.
 
@@ -47,6 +49,7 @@ die() { echo "bench-compare: $*" >&2; exit 2; }
 
 runs=5 threshold=10 dir="perf/baselines" machine="" init=0 force=0 results=""
 while [ $# -gt 0 ]; do
+  case "$1" in --runs|--threshold|--dir|--machine|--results) [ $# -ge 2 ] || die "$1 needs a value" ;; esac
   case "$1" in
     --runs) runs="${2:-}"; shift 2 ;;
     --threshold) threshold="${2:-}"; shift 2 ;;
@@ -85,7 +88,7 @@ sort -t "$(printf '\t')" -k1,1 -k2,2g "$tmp/all" | awk -F'\t' '
     if (name == "") return
     med = (n % 2) ? v[(n + 1) / 2] : (v[n / 2] + v[n / 2 + 1]) / 2
     lo = (n >= 5) ? v[2] : v[1]; hi = (n >= 5) ? v[n - 1] : v[n]
-    printf "%s\t%.3f\t%.1f\n", name, med, (med > 0 ? (hi - lo) / med * 100 : 0)
+    printf "%s\t%.3f\t%.1f\t%.3f\n", name, med, (med > 0 ? (hi - lo) / med * 100 : 0), v[1]
   }
   $1 != name { flush(); name = $1; n = 0 }
   { v[++n] = $2 }
@@ -135,18 +138,22 @@ awk -F'\t' -v thr="$threshold" '
   FILENAME == ARGV[1] { base[$1] = $2; next }
   FILENAME == ARGV[2] { budget[$1] = $2; next }
   {
-    name = $1; now = $2; spread = $3; verdict = "ok"; change = "-"
+    name = $1; now = $2; spread = $3; fastest = $4; seen[name] = 1; verdict = "ok"; change = "-"
     if (name in base && base[name] > 0) {
       pct = (now - base[name]) / base[name] * 100
       change = sprintf("%+.1f%%", pct)
-      if (spread > thr) { verdict = "noisy"; noisy++ }
-      else if (pct > thr) { verdict = "SLOWER"; bad++ }
+      if (pct > thr && (spread <= thr || fastest > base[name] * (1 + thr / 100))) { verdict = "SLOWER"; bad++ }
+      else if (spread > thr) { verdict = "noisy"; noisy++ }
       else if (pct < -thr) verdict = "faster"
     } else if (spread > thr) { verdict = "noisy"; noisy++ }
     if ((name in budget) && now > budget[name]) { verdict = verdict " OVER BUDGET (" budget[name] ")"; bad++ }
     printf "%-28s %10s %10.1f %9s %8.1f%%  %s\n", name, (name in base ? sprintf("%.1f", base[name]) : "-"), now, change, spread, verdict
   }
-  END { exit bad ? 1 : (noisy ? 3 : 0) }' "$tmp/base" "$tmp/budget" "$tmp/stats" >"$tmp/table"
+  END {
+    for (name in base) if (!(name in seen)) { printf "%-28s %10.1f %10s %9s %9s  MISSING (not printed this run)\n", name, base[name], "-", "-", "-"; bad++ }
+    for (name in budget) if (!(name in seen) && !(name in base)) { printf "%-28s %10s %10s %9s %9s  MISSING (has a budget)\n", name, "-", "-", "-", "-"; bad++ }
+    exit bad ? 1 : (noisy ? 3 : 0)
+  }' "$tmp/base" "$tmp/budget" "$tmp/stats" >"$tmp/table"
 rc=$?
 printf '%-28s %10s %10s %9s %9s  %s\n' scenario "base ms" "now ms" change spread verdict
 cat "$tmp/table"

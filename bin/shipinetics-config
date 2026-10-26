@@ -18,7 +18,8 @@
 #   shipinetics-config pending      list proposed changes to protected files (.shipinetics/pending/)
 #   shipinetics-config apply [path...]
 #                                   review each proposal as a diff and apply it or not. Needs a
-#                                   human at a terminal, so an agent can't apply its own proposals.
+#                                   human at a terminal, so an agent's Bash tool can't run it
+#                                   (a speed bump, not a lock).
 #
 # Skills and tools use these values in place of their default paths.
 
@@ -35,6 +36,10 @@ migrate() {
   done
   old="$root/$SY_LEGACY_DIR_NAME" new="$root/$SY_DIR_NAME"
   [ -d "$old" ] && [ -d "$new" ] && { echo "shipinetics-config: both $old and $new exist. Merge them by hand, then run migrate again." >&2; exit 1; }
+  # A workspace with a separate harness repo links its files into it: migrate the repo itself.
+  for f in "$old" "$root/docs/shipyard-setup.md"; do
+    [ -L "$f" ] && { echo "shipinetics-config: $f is a link into $(readlink "$f"). Run migrate inside the repo it points to, then point the link at the new name." >&2; exit 1; }
+  done
 
   # The repos to rewrite: the root's own (if it has one) and each package repo in workspace mode.
   if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then repos+=("$root"); fi
@@ -64,19 +69,24 @@ migrate() {
   list_files() {
     local r
     for r in ${repos[@]+"${repos[@]}"}; do
-      git -C "$r" grep -lIE "$re" -- . ":(exclude)$SY_DIR_NAME/.cache" ":(exclude)$SY_LEGACY_DIR_NAME/.cache" 2>/dev/null | sed "s|^|$r/|"
+      git -C "$r" grep -lIE "$re" -- . ":(exclude)$SY_DIR_NAME/.cache" ":(exclude)$SY_LEGACY_DIR_NAME/.cache" 2>/dev/null |
+        while IFS= read -r f; do printf '%s/%s\n' "$r" "$f"; done
     done
     # A workspace root that isn't a repo: its own files, outside the package repos.
     if ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      local ex=() p
-      for p in $(sy_cfg "$root" packages) .git node_modules .cache; do ex+=(--exclude-dir="$p"); done
-      grep -rlIE "${ex[@]}" "$re" "$root" 2>/dev/null
+      local p pkgs
+      pkgs="$(sy_cfg "$root" packages)"
+      grep -rlIE --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.cache "$re" "$root" 2>/dev/null |
+        while IFS= read -r f; do
+          for p in $pkgs; do case "${f#"$root"/}" in "$p"/*) continue 2 ;; esac; done
+          printf '%s\n' "$f"
+        done
     fi
   }
   while IFS= read -r f; do
     [ -f "$f" ] && [ ! -L "$f" ] || continue
     if [ "$dry" = 0 ]; then
-      perl -pi -e 's/SHIPYARD_/SHIPINETICS_/g; s/shipyard-(verify|config)\b/shipinetics-$1/g; s/\bshipyard:/shipinetics:/g; s/\.shipyard(?![\w-])/.shipinetics/g; s/shipyard-setup\.md/shipinetics-setup.md/g' "$f"
+      perl -pi -e 's/SHIPYARD_/SHIPINETICS_/g; s/shipyard-(verify|config)\b/shipinetics-$1/g; s/\bshipyard:(?=[a-z])/shipinetics:/g; s/(?<![\w-])\.shipyard(?![\w.-])/.shipinetics/g; s/shipyard-setup\.md/shipinetics-setup.md/g' "$f"
     fi
     changed+=("${f#"$root"/}"); n=$((n + 1))
   done < <(list_files | sort -u)
@@ -120,6 +130,7 @@ apply_pending() {
   dir="$(sy_dir "$root")/pending"
   while IFS="$(printf '\t')" read -r f t <&3; do
     echo "== $t"
+    if [ -L "$root/$t" ]; then echo "$root/$t is a symlink, so apply this one by hand."; continue; fi
     if [ -e "$root/$t" ]; then diff -u --label "$t (current)" --label "$t (proposed)" "$root/$t" "$f" || true
     else echo "(new file)"; sed 's/^/+ /' "$f"; fi
     printf 'Apply this change to %s? [y/N/q] ' "$t"
@@ -137,19 +148,6 @@ apply_pending() {
   echo "$applied applied. Review with git diff and commit."
 }
 
-norm_path() { # norm_path <absolute path>: the same path without . and .. parts
-  local part parts out=()
-  IFS=/ read -r -a parts <<<"$1"
-  for part in "${parts[@]}"; do
-    case "$part" in
-      ''|.) ;;
-      ..) [ "${#out[@]}" -gt 0 ] && unset "out[$((${#out[@]} - 1))]" ;;
-      *) out+=("$part") ;;
-    esac
-  done
-  if [ "${#out[@]}" -gt 0 ]; then printf '/%s' "${out[@]}"; echo; else echo /; fi
-}
-
 root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder here or above. Run /shipinetics:setup first." >&2; exit 1; }
 
 case "${1:-}" in
@@ -161,7 +159,7 @@ case "${1:-}" in
     l="${2##*/}"
     [ -f "$(sy_dir "$root")/$l" ] || { echo "shipinetics-config: there's no $(sy_dir_name "$root")/$l" >&2; exit 2; }
     case "$3" in /*) p="$3" ;; *) p="$PWD/$3" ;; esac
-    rel="$(sy_rel "$root" "$(norm_path "$p")")"
+    rel="$(sy_rel "$root" "$(sy_norm_path "$p")")"
     if sy_list_match "$root" "$l" "$rel"; then echo "$rel matches '$SY_MATCHED' in $l"
     else
       case "$rel" in "$(sy_dir_name "$root")/pending/"*) [ "$l" = protected-paths ] && echo "$rel is a pending proposal, which is never protected" && exit 1 ;; esac
@@ -182,6 +180,6 @@ case "${1:-}" in
       printf '%-24s %-8s %s\n' "$k" "$mark" "${v:-(none)}"
     done
     ;;
-  -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "shipinetics-config: unknown command: $1" >&2; exit 2 ;;
 esac

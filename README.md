@@ -106,7 +106,7 @@ Skills are instructions. These parts are hooks and scripts, so they hold even wh
 
 **Edit guard** (`scripts/guard-edits.sh`, set-up projects only). Three rules, each driven by a list in `.shipinetics/`:
 
-- `protected-paths`: acceptance tests and baselines can be created, then not modified. To change one, an agent writes the new version to `.shipinetics/pending/<path>`, and you review and apply it with `shipinetics-config apply` (it needs a terminal, so an agent can't apply its own proposals). `shipinetics-config pending` lists what's waiting. The same route covers `.claude/settings.json`, which Claude Code doesn't let agents edit.
+- `protected-paths`: acceptance tests and baselines can be created, then not modified. To change one, an agent writes the new version to `.shipinetics/pending/<path>`, and you review and apply it with `shipinetics-config apply` (it needs a terminal, so an agent's Bash tool can't run it by accident; like the guards, it's a speed bump, not a lock). `shipinetics-config pending` lists what's waiting. The same route covers `.claude/settings.json`, which Claude Code doesn't let agents edit.
 - `test-paths`: only `shipinetics:test-writer` can create or edit test files, and it can't edit source.
 - `env-allowed-paths`: new `process.env`, `os.environ` and similar reads are only allowed in the config module. Docs and text files (`.md`, `.txt`, `docs/`) and reads of the safe variables above don't count.
 

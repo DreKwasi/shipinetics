@@ -29,6 +29,13 @@ rm perf/baselines/budgets.tsv
 printf 'load 80,api 50\n' >vals
 bc --init; has "re-baselining goes to pending" "$OUT" ".shipinetics/pending/perf/baselines/m1.tsv"
 eq "and leaves the baseline alone" "$(grep '^load' perf/baselines/m1.tsv | cut -f2)" "100.000"
+printf 'load 100,api 50\n' >vals; rm -f count
+printf 'load 100\n' >vals; bc; eq "a scenario that disappears fails" "$RC" 1
+has "and is named" "$OUT" "MISSING"
+printf 'load 300,api 50\nload 600,api 50\n' >vals
+bc --runs 6; eq "noisy but clearly slower still fails" "$RC" 1
+printf 'load 100,api 50\n' >vals
+OUT="$(bench-compare --runs 2>&1)"; eq "an option without its value stops" "$?" 2
 rm -f count; OUT="$(bench-compare --machine m2 -- ./bench.sh 2>&1)"
 eq "another machine needs its own baseline" "$?" 2
 mkdir -p bin; cp "$SY/bin/bench-compare" bin/; printf 'load 100,api 50\n' >vals; rm -f count

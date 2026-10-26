@@ -24,6 +24,16 @@ has "and is named" "$out" "cart::adds item"
 has "a listed test that passes is reported" "$out" "cart::old flake"
 printf 'cart::adds*\n' >>.shipinetics/known-failing
 known-failing check r2.xml >/dev/null 2>&1; eq "a wildcard entry matches" "$?" 0
+printf '# only a comment\n' >"$scratch/k"; cp .shipinetics/known-failing "$scratch/k.bak"; cp "$scratch/k" .shipinetics/known-failing
+eq "an empty list counts 0" "$(known-failing count; echo ":$?")" "0
+:0"
+printf 'Cart#adds item\ncart::test_a[1]\n' >.shipinetics/known-failing
+report r4.xml "test_a1:fail"
+known-failing check r4.xml >/dev/null 2>&1; eq "a literal [1] entry doesn't match a 1" "$?" 1
+printf '<testsuites><testcase classname="Cart#adds" name="item"><failure/></testcase></testsuites>\n' >r5.xml
+printf 'Cart#adds::item\n' >.shipinetics/known-failing
+known-failing check r5.xml >/dev/null 2>&1; eq "an ID with # can be quarantined" "$?" 0
+cp "$scratch/k.bak" .shipinetics/known-failing
 echo '<testsuites/>' >empty.xml
 known-failing check empty.xml >/dev/null 2>&1; eq "an empty report fails" "$?" 2
 known-failing init r2.xml >/dev/null
