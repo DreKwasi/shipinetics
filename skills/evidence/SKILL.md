@@ -40,7 +40,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 ## How to capture it
 
 1. **Commit the code first,** so the evidence can name the commit it shows. Then **start the file:** `evidence init`. It creates `docs/evidence/<worksheet>/EVIDENCE.md` with a row for every acceptance criterion in the worksheet.
-2. **Run the app** and check it works before recording.
+2. **Run the app** and check it works before recording. If `shipinetics-config get launch` says `user`, the user runs the servers: follow the user-run rules in shipinetics:verification-map instead of launching anything. If the sandbox blocks localhost, record with the harness's preview browser and say so in EVIDENCE.md.
 3. **Record:**
    - **Web:** copy `${CLAUDE_SKILL_DIR}/record-template.mjs` to `docs/evidence/<worksheet>/record.mjs`, write one block per criterion (act, wait for the visible result, screenshot `AC<n>-<name>.png`), and run it with the base URL: `node docs/evidence/<worksheet>/record.mjs http://localhost:3000`. It saves the screenshots and `walkthrough.webm`, and fails if the page logged errors.
    - **CLI, API, jobs:** `evidence run -- <command>` runs the command and appends it, its output and its exit code to `terminal.log`. Run one command per criterion.

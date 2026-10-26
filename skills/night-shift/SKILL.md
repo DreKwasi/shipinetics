@@ -30,7 +30,7 @@ The user would rather come back to two tasks done right and one clearly blocked 
 
 - Confirm you're on a `night/` branch: `git branch --show-current`. If not, reply `SHIFT_STOP: not on a night branch` and stop.
 - `git status` is clean, or the only changes are a previous run's unfinished task (check In progress in the queue and its worksheet).
-- If `docs/verification/` exists, launch the app and run its doctor check once, so a broken environment shows up now and not halfway through a task.
+- If `docs/verification/` exists, launch the app and run its doctor check once, so a broken environment shows up now and not halfway through a task. With `launch = user` (`shipinetics-config get launch`), don't launch: the user leaves the servers running for the shift. Run the doctor, and if it fails, reply `SHIFT_STOP: app not running` with what the doctor saw.
 - Run `shipinetics-verify`. If it fails on a clean tree and the failure isn't from an in-progress task, fixing it **is** your task this run: create a P0 queue item for it and work it. If you can't fix it, reply `SHIFT_STOP: verify fails on the base` with the details, because every later run would hit the same wall.
 
 ### 2. Pick

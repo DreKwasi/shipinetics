@@ -60,7 +60,7 @@ Shipinetics borrows the strongest ideas from Matt Pocock's skills and from pstac
 
 ## Projects with their own setup, and multi-repo workspaces
 
-Shipinetics's paths and commands are defaults. A project can map them to what it already has in `.shipinetics/config` (template: `skills/setup/templates/config`): worksheet folder, feedback log, system docs, conventions, test docs, verify command, worksheet scripts, tag prefix and secrets runner. Skills, hooks and tools then use the project's own files. `shipinetics-config` prints the effective settings.
+Shipinetics's paths and commands are defaults. A project can map them to what it already has in `.shipinetics/config` (template: `skills/setup/templates/config`): worksheet folder, feedback log, system docs, conventions, test docs, verify command, worksheet scripts, tag prefix and secrets runner. Skills, hooks and tools then use the project's own files. `shipinetics-config` prints the effective settings. Set `launch = user` when the user runs the dev servers: agents then only run the doctor, never seed or reset, write only as a test account and clean up after themselves, and use the harness's preview browser if the sandbox blocks localhost (see shipinetics:verification-map).
 
 Workspace mode (`packages = ...`) is for a root that holds several package repos and isn't a repo itself. The Stop hook runs `package_verify_cmd` (or `package_verify_quick_cmd` mid-task) for each package the agent edited in that session, so the user's unrelated work in progress never blocks it. The PR gate and `evidence` work from whichever package repo the PR comes from. `night-shift` doesn't support workspace mode yet.
 

@@ -37,7 +37,7 @@ Research and docs reviews return a **claims table** instead of findings: every c
 
 ### Independent re-check at wrap-up
 
-The author's screenshots show what the author saw. For tasks M and up, any change that touches UI, and every night shift task, the wrap-up reviewer also drives the change itself. Tell `shipinetics:reviewer` to re-check: it launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
+The author's screenshots show what the author saw. For tasks M and up, any change that touches UI, and every night shift task, the wrap-up reviewer also drives the change itself. Tell `shipinetics:reviewer` to re-check: it launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes; with `launch = user` it always reuses the user's instance), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
 
 ## Choosing personas
 

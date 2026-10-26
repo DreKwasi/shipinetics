@@ -48,12 +48,25 @@ These apply wherever the map is used, including shipinetics:evidence:
 - **Bugs:** reproduce the symptom through the real UI twice before the fix, and never force or inject the symptom while inspecting state.
 - **Dry runs:** check what a dry-run mode really skips before trusting it.
 
+## User-run servers (`launch = user`)
+
+Some projects can't have agents start the app: the servers need the user's own credentials or devices, the dev stack is heavy, or the agent's sandbox can't run it. Setting `launch = user` in `.shipinetics/config` says the user starts and stops the servers. The map still describes how to launch, for humans. Agents work like this:
+
+- **Doctor, never launch.** Run the doctor before driving. If the app isn't up, isn't running this checkout's code, or the test login fails, stop and ask the user to start or restart it, with the exact command from Launch. Don't start, restart or kill any server yourself. In a night shift, nobody can answer, so a failed doctor ends the shift (`SHIFT_STOP: app not running`).
+- **No seeding, migrations or resets.** Work with the data that's there. If a feature needs data that isn't there, create it through the app, as the test account.
+- **Writes only as the test account.** The map's Launch section names a test account (its credentials come through the project's secrets runner, never pasted). Every write happens as that account. Never change other users' data or shared settings.
+- **Clean up what you wrote.** Record each thing you create (IDs, names) as you go, and delete it through the app or its API when you're done, then read it back to confirm it's gone. Say in the report what you couldn't remove. Evidence still survives cleanup.
+- **One instance.** Reviewers re-check on the same running instance, after the doctor passes. The Isolation section says what can and can't run side by side.
+- **Browser fallback.** If the agent's sandbox blocks connections to localhost (connection refused or not permitted when the user can open the page), drive the app with the harness's preview browser, for example Claude Code's preview tools, pointed at the URL the user's server serves. Screenshots and recordings from it count as evidence. Note in EVIDENCE.md which browser recorded it.
+
+Write these rules into the README's Launch, Doctor, Isolation and Cleanup sections when the project uses `launch = user`, with this project's test account, URL and restart command.
+
 ## Create
 
-1. **Interview the repo, not the user.** Find how the app starts, seeds, logs in and logs, from `AGENTS.md`, `package.json` or the stack's equivalent, the e2e config, CI and the dev scripts. Ask the user only for what you can't find. If the checkout doesn't build or start, fix that first or report it.
+1. **Interview the repo, not the user.** Check `shipinetics-config get launch` first: with `user`, write the map for user-run servers (above). Find how the app starts, seeds, logs in and logs, from `AGENTS.md`, `package.json` or the stack's equivalent, the e2e config, CI and the dev scripts. Ask the user only for what you can't find. If the checkout doesn't build or start, fix that first or report it.
 2. **Write the README sections** above with the real commands. Prefer existing harnesses (the e2e setup, a seed script) over new ones. If a step needs a helper script, make it a `bin/` script (shipinetics:build-tool), not a paragraph of commands.
 3. **Write the first feature files.** For each one, actually drive every entry point while you write it, and put the selectors you used in the file.
-4. **Prove it end to end** before handing off: launch from empty data, run the doctor, drive one feature through every entry point, capture its proof, clean up, then confirm the evidence survived cleanup and nothing you started is still running. If you proved it in a stand-in environment, list which launch steps are still unproven.
+4. **Prove it end to end** before handing off: launch from empty data (with `launch = user`, ask the user to start it), run the doctor, drive one feature through every entry point, capture its proof, clean up, then confirm the evidence survived cleanup and nothing you started is still running. If you proved it in a stand-in environment, list which launch steps are still unproven.
 5. **Point to it.** In `AGENTS.md`, make "Run the app yourself" point at `docs/verification/README.md`. If the harness supports project skills, add a short `.claude/skills/drive-app/SKILL.md` whose description says it launches and drives this app, and whose body points at the README. Claude Code's built-in `run` skill looks for a project skill like that.
 6. Commit it with the setup or task it belongs to.
 

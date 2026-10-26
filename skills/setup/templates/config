@@ -36,6 +36,12 @@
 # package_verify_quick_cmd = scripts/validate.sh {package} --quick
 # verify_scope = touched
 
+# ---- Running the app
+# agent: agents launch, seed and stop their own instances (the default).
+# user: the user runs the servers. Agents only run the doctor, never seed or reset, write only as
+# the test account and clean up after themselves. See the verification-map skill.
+# launch = agent
+
 # ---- Worksheets: hand off to the project's own scripts if it has them
 # worksheet_new_cmd = scripts/new_trace.sh          # receives <slug>, prints the new path
 # worksheet_tag_cmd = scripts/tag_trace.sh          # receives [<package>] <worksheet path>
