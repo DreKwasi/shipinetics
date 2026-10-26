@@ -1,7 +1,7 @@
 {
-  "name": "shipyard",
-  "displayName": "Shipyard",
-  "version": "0.4.0",
+  "name": "shipinetics",
+  "displayName": "Shipinetics",
+  "version": "0.5.0",
   "description": "A portable agentic coding setup: verify-gated Stop hook, read-only cross-model review, worksheets, night shift, and the skills that tie them together.",
   "author": {
     "name": "Drekwasi"

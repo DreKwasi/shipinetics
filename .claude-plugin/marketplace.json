@@ -1,12 +1,13 @@
 {
-  "name": "shipyard",
-  "description": "Personal marketplace for the shipyard plugin",
+  "name": "shipinetics",
+  "description": "Personal marketplace for the Shipinetics plugin",
   "owner": {
     "name": "Drekwasi"
   },
   "plugins": [
     {
-      "name": "shipyard",
+      "name": "shipinetics",
+      "displayName": "Shipinetics",
       "source": "./",
       "description": "A portable agentic coding setup: verify-gated Stop hook, read-only cross-model review, worksheets, night shift, and the skills that tie them together."
     }
