@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+# design-check: does this branch's UI follow the project's design system (DESIGN.md)?
+#
+# Usage:
+#   design-check [base]      check UI files changed since base (default: where the branch left main)
+#   design-check --all       check every file matching .shipyard/ui-paths (for sweeps)
+#
+# Runs Impeccable's detector on the changed files in .shipyard/ui-paths, and on the same files at
+# the base, then reports only the design-system findings this branch added: fonts, colors, radii
+# and font sizes that aren't in DESIGN.md's token frontmatter. It reports Impeccable's advisory
+# findings too, which its own exit code ignores. Pre-existing findings are counted, not listed.
+# The detector can't see everything: spacing off the scale, var() names that don't exist,
+# duplicated components and new token definitions still need a reviewer (shipyard:ui-reviewer).
+#
+# Exit code: 0 no new findings (or nothing to check against), 1 new findings, 2 couldn't run.
+# Needs Impeccable (plugin or skill) and python3. A finding that's intentional is either a
+# design-system change request (shipyard:worksheet) or a sanctioned exception recorded with
+# `impeccable hooks ignore-value <value> --reason "<who decided>"`.
+
+set -uo pipefail
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
+
+die() { echo "design-check: $*" >&2; exit 2; }
+repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+repo="$(cd "$repo" && pwd -P)"
+cd "$repo"
+root="$(sy_root "$repo" || echo "$repo")"
+prefix=""; [ "$root" != "$repo" ] && prefix="$(sy_rel "$root" "$repo")/"
+command -v python3 >/dev/null 2>&1 || die "python3 is required"
+
+engine() { # the Impeccable launcher or binary, wherever it's installed
+  local c
+  [ -n "${IMPECCABLE_BIN:-}" ] && [ -x "$IMPECCABLE_BIN" ] && { echo "$IMPECCABLE_BIN"; return; }
+  for c in "$repo/.claude/skills/impeccable/scripts/impeccable" \
+           "$HOME/.claude/skills/impeccable/scripts/impeccable" \
+           "$HOME/.agents/skills/impeccable/scripts/impeccable" \
+           $(ls -d "$HOME"/.claude/plugins/cache/impeccable/impeccable/*/skills/impeccable/scripts/impeccable 2>/dev/null | sort -V -r); do
+    [ -x "$c" ] && { echo "$c"; return; }
+  done
+  command -v impeccable 2>/dev/null
+}
+imp="$(engine)" || true
+[ -n "$imp" ] || die "Impeccable isn't installed. Install the plugin (/plugin marketplace add pbakaus/impeccable) and try again."
+
+design_md=""
+for c in DESIGN.md .agents/context/DESIGN.md docs/DESIGN.md; do [ -f "$c" ] && { design_md="$c"; break; }; done
+if [ -z "$design_md" ] || ! head -n 1 "$design_md" | grep -q '^---'; then
+  echo "design-check: no DESIGN.md with token frontmatter, so there's no design system to check against."
+  echo "Run /impeccable document (scan mode) to write one from the code (shipyard:setup, design system step)."
+  exit 0
+fi
+
+all=0 base=""
+case "${1:-}" in --all) all=1 ;; "") ;; *) base="$1" ;; esac
+if [ "$all" = 0 ] && [ -z "$base" ]; then
+  for b in origin/main main origin/master master; do
+    git rev-parse -q --verify "$b" >/dev/null && base="$(git merge-base HEAD "$b")" && break
+  done
+  [ -n "$base" ] || die "no base found. Pass one: design-check <ref>"
+fi
+
+ui="$root/.shipyard/ui-paths"
+[ -f "$ui" ] || die "no .shipyard/ui-paths, so there's no way to tell UI files apart. Run /shipyard:setup."
+files=()
+while IFS= read -r f; do
+  [ -f "$f" ] && sy_in_list "$ui" "$prefix$f" && files+=("$f")
+done < <(if [ "$all" = 1 ]; then git ls-files; else
+           { git diff --name-only "$base" -- .; git ls-files --others --exclude-standard; } | sort -u; fi)
+if [ "${#files[@]}" -eq 0 ]; then echo "design-check: no changed UI files."; exit 0; fi
+
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/design-check.XXXXXX")"
+trap 'rm -rf "$tmp"' EXIT
+"$imp" detect --json "${files[@]}" >"$tmp/head.json" 2>"$tmp/head.err"
+[ $? -le 2 ] || die "the detector failed: $(head -n 3 "$tmp/head.err")"
+echo '[]' >"$tmp/base.json"
+if [ "$all" = 0 ]; then
+  # The same files at the base, checked against today's DESIGN.md, so only new drift shows.
+  mkdir -p "$tmp/base"
+  for c in "$design_md" .impeccable/design.json; do
+    [ -f "$c" ] && mkdir -p "$tmp/base/$(dirname "$c")" && cp "$c" "$tmp/base/$c"
+  done
+  bfiles=()
+  for f in "${files[@]}"; do
+    if git cat-file -e "$base:$f" 2>/dev/null; then
+      mkdir -p "$tmp/base/$(dirname "$f")"; git show "$base:$f" >"$tmp/base/$f"; bfiles+=("$f")
+    fi
+  done
+  if [ "${#bfiles[@]}" -gt 0 ]; then
+    (cd "$tmp/base" && "$imp" detect --json "${bfiles[@]}") >"$tmp/base.json" 2>/dev/null
+  fi
+fi
+
+python3 -I - "$tmp/head.json" "$tmp/base.json" "$repo" "$(cd "$tmp" && pwd -P)/base" "$all" <<'PY'
+import json, sys, os
+from collections import Counter
+def load(path, root):
+    try: data = json.load(open(path))
+    except Exception: data = []
+    out = []
+    for f in data if isinstance(data, list) else []:
+        if not str(f.get("antipattern", "")).startswith("design-system-"): continue
+        rel = os.path.relpath(os.path.realpath(f.get("file", "")), root)
+        out.append((rel, f["antipattern"], str(f.get("ignoreValue") or f.get("snippet", "")).lower(), f))
+    return out
+head = load(sys.argv[1], sys.argv[3]); base = load(sys.argv[2], sys.argv[4])
+left = Counter((r, a, v) for r, a, v, _ in base)
+new, old = [], 0
+for r, a, v, f in head:
+    if left[(r, a, v)] > 0: left[(r, a, v)] -= 1; old += 1
+    else: new.append((r, f))
+if sys.argv[5] == "1":
+    if not new: print("design-check: no design-system findings."); sys.exit(0)
+    print(f"design-check: {len(new)} design-system finding(s), values not in DESIGN.md:\n")
+elif not new:
+    print(f"design-check: no new design-system findings ({old} already there before this branch)." if old else "design-check: no design-system findings.")
+    sys.exit(0)
+else:
+    print(f"design-check: {len(new)} new design-system finding(s), not in DESIGN.md ({old} already there before this branch):\n")
+for r, f in new:
+    kind = "advisory" if f.get("advisory") else f.get("severity", "")
+    print(f"  {r}:{f.get('line', 0)}  {f['antipattern']} ({kind}): {f.get('snippet', '')}")
+print("\nUse the documented token, or if the value is intentional, write a design-system change request in the worksheet for the human to approve.")
+sys.exit(1)
+PY
