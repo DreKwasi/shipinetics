@@ -14,7 +14,7 @@ cd ~/Projects/shipinetics && git init -b main && git add -A && git commit -m "sh
 gh repo create shipinetics --private --source ~/Projects/shipinetics --push
 ```
 
-When you change the plugin later, bump `version` in `.claude-plugin/plugin.json`, commit and push. Machines pick it up with `claude plugin update shipinetics`.
+To release a change: pick the version by the rules at the top of `CHANGELOG.md` (before 1.0.0, a breaking change bumps the minor version, anything else the patch), set it in `.claude-plugin/plugin.json`, add its CHANGELOG entry, commit, tag the commit `vX.Y.Z`, and push the commit and the tag. Machines pick it up with `claude plugin marketplace update shipinetics` and `claude plugin update shipinetics@shipinetics`. Without a new version, the update does nothing.
 
 ## 2. Install on each machine (once per machine)
 

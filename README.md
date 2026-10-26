@@ -221,6 +221,7 @@ skills/           setup (with templates/), workflow, spec, system-docs, testing,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,
                   visual-regression, perf, end-of-shift, verification-map
+CHANGELOG.md      what changed in each release, and the versioning rules
 tests/            shipinetics's own tests for the hooks and tools. Run tests/run.sh (CI runs it on
                   Linux and on macOS's bash 3.2)
 ```
