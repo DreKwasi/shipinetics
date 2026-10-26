@@ -4,7 +4,10 @@ w="$scratch/ws"; mkdir -p "$w/.shipyard/.cache" "$w/docs/worksheets"; cd "$w" ||
 for p in api web; do new_repo "$p"; stub_verify "$p/check.sh"; echo a >"$p/a.txt"; git -C "$p" add -A; git -C "$p" commit -qm i; done
 printf 'packages = api web\npackage_verify_cmd = sh {package}/check.sh\npackage_verify_quick_cmd = sh {package}/check.sh --quick\n' >.shipyard/config
 printf '*/package.json\n' >.shipyard/complete-paths
-touch .shipyard/.cache/session-s1; echo w >docs/worksheets/w.md
+touch .shipyard/.cache/session-s1
+# The worksheet must be newer than the session marker, or the hook sends its once-per-session
+# reminder instead of verifying. Linux timestamps are coarse, so the two can tie without a pause.
+sleep 1; echo w >docs/worksheets/w.md
 echo b >api/a.txt; echo api/a.txt >>.shipyard/.cache/touched-s1
 stop_hook "$w"; has "touched package runs quick" "$(cat .shipyard/.cache/verify-api.log)" "tier=quick arg=--quick files=a.txt|"
 echo b >web/a.txt; rm -f .shipyard/.cache/verify-web.log; stop_hook "$w"
