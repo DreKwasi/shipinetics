@@ -19,8 +19,9 @@ else
   cmd="$(printf '%s' "$input" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))')"
 fi
 
-# Installs and updates: an update pulls new code too.
-re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add'
+# Installs and updates: an update pulls new code too. `skills check` counts: it can update and
+# remove skills while it checks. bin/skills-outdated is the read-only check.
+re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add'
 [[ "$cmd" =~ $re ]] || exit 0
 
 if command -v skillspector >/dev/null 2>&1; then

@@ -17,6 +17,7 @@ asks "adding a marketplace" "claude plugin marketplace add DreKwasi/shipinetics"
 asks "updating a marketplace" "claude plugin marketplace update shipinetics"
 asks "adding an MCP server" "claude mcp add sentry https://mcp.sentry.dev"
 has "the question says what to do" "$OUT" "installs or updates agent tooling"
-gate "npx skills check"; eq "checking for updates doesn't ask" "$OUT" ""
+asks "npx skills check, which can update and remove skills" "npx skills check"
+gate "skills-outdated"; eq "the read-only check doesn't ask" "$OUT" ""
 gate "npm install left-pad"; eq "a project dependency doesn't ask" "$OUT" ""
 done_testing

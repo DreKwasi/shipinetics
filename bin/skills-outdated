@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# skills-outdated: which installed skills have a newer version upstream. Read-only: it changes no
+# skill. (`npx skills check` can update and remove skills while it checks, so it goes through the
+# install gate.)
+#
+# Usage:
+#   skills-outdated [lock file]    default: ~/.agents/.skill-lock.json, written by the skills CLI
+#
+# For each skill installed from a git repo, it fetches the repo's folder hashes into a temp folder
+# (a shallow clone without file contents) and compares the skill folder's hash with the one the lock
+# file recorded at install. Skills installed another way (a local path) aren't tracked.
+# Exit 0 if every tracked skill is current, 1 if any is outdated or gone upstream, 2 if it can't check.
+
+set -uo pipefail
+case "${1:-}" in -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+lock="${1:-$HOME/.agents/.skill-lock.json}"
+die() { echo "skills-outdated: $*" >&2; exit 2; }
+[ -f "$lock" ] || die "no lock file at $lock (skills installed with npx skills add -g are recorded there)"
+command -v python3 >/dev/null 2>&1 || die "python3 is required"
+tmp="$(mktemp -d "${TMPDIR:-/tmp}/skills-outdated.XXXXXX")" || die "can't make a temp folder"
+trap 'rm -rf "$tmp"' EXIT
+
+# One line per tracked skill: name, repo URL, skill folder, recorded hash
+python3 - "$lock" >"$tmp/skills" <<'PY' || die "can't read $lock"
+import json, sys, posixpath
+for name, s in sorted(json.load(open(sys.argv[1])).get("skills", {}).items()):
+    url, path, h = s.get("sourceUrl", ""), s.get("skillPath", ""), s.get("skillFolderHash", "")
+    if url and path and h:
+        print("\t".join([name, url, posixpath.dirname(path) or ".", h]))
+PY
+
+outdated=() gone=() failed=() current=0
+while IFS="$(printf '\t')" read -r name url dir hash; do
+  repo="$tmp/$(printf '%s' "$url" | tr -c 'A-Za-z0-9' '_')"
+  if [ ! -d "$repo" ] && [ ! -e "$repo.failed" ]; then
+    git clone -q --depth 1 --filter=blob:none --no-checkout "$url" "$repo" >/dev/null 2>&1 || touch "$repo.failed"
+  fi
+  if [ -e "$repo.failed" ]; then failed+=("$name ($url)"); continue; fi
+  [ "$dir" = . ] && dir=""   # the skill is the whole repo
+  now="$(git -C "$repo" rev-parse -q --verify "HEAD:$dir" 2>/dev/null)"
+  if [ -z "$now" ]; then gone+=("$name ($url, $dir)")
+  elif [ "$now" != "$hash" ]; then outdated+=("$name")
+  else current=$((current + 1)); fi
+done <"$tmp/skills"
+
+echo "skills-outdated: $current current, ${#outdated[@]} outdated, ${#gone[@]} gone upstream, ${#failed[@]} not checked."
+if [ "${#outdated[@]}" -gt 0 ]; then
+  echo "Outdated:"; printf '  %s\n' "${outdated[@]}"
+  echo "Scan the new versions first (shipinetics:security-scans), then: npx skills update -g ${outdated[*]}"
+fi
+if [ "${#gone[@]}" -gt 0 ]; then
+  echo "Gone upstream (renamed or removed; an update would delete them):"; printf '  %s\n' "${gone[@]}"
+fi
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo "Couldn't reach (network or access):"; printf '  %s\n' "${failed[@]}"
+fi
+[ "${#failed[@]}" -gt 0 ] && [ "$current" -eq 0 ] && [ "${#outdated[@]}" -eq 0 ] && exit 2
+[ "${#outdated[@]}" -eq 0 ] && [ "${#gone[@]}" -eq 0 ]

@@ -10,8 +10,9 @@ release has a git tag, `vX.Y.Z`, on the commit that set its version.
 ### Changed (breaking)
 - The glossary is `GLOSSARY.md` (and `GLOSSARY-MAP.md` for several), following Matt Pocock's
   `domain-modeling`. It was `CONTEXT.md`. Rename it in a project that has one.
-- The install gate also asks before `npx skills update`, `claude plugin update` and
-  `claude plugin marketplace update`: an update pulls new code too.
+- The install gate also asks before `npx skills update`, `npx skills check`, `claude plugin update`
+  and `claude plugin marketplace update`: an update pulls new code too, and `skills check` can update
+  and remove skills while it checks.
 
 ### Removed (breaking)
 - Support for the plugin's former name. Projects must use `.shipinetics/`, `SHIPINETICS_*`
@@ -32,8 +33,8 @@ release has a git tag, `vX.Y.Z`, on the commit that set its version.
   `docs/security/audits.md`. The findings stay outside the repo.
 - `/wait-what` (Matt Pocock) in the workflow and explain skills: the user's "say that again, simpler" command.
 - Grilling also before any hard-to-reverse decision, not only before specs.
-- Keeping companions up to date: the weekly sweep runs `npx skills check` and compares plugins with
-  their marketplaces, you scan and update, and the sweep checks what Shipinetics relies on in each
+- Keeping companions up to date: the weekly sweep runs `skills-outdated`, a read-only check of
+  each installed skill against its repo, and compares plugins with their marketplaces, you scan and update, and the sweep checks what Shipinetics relies on in each
   (README, "What Shipinetics relies on"). Setup installs skills with `-g` so the check finds them.
 - The tests are isolated from the machine: a scratch home, settings folder and git config, no
   `SHIPINETICS_*` or Claude Code variables from the shell, and only this plugin's commands on the

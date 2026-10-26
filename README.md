@@ -56,12 +56,12 @@ They aren't declared as hard plugin dependencies on purpose. A missing hard depe
 
 Companions change upstream, and Shipinetics depends on some of their details, so updates are checked every week but applied only by you:
 
-1. **Check.** The weekly sweep (shipinetics:sweep) runs `npx skills check` for skills, and compares `claude plugin list` with each plugin's marketplace. You can run them any time.
+1. **Check.** The weekly sweep (shipinetics:sweep) runs `skills-outdated`. It compares each installed skill's folder with its repo upstream and changes nothing. For plugins, it compares `claude plugin list` with each plugin's marketplace. Don't use `npx skills check` to look: it can update and remove skills while it checks, so the install gate asks you first.
 2. **Scan.** Before you update, scan the new version with SkillSpector (shipinetics:security-scans).
 3. **Update.** Skills: `npx skills update -g <names>`. Plugins: `claude plugin marketplace update <marketplace>`, then `claude plugin update <plugin>@<marketplace>`. CLIs: their own installers. The install gate asks you before an agent runs any of these.
 4. **Re-check.** The sweep reads the updated companion's SKILL.md against the table below. If something Shipinetics relies on changed, it queues a task to update Shipinetics.
 
-`npx skills check` only finds skills installed with the `skills` CLI, so install them that way, with `-g`.
+`skills-outdated` reads the `skills` CLI's lock file (`~/.agents/.skill-lock.json`), so it only sees skills installed with that CLI. Install them that way, with `-g`.
 
 #### What Shipinetics relies on
 
@@ -239,7 +239,7 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
-bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift, scan-skills, shipinetics-config,
+bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift, scan-skills, shipinetics-config, skills-outdated,
                   shipinetics-verify, worksheet   (on the agent's PATH)
 hooks/            hooks.json
 scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
