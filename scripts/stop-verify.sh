@@ -19,7 +19,8 @@
 # .shipinetics/.cache/verify-times.tsv (shipinetics-verify times summarises it).
 # Reminds the agent once per session to update its worksheet and feedback log, and, on a bug fix
 # that changed code but no tests, to have test-writer write the failing regression test first.
-# Set SHIPINETICS_SKIP_VERIFY=1 in the environment to turn it off for a session.
+# Set SHIPINETICS_SKIP_VERIFY=1 in the environment to turn it off for a session, or switch it off
+# with "hooks_off = stop" in the project or user config.
 
 set -uo pipefail
 
@@ -29,6 +30,7 @@ input="$(cat)"
 sy_flag SKIP_VERIFY && exit 0
 
 root="$(sy_root)" || exit 0
+sy_hook_off stop "$root" && exit 0
 cd "$root" || exit 0
 
 dn="$SY_DIR_NAME"

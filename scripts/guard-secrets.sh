@@ -7,9 +7,12 @@
 #   - inline interpreter one-liners that read the environment (node -e "process.env...", python -c "os.environ...")
 #   - echoing or printing variables whose names look like secrets
 #   - reading a vault directly (gcloud secrets versions access, vault kv get, aws secretsmanager, op read, ...)
-#   - reading credential files (gcloud ADC, ~/.aws/credentials, SSH keys, .netrc, ...)
+#   - reading or naming a secret file: by default gcloud ADC, ~/.aws/credentials, SSH keys,
+#     .netrc and the like. You choose the files with a secret-paths list (one glob per line) in the
+#     project's .shipinetics/ or in ~/.config/shipinetics/ for every project. See sy_secret_paths.
 #
 # Active in every project, because secrets in your shell environment are exposed everywhere.
+# Switch it off with "hooks_off = secrets" in the project or user config (see sy_hook_off).
 # Run things that need secrets through bin/with-secrets (or the project's secrets_runner), which
 # injects them without printing them.
 #
@@ -27,20 +30,11 @@ input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
 sy_flag ALLOW_ENV_READ && exit 0
-
-jget() {
-  if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$input" | jq -r ".$1 // empty"
-  else
-    printf '%s' "$input" | python3 -c 'import json,sys
-v = json.load(sys.stdin)
-for p in sys.argv[1].split("."):
-    v = v.get(p) if isinstance(v, dict) else None
-sys.stdout.write("" if v is None else str(v))' "$1"
-  fi
-}
-
 root="$(sy_root 2>/dev/null)" || root=""
+sy_hook_off secrets "$root" && exit 0
+
+jget() { sy_json_field "$input" "$1"; }
+
 runner="bin/with-secrets"
 [ -n "$root" ] && runner="$(sy_cfg "$root" secrets_runner)"
 
@@ -54,13 +48,18 @@ deny() {
   exit 0
 }
 
-creds='\.config/gcloud|application_default_credentials\.json|\.aws/credentials|\.aws/config|\.azure/|\.ssh/id_|\.netrc|\.npmrc|\.pypirc|\.docker/config\.json|\.kube/config|\.git-credentials|\.infisical(/|[[:space:]"]|$)|\.railway(/|[[:space:]"]|$)'
+secret_paths=()
+while IFS= read -r g; do [ -n "$g" ] && secret_paths+=("$g"); done < <(sy_secret_paths "$root")
+# secret_file <path>: deny if the path is on the secret-paths list
+secret_file() {
+  [ "${#secret_paths[@]}" -gt 0 ] && sy_secret_match "$1" "${secret_paths[@]}" &&
+    deny "$2 a secret file ($1 matches '$SY_MATCHED' in the secret-paths list)"
+}
 
 tool="$(jget tool_name)"
 
 if [ "$tool" = "Read" ]; then
-  p="$(jget tool_input.file_path)"
-  [[ "$p" =~ $creds ]] && deny "read a credential file ($p)"
+  secret_file "$(jget tool_input.file_path)" "read"
   exit 0
 fi
 
@@ -96,6 +95,9 @@ shopt -s nocasematch
 [[ "$cmd" =~ $r_echo ]] && deny "print a secret-looking variable"
 shopt -u nocasematch
 [[ "$cmd" =~ $r_vault ]] && deny "read a secret straight from the vault"
-[[ "$cmd" =~ $creds ]] && deny "touch a credential file"
+# Any word in the command that names a secret file (quotes, redirections and separators split words).
+while IFS= read -r w; do
+  [ -n "$w" ] && secret_file "$w" "touch"
+done < <(printf '%s\n' "$cmd" | tr -s " \t;&|()<>=\"'\`" '\n')
 
 exit 0

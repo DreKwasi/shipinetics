@@ -7,6 +7,9 @@ PATH="$SY/bin:$PATH"
 fails=0
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/shipinetics-test.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
+# Never read the real user's settings or session switches.
+export XDG_CONFIG_HOME="$scratch/xdg"
+unset SHIPINETICS_HOOKS_OFF
 
 # new_repo <dir>: an empty git repo on main with a test identity
 new_repo() {

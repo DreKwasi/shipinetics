@@ -14,6 +14,8 @@
 # Globs are bash patterns relative to the Shipinetics root, and * also matches /.
 # It also records which files the agent edits this session, so the Stop hook knows which
 # packages to verify in workspace mode.
+# It also keeps agents out of the user's own Shipinetics settings (~/.config/shipinetics/), which
+# can switch hooks off. Switch this hook off with "hooks_off = edits" in the project or user config.
 # Per-session overrides, set when starting Claude Code:
 #   SHIPINETICS_UNLOCK=1               edit protected paths
 #   SHIPINETICS_ALLOW_AUTHOR_TESTS=1   let any agent edit tests
@@ -27,9 +29,7 @@ set -uo pipefail
 input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-root="$(sy_root)" || exit 0
-dir="$(sy_dir "$root")"
-dn="$SY_DIR_NAME"
+root="$(sy_root 2>/dev/null)" || root=""
 
 jget() { sy_json_field "$input" "$1"; }
 
@@ -45,8 +45,19 @@ deny() {
 path="$(jget tool_input.file_path)"
 [ -n "$path" ] || path="$(jget tool_input.notebook_path)"
 [ -n "$path" ] || exit 0
-case "$path" in /*) ;; *) path="$root/$path" ;; esac
+case "$path" in /*) ;; *) path="${root:-${CLAUDE_PROJECT_DIR:-$PWD}}/$path" ;; esac
 path="$(sy_norm_path "$path")"   # so .. can't step out of the pending folder past the rules
+
+# ---- the user's own settings: guarded in every project, whatever hooks_off says ----
+udir="$(sy_user_dir)"
+case "$path" in "$udir"|"$udir"/*)
+  sy_flag UNLOCK || deny "$path is in your Shipinetics settings, which can switch hooks off and choose which secret files are guarded. Agents don't change them. Tell the user what you'd change and why, and they can edit the file themselves." ;;
+esac
+
+[ -n "$root" ] || exit 0
+sy_hook_off edits "$root" && exit 0
+dir="$(sy_dir "$root")"
+dn="$SY_DIR_NAME"
 rel="$(sy_rel "$root" "$path")"
 agent="$(jget agent_type)"
 session="$(jget session_id)"

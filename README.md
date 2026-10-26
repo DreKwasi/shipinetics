@@ -96,7 +96,9 @@ Workspace mode (`packages = ...`) is for a root that holds several package repos
 
 ## What's enforced by code
 
-Skills are instructions. These parts are hooks and scripts, so they hold even when an agent doesn't follow instructions:
+Skills are instructions. These parts are hooks and scripts, so they hold even when an agent doesn't follow instructions.
+
+Each hook can be switched off: `hooks_off = stop edits secrets pr installs` (any of them) in the project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for every project. A project that sets `hooks_off` ignores the user's setting. `SHIPINETICS_HOOKS_OFF` does the same for one session. The edit guard keeps agents out of `~/.config/shipinetics/`.
 
 **Stop hook** (`scripts/stop-verify.sh`, set-up projects only). Every time the agent tries to finish with changes, it runs the project's checks. Changes means uncommitted changes or commits made since the session started, so an agent that commits each step and stops on a clean tree is still checked. Which tier runs depends on the moment (see "When checks run" below). If a check fails, the agent gets the last 60 lines of output and has to keep going. If it stops again without changing anything, the hook lets it stop and shows you a message instead of looping. When only the quick tier has run, it tells you so. It also reminds the agent once per session about the worksheet and feedback log, and, when the worksheet is a bug fix (`Type: bug`, or bug, fix, crash, regression or Sentry in its title) and the session changed code but no tests, to get a failing regression test from test-writer first.
 
@@ -110,7 +112,7 @@ Skills are instructions. These parts are hooks and scripts, so they hold even wh
 
 **Known failures** (`bin/known-failing`). A suite that already fails can be gated on new failures only: `bin/verify` runs `known-failing check <junit.xml>` against the protected `.shipinetics/known-failing` list (shipinetics:testing).
 
-**Secrets guard** (`scripts/guard-secrets.sh`, every project). Blocks commands that would put a secret in the agent's context: environment dumps, inline scripts that read the environment, echoing secret-looking variables, direct vault reads, and reading credential files with Bash or the Read tool. It ignores what only mentions the environment: heredoc bodies written to a file, the pattern given to grep, rg and similar, and reads of variables that never hold secrets (`HOME`, `PATH`, `TMPDIR`, `NODE_ENV`, `CI` and the like, plus `env_safe_names` in the project config). Deny messages name the project's `secrets_runner`.
+**Secrets guard** (`scripts/guard-secrets.sh`, every project). Blocks commands that would put a secret in the agent's context: environment dumps, inline scripts that read the environment, echoing secret-looking variables, direct vault reads, and reading or naming a secret file with Bash or the Read tool. You choose the secret files: a `secret-paths` list (one glob per line, template in `skills/setup/templates/secret-paths`) in `.shipinetics/`, or in `~/.config/shipinetics/` for every project. The first list found is the whole list. Without one, a built-in list covers cloud and tool credentials (gcloud, AWS, Azure, SSH keys, `.netrc`, `.npmrc` and the like). It ignores what only mentions the environment: heredoc bodies written to a file, the pattern given to grep, rg and similar, and reads of variables that never hold secrets (`HOME`, `PATH`, `TMPDIR`, `NODE_ENV`, `CI` and the like, plus `env_safe_names` in the project config). Deny messages name the project's `secrets_runner`.
 
 **PR gate** (`scripts/guard-pr.sh`, set-up projects only). `gh pr create` and `gh pr ready` are blocked until `evidence check --branch` passes, the complete verify has passed on exactly this code, and the PR body has the `## Evidence` section. `evidence check` also fails when code changed after the evidence was recorded (docs, tests and records don't count). Docs-only branches pass.
 
@@ -182,6 +184,7 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 | `SHIPINETICS_ALLOW_ENV_READ=1` | Turn off both env guards for a session |
 | `SHIPINETICS_ALLOW_NO_EVIDENCE=1` | Turn off the PR gate for a session |
 | `SHIPINETICS_ALLOW_INSTALLS=1` | Turn off the install gate for a session |
+| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Switch the named hooks off for a session (stop, edits, secrets, pr, installs) |
 | `SHIPINETICS_ALLOW_NO_WORKSHEET=1` | Let one commit through without a `Worksheet:` trailer (work that belongs to no task) |
 | `SHIPINETICS_ALLOW_BIG_COMMIT=1` | Let one commit through over the size limit (a codemod, a vendored library). Say why in the message |
 | `CLAUDE_CODE_EFFORT_LEVEL` | One effort level for the session and every agent |

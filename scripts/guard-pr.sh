@@ -7,7 +7,8 @@
 # Works from the repo the command runs in, so in workspace mode it checks the package repo.
 # Active only when a .shipinetics/ folder exists at or above that repo. Docs-only branches pass.
 # Start Claude Code with SHIPINETICS_ALLOW_NO_EVIDENCE=1 to skip the whole gate for a session
-# (evidence and verify), or SHIPINETICS_SKIP_VERIFY=1 to skip only the verify check.
+# (evidence and verify), or SHIPINETICS_SKIP_VERIFY=1 to skip only the verify check. Switch it off
+# for a project with "hooks_off = pr" in its config.
 
 set -uo pipefail
 
@@ -31,6 +32,7 @@ if [[ "$cmd" =~ $cd_re ]]; then
 fi
 repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 root="$(sy_root "$repo")" || exit 0
+sy_hook_off pr "$root" && exit 0
 
 deny() {
   if command -v jq >/dev/null 2>&1; then

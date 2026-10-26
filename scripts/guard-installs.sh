@@ -2,7 +2,8 @@
 # PreToolUse hook for Bash. Asks the user to confirm before an agent installs a skill, plugin,
 # marketplace or MCP server, and reminds them to scan it with SkillSpector first.
 # Anything new gets the same permissions as your agents, so a human checks it.
-# Active in every project. Start Claude Code with SHIPINETICS_ALLOW_INSTALLS=1 to skip it for a session.
+# Active in every project. Start Claude Code with SHIPINETICS_ALLOW_INSTALLS=1 to skip it for a session,
+# or switch it off with "hooks_off = installs" in the project or user config.
 
 set -uo pipefail
 
@@ -10,6 +11,7 @@ input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
 sy_flag ALLOW_INSTALLS && exit 0
+sy_hook_off installs "$(sy_root 2>/dev/null)" && exit 0
 
 if command -v jq >/dev/null 2>&1; then
   cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"

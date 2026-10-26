@@ -14,6 +14,12 @@ release has a git tag, `vX.Y.Z`, on the commit that set its version.
   `shipinetics-config migrate` and the migration guide.
 
 ### Added
+- Modular hooks. Switch any hook off with `hooks_off` (`stop`, `edits`, `secrets`, `pr`,
+  `installs`) in the project's config or in `~/.config/shipinetics/config`, or for a session with
+  `SHIPINETICS_HOOKS_OFF`.
+- You choose the secret files. A `secret-paths` list (one glob per line) in `.shipinetics/` or in
+  `~/.config/shipinetics/` replaces the built-in list of credential files. Setup has a template.
+- The edit guard keeps agents out of `~/.config/shipinetics/`.
 - Tests for the `SHIPINETICS_SKIP_VERIFY` and `SHIPINETICS_UNLOCK` overrides.
 
 ## 0.6.0

@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off"
 
 sy_default() {
   case "$1" in
@@ -60,13 +60,16 @@ sy_root() {
   done
 }
 
+# sy_cfg_file <file> <key>: the key's value in a config file, empty if it's not set
+sy_cfg_file() {
+  [ -f "$1" ] || return 0
+  sed -n "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*//p" "$1" | tail -n 1 | sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//'
+}
+
 # sy_cfg <root> <key>: the configured value, or the default
 sy_cfg() {
-  local f v=""
-  f="$(sy_dir "$1")/config"
-  if [ -f "$f" ]; then
-    v="$(sed -n "s/^[[:space:]]*$2[[:space:]]*=[[:space:]]*//p" "$f" | tail -n 1 | sed -e 's/[[:space:]]#.*$//' -e 's/[[:space:]]*$//')"
-  fi
+  local v
+  v="$(sy_cfg_file "$(sy_dir "$1")/config" "$2")"
   if [ -n "$v" ]; then printf '%s\n' "$v"; else sy_default "$2"; fi
 }
 
@@ -147,6 +150,79 @@ sy_in_list() {
     # shellcheck disable=SC2053  # the right-hand side is meant to be a pattern
     if [[ "$2" == $glob ]]; then SY_MATCHED="$glob"; return 0; fi
   done <"$1"
+  return 1
+}
+
+# ---------------------------------------------------------------- hook settings
+# Each hook can be switched off, and the secrets guard's file list is the user's to set. Settings
+# come from the project (.shipinetics/) or from the user's own folder, for every project.
+
+# sy_user_dir: the user's settings folder (config and secret-paths), for every project
+sy_user_dir() { printf '%s/shipinetics\n' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
+
+# sy_hook_off <name> [root]: true if the hook is switched off. The names are stop, edits,
+# secrets, pr and installs. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
+# project's config, or (when the project doesn't set hooks_off) in the user's config.
+sy_hook_off() {
+  local off
+  if [ -n "${2:-}" ] && sy_is_set "$2" hooks_off; then off="$(sy_cfg "$2" hooks_off)"
+  else off="$(sy_cfg_file "$(sy_user_dir)/config" hooks_off)"; fi
+  case " $(sy_env HOOKS_OFF) $off " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+# The credential files the secrets guard keeps agents away from when no list is set.
+SY_SECRET_PATHS_DEFAULT='.config/gcloud
+.config/gcloud/*
+application_default_credentials.json
+.aws/credentials
+.aws/config
+.azure
+.azure/*
+.ssh/id_*
+.netrc
+.npmrc
+.pypirc
+.docker/config.json
+.kube/config
+.git-credentials
+.infisical
+.infisical/*
+.railway
+.railway/*'
+
+# sy_secret_paths [root]: the secret-path globs in force, one per line. The project's
+# .shipinetics/secret-paths, else the user's secret-paths, else the defaults above. The first list
+# found is the whole list (they don't add up), so a list says exactly what's guarded.
+sy_secret_paths() {
+  local f
+  for f in ${1:+"$(sy_dir "$1")/secret-paths"} "$(sy_user_dir)/secret-paths"; do
+    if [ -f "$f" ]; then
+      sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$f" | grep -v '^$' || true
+      return 0
+    fi
+  done
+  printf '%s\n' "$SY_SECRET_PATHS_DEFAULT"
+}
+
+# sy_secret_match <path> <glob>...: true if the path is covered by one of the globs, and sets
+# SY_MATCHED to it. A glob without / matches the file or folder name anywhere. A glob with / matches
+# the end of the path. ~ is the home folder, and * also matches /.
+sy_secret_match() {
+  local p="${1%/}" g base
+  shift
+  case "$p" in "~") p="$HOME" ;; "~/"*) p="$HOME/${p#\~/}" ;; esac
+  base="${p##*/}"
+  SY_MATCHED=""
+  for g in "$@"; do
+    case "$g" in "~/"*) g="$HOME/${g#\~/}" ;; esac
+    case "$g" in
+      */*) # shellcheck disable=SC2053  # the glob is meant to be a pattern
+           if [[ "$p" == $g || "$p" == */$g ]]; then SY_MATCHED="$g"; return 0; fi ;;
+      *)   # shellcheck disable=SC2053
+           if [[ "$base" == $g ]]; then SY_MATCHED="$g"; return 0; fi ;;
+    esac
+  done
   return 1
 }
 

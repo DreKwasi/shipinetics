@@ -16,7 +16,7 @@ description: How secrets work in shipinetics projects. They live in a vault (suc
 
 ## What the hooks enforce
 
-- **`guard-secrets` (Bash and Read, in every project):** blocks dumping the environment (`env`, `printenv`, `export -p`), inline scripts that read it (`node -e "process.env..."`), echoing secret-looking variables, reading the vault directly (`gcloud secrets versions access`, `vault kv get`, `op read`, ...) and reading credential files (gcloud ADC, `~/.aws/credentials`, SSH keys).
+- **`guard-secrets` (Bash and Read, in every project):** blocks dumping the environment (`env`, `printenv`, `export -p`), inline scripts that read it (`node -e "process.env..."`), echoing secret-looking variables, reading the vault directly (`gcloud secrets versions access`, `vault kv get`, `op read`, ...) and reading or naming a secret file. The user chooses the secret files: a `secret-paths` list in `.shipinetics/` or `~/.config/shipinetics/`, else a built-in list (gcloud ADC, `~/.aws/credentials`, SSH keys and the like).
 - **`guard-edits` (set-up projects):** blocks new `process.env`, `os.environ` and similar reads in any file outside `.shipinetics/env-allowed-paths`.
 
 If a hook blocks you, don't look for another route to the value. You almost never need it. Do one of these instead:
