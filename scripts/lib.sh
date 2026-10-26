@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 #
-# Compatibility, for one version: Shipinetics was called Shipyard. A project that only has the
+# Compatibility, in 0.6 only (removed in 0.7): Shipinetics was called Shipyard. A project that only has the
 # old .shipyard/ folder still works (sy_dir picks it, with a notice), and every SHIPINETICS_*
 # setting falls back to its old SHIPYARD_* name (sy_env). See MIGRATING.md.
 

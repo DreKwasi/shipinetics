@@ -35,7 +35,7 @@ claude plugin install shipinetics@shipinetics
 
 Once it's in a GitHub repo, use `claude plugin marketplace add <owner>/<repo>` on any machine, then the same install command. To try it for one session without installing, run `claude --plugin-dir ~/Projects/shipinetics`.
 
-Shipinetics used to be called Shipyard. A project set up under that name (it has a `.shipyard/` folder) keeps working for one version. Move it over with `shipinetics-config migrate`, as described in [MIGRATING.md](MIGRATING.md).
+Shipinetics used to be called Shipyard. A project set up under that name (it has a `.shipyard/` folder) keeps working in 0.6 (removed in 0.7). Move it over with `shipinetics-config migrate`, as described in [MIGRATING.md](MIGRATING.md).
 
 ### Companions (install separately)
 
@@ -176,7 +176,7 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 
 ## Environment variables
 
-Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one version. The new name wins if both are set.
+Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name in 0.6 (removed in 0.7). The new name wins if both are set.
 
 | Variable | Effect |
 |---|---|
@@ -219,7 +219,7 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one ve
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
 bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift, scan-skills, shipinetics-config,
                   shipinetics-verify, worksheet   (on the agent's PATH; shipyard-config and
-                  shipyard-verify are deprecated shims, kept for one version)
+                  shipyard-verify are deprecated shims, removed in 0.7)
 hooks/            hooks.json
 scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,

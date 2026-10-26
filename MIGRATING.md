@@ -10,9 +10,9 @@ Shipinetics used to be called Shipyard. Version 0.5.0 renamed everything:
 | `shipyard:<skill>`, `shipyard:<agent>` | `shipinetics:<skill>`, `shipinetics:<agent>` |
 | `docs/shipyard-setup.md` | `docs/shipinetics-setup.md` |
 
-## What keeps working for one version
+## What keeps working in 0.6
 
-Until the next minor version, a project that hasn't migrated still works:
+0.5.0 only knew the new names, so a project that still had `.shipyard/` had every hook silently off. From 0.6.0, and until 0.7.0 removes it, a project that hasn't migrated still works:
 
 - A project with only `.shipyard/` is still found. Hooks and tools use it and print a one-line notice that asks you to migrate.
 - Every `SHIPINETICS_*` setting also accepts its old `SHIPYARD_*` name. The new name wins if both are set.

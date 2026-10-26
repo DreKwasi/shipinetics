@@ -41,7 +41,7 @@ Tell the user this in the Finish summary in one or two sentences, so they don't 
 
 ## Projects set up under the old name
 
-Shipinetics used to be called Shipyard. A project with a `.shipyard/` folder and no `.shipinetics/` was set up before the rename. It still works for one version, but migrate it before anything else: with a clean tree, run `shipinetics-config migrate --dry-run`, show the user the plan, then run `shipinetics-config migrate` and commit the result on its own (see `${CLAUDE_SKILL_DIR}/../../MIGRATING.md`). The setup log moves to `docs/shipinetics-setup.md` and still says which phases are done.
+Shipinetics used to be called Shipyard. A project with a `.shipyard/` folder and no `.shipinetics/` was set up before the rename. It still works in 0.6 (not after), but migrate it before anything else: with a clean tree, run `shipinetics-config migrate --dry-run`, show the user the plan, then run `shipinetics-config migrate` and commit the result on its own (see `${CLAUDE_SKILL_DIR}/../../MIGRATING.md`). The setup log moves to `docs/shipinetics-setup.md` and still says which phases are done.
 
 ## Projects that already have a harness
 

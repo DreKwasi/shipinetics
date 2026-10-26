@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# shipyard-verify: the old name of shipinetics-verify, kept for one version so projects set up before
+# shipyard-verify: the old name of shipinetics-verify, kept in 0.6 (removed in 0.7) so projects set up before
 # the rename keep working. See MIGRATING.md.
 echo "shipyard-verify is deprecated. Use shipinetics-verify (see MIGRATING.md)." >&2
 exec "$(dirname "$0")/shipinetics-verify" "$@"
