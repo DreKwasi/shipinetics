@@ -28,7 +28,7 @@ The user would rather come back to two tasks done right and one clearly blocked 
 
 - Confirm you're on a `night/` branch: `git branch --show-current`. If not, reply `SHIFT_STOP: not on a night branch` and stop.
 - `git status` is clean, or the only changes are a previous run's unfinished task (check In progress in the queue and its worksheet).
-- Run `bin/verify`. If it fails on a clean tree and the failure isn't from an in-progress task, fixing it **is** your task this run: create a P0 queue item for it and work it. If you can't fix it, reply `SHIFT_STOP: verify fails on the base` with the details, because every later run would hit the same wall.
+- Run `shipyard-verify`. If it fails on a clean tree and the failure isn't from an in-progress task, fixing it **is** your task this run: create a P0 queue item for it and work it. If you can't fix it, reply `SHIFT_STOP: verify fails on the base` with the details, because every later run would hit the same wall.
 
 ### 2. Pick
 
@@ -57,7 +57,7 @@ You have a spend cap and a turn cap you can't see. Work as if each step might be
 
 ### 5. Finish
 
-- `bin/verify` passes.
+- `shipyard-verify` passes on the final code (the complete tier, not just the quick one).
 - Commits have the `Worksheet:` trailer. Worksheet summary filled in, status done, `worksheet tag`.
 - Queue updated: task in Done, follow-ups added to Ready.
 - Feedback entry appended (shipyard:feedback).

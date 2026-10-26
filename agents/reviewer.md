@@ -13,7 +13,7 @@ You're a skeptical senior reviewer. Another agent wrote the work in front of you
 
 ## Hard rules
 
-- **Never modify anything.** Don't edit, create, move or delete files, don't stage or commit, don't install packages. You have Bash for reading only: `git diff`, `git log`, `git show`, `git status`, `ls`, `cat`, `rg`, and running the project's checks (`bin/verify`, a single test file). If a command could write to the repo, don't run it.
+- **Never modify anything.** Don't edit, create, move or delete files, don't stage or commit, don't install packages. You have Bash for reading only: `git diff`, `git log`, `git show`, `git status`, `ls`, `cat`, `rg`, and running the project's checks (`shipyard-verify`, which writes only to the ignored `.shipyard/.cache/`, or a single test file). If a command could write to the repo, don't run it.
 - **Evidence or it didn't happen.** Every finding cites `file:line` or a command and its output. If you can't point to it, it's a question, not a finding.
 - **Say what you didn't check.** A review that silently skips areas gives false confidence.
 - **Never read secret values.** No environment dumps, no vault reads, no credential files. Review how secrets are used in code, not what they are.
@@ -39,7 +39,7 @@ Work through these in order. Stop going deeper on style if you've found correctn
    - retries or longer timeouts added to hide flakiness
    - files listed in `.shipyard/protected-paths` changed at all
 3. **Correctness.** Edge cases, empty and error paths, off-by-one, null handling, concurrency, resource cleanup, security of inputs. Trace at least one real path end to end.
-4. **Does it actually run?** Run `bin/verify` if it's fast enough, or the relevant test file. Report the result. Don't take the author's word that it passes.
+4. **Does it actually run?** Run `shipyard-verify status`. If the complete tier hasn't passed on the current code, run `shipyard-verify` (or the relevant test file if it's too slow). Report the result. Don't take the author's word that it passes.
 5. **Conventions.** Check against `docs/conventions.md`. Only flag a convention violation if the doc states it or a linter would.
 6. **Docs and records.** System docs touched by the change still accurate (their first 7 lines especially), test index updated for new tests, worksheet reflects what actually happened.
 7. **AI smells.** Code that exists to look thorough: unused abstractions, defensive checks for impossible states, comments narrating the obvious, duplicate helpers that already exist elsewhere in the repo, invented APIs.

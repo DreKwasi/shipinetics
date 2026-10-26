@@ -28,6 +28,8 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
 
+      # CI is the uncached backstop for the local caches bin/verify may use (lint, typecheck and
+      # build caches). Cache dependencies if you like, but don't restore those caches here.
       - run: bin/verify --full
 
       - uses: actions/upload-artifact@v4

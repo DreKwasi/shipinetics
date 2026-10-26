@@ -1,0 +1,21 @@
+# Paths whose changes need the complete verify at every stop, not just the quick tier: things
+# that change how the whole project builds or runs, where a scoped check can't see the effect.
+# One bash glob per line, relative to the repo root (the workspace root in workspace mode).
+# * matches across folders. Adjust to this project's layout.
+
+package.json
+*/package.json
+*lock.json
+*.lock
+*lock.yaml
+*.config.*
+*/tsconfig*.json
+tsconfig*.json
+Dockerfile*
+*/Dockerfile*
+Makefile
+*.toml
+go.mod
+go.sum
+.github/workflows/*
+bin/verify

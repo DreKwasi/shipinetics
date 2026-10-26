@@ -30,7 +30,7 @@ The human's job is intent and acceptance criteria. Your job is to make those cri
 Build it from the acceptance criteria:
 
 - **One measurable end state per criterion**, each with a stated check: "the AC1 to AC4 tests in `e2e/acceptance/refunds.spec.ts` pass, shown by running them".
-- **The standing checks:** `bin/verify` exits 0 with its output shown; the implementation review verdict is approve, or every finding has a recorded response in the worksheet.
+- **The standing checks:** `shipyard-verify` exits 0 with its output shown (the complete tier); the implementation review verdict is approve, or every finding has a recorded response in the worksheet.
 - **Constraints:** no file in `e2e/acceptance/` or any protected path is modified; tests are only changed by shipyard:test-writer.
 - **Deliverables:** the worksheet is updated and the work is committed with the `Worksheet:` trailer.
 - **A turn bound:** "If this isn't met after 15 turns, stop and report the blocker." It's judged by the model, so the hard limits stay with the launcher or you.
@@ -38,7 +38,7 @@ Build it from the acceptance criteria:
 Example:
 
 ```
-/goal The refund-rounding spec is implemented: the AC1 to AC4 tests in e2e/acceptance/refunds.spec.ts pass (run them and show the output), bin/verify exits 0 (show the output), the shipyard:reviewer implementation review is approve or every finding has a response in the worksheet, no file under e2e/acceptance/ was modified, and the work is committed with the Worksheet trailer. If this isn't met after 15 turns, stop and report the blocker.
+/goal The refund-rounding spec is implemented: the AC1 to AC4 tests in e2e/acceptance/refunds.spec.ts pass (run them and show the output), shipyard-verify exits 0 (show the output), the shipyard:reviewer implementation review is approve or every finding has a response in the worksheet, no file under e2e/acceptance/ was modified, and the work is committed with the Worksheet trailer. If this isn't met after 15 turns, stop and report the blocker.
 ```
 
 Keep it under 4,000 characters.

@@ -2,41 +2,100 @@
 # verify: the single definition of "done" for this repo. Agents, the Stop hook, pre-push and CI all call it.
 #
 # Usage:
-#   bin/verify          fast checks. Runs every time an agent stops, so keep it to a few minutes.
-#   bin/verify --full   everything. End of shift and CI.
+#   bin/verify --quick  checks scoped to the changed files. The Stop hook runs this at mid-task stops
+#   bin/verify          every fast check (complete tier). The "done" gate, push and PR need this to pass
+#   bin/verify --full   everything, including slow suites. CI and end of shift
+#
+# Every check still runs before work counts as done: --quick only moves the expensive ones to
+# the moment their result is needed. The Stop hook sets SHIPYARD_CHANGED_FILES to a file listing
+# the changed paths, one per line, relative to this repo. If it's unset (a human, CI), --quick
+# checks everything.
+# Independent steps run in parallel. Caches are fine here (eslint --cache, tsc --incremental,
+# the build tool's cache) as long as CI runs without them, so a stale cache can't hide a failure.
 #
 # Exit code 0 means every check passed. Output is meant to be read by an agent, so failures
 # should say what failed and where. Delete steps that don't apply to this project.
 # If a step needs secrets (e2e against real services), wrap that step in bin/with-secrets.
 # Never print environment values here: this output goes straight into the agent's context.
 
-set -euo pipefail
+set -uo pipefail
 cd "$(dirname "$0")/.."
 
-mode="${1:-fast}"
-step() { printf '\n==> %s\n' "$1"; }
+mode="${1:-complete}"
+case "$mode" in --quick) mode=quick ;; --full) mode=full ;; complete|"") mode=complete ;; esac
 
-step "typecheck"
-{{TYPECHECK_CMD}}
+# changed [extended regex]: the changed files matching the pattern, one per line. Empty output
+# with a list present means nothing relevant changed, so the step can be skipped.
+changed() {
+  if [ -n "${SHIPYARD_CHANGED_FILES:-}" ] && [ -f "$SHIPYARD_CHANGED_FILES" ]; then
+    grep -E "${1:-.}" "$SHIPYARD_CHANGED_FILES" | while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done
+  else
+    echo "__all__"
+  fi
+}
 
-step "lint"
-{{LINT_CMD}}
+# parallel <step function> ...: run steps at once, print each one's output, fail if any did
+parallel() {
+  local tmp fn n names=() pids=() i=0 rc=0
+  tmp="$(mktemp -d "${TMPDIR:-/tmp}/verify.XXXXXX")"
+  for fn in "$@"; do
+    n="${fn#check_}"; names+=("${n//_/ }")
+    ( "$fn" ) >"$tmp/$i.log" 2>&1 &
+    pids+=($!)
+    i=$((i + 1))
+  done
+  for i in "${!pids[@]}"; do
+    if wait "${pids[$i]}"; then
+      printf '\n==> %s: ok\n' "${names[$i]}"
+    else
+      printf '\n==> %s: FAILED\n' "${names[$i]}"; cat "$tmp/$i.log"; rc=1
+    fi
+  done
+  rm -rf "$tmp"
+  return "$rc"
+}
 
-step "unit tests"
-{{UNIT_TEST_CMD}}
+step() { # step <step function>: one step on its own, for anything that can't run alongside others
+  local n="${1#check_}"; n="${n//_/ }"
+  printf '\n==> %s\n' "$n"
+  ( "$1" ) || { printf '\n==> %s: FAILED\n' "$n"; exit 1; }
+}
 
-step "e2e smoke"
-{{E2E_SMOKE_CMD}}
+# ---- the steps. Fill in the project's commands. Delete steps that don't apply, and their calls below.
+# The check_ prefix keeps a step from shadowing a real command of the same name.
+# Quick tier: scope each check to the changed files. A whole-project check belongs here only if
+# it's fast. Example for a JS/TS project:
+#   files="$(changed '\.(ts|tsx|js|jsx|vue)$')"
+#   [ -z "$files" ] && return 0
+#   if [ "$files" = __all__ ]; then npx eslint --cache .; else printf '%s\n' "$files" | xargs npx eslint --cache; fi
+check_typecheck_quick() { {{TYPECHECK_QUICK_CMD}}; }
+check_lint_changed_files() { {{LINT_CHANGED_CMD}}; }
+check_unit_tests_related_to_changes() { {{UNIT_RELATED_CMD}}; }
+# Complete tier
+check_typecheck() { {{TYPECHECK_CMD}}; }
+check_lint() { {{LINT_CMD}}; }
+check_unit_tests() { {{UNIT_TEST_CMD}}; }
+check_build() { {{BUILD_CMD}}; }
+check_e2e_smoke() { {{E2E_SMOKE_CMD}}; }
+# Full tier
+check_full_e2e() { {{E2E_FULL_CMD}}; }
+check_visual_regression() { {{VISUAL_CMD}}; }
+check_performance_benchmarks() { {{BENCH_CMD}}; }
 
-if [ "$mode" = "--full" ]; then
-  step "full e2e"
-  {{E2E_FULL_CMD}}
+start=$(date +%s)
 
-  step "visual regression"
-  {{VISUAL_CMD}}
-
-  step "performance benchmarks"
-  {{BENCH_CMD}}
+if [ "$mode" = quick ]; then
+  parallel check_typecheck_quick check_lint_changed_files check_unit_tests_related_to_changes || exit 1
+else
+  parallel check_typecheck check_lint check_unit_tests || exit 1
+  step check_build
+  step check_e2e_smoke
 fi
 
-printf '\nverify (%s): all checks passed\n' "$mode"
+if [ "$mode" = full ]; then
+  step check_full_e2e
+  step check_visual_regression
+  step check_performance_benchmarks
+fi
+
+printf '\nverify (%s): all checks passed in %ss\n' "$mode" "$(( $(date +%s) - start ))"

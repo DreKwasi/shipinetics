@@ -18,7 +18,14 @@
 # evidence_dir = docs/evidence
 
 # ---- Verify (single repo)
+# Checks run in tiers, each at the moment its result is needed. Nothing is skipped:
+#   verify_quick_cmd  mid-task stops, scoped to the changed files ($SHIPYARD_CHANGED_FILES)
+#   verify_cmd        the complete fast checks: the "done" stop (worksheet Status: done), any stop
+#                     that changes a path in .shipyard/complete-paths, pre-push and the PR gate
+#   bin/verify --full CI and end of shift
+# Leave verify_quick_cmd unset and every stop runs verify_cmd. Timings: shipyard-verify times
 # verify_cmd = bin/verify
+# verify_quick_cmd = bin/verify --quick
 
 # ---- Workspace mode: the root holds several package repos and isn't a repo itself.
 # Setting packages turns it on. {package} is replaced with the package folder.
@@ -26,6 +33,7 @@
 # every package with uncommitted changes.
 # packages = api web
 # package_verify_cmd = scripts/validate.sh {package}
+# package_verify_quick_cmd = scripts/validate.sh {package} --quick
 # verify_scope = touched
 
 # ---- Worksheets: hand off to the project's own scripts if it has them

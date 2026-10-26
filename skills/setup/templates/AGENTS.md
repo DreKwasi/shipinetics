@@ -4,7 +4,7 @@
 
 ## Definition of done
 
-Work is done when **`bin/verify` passes** and the change has been reviewed (see Review below). `bin/verify` runs typecheck, lint, unit tests and the e2e smoke test. `bin/verify --full` runs everything, including full e2e, visual and performance checks. Never call work done with a failing check, and never edit or skip a test to get a pass.
+Work is done when **`bin/verify` passes** on the final code and the change has been reviewed (see Review below). `bin/verify` runs every fast check: typecheck, lint, unit tests, build and the e2e smoke test. Run it as `shipyard-verify`, which records the pass so hooks don't repeat it. Mid-task stops run only `bin/verify --quick`, scoped to the changed files. The complete run happens at the stop after the worksheet is marked done, before a push and before a PR. `bin/verify --full` runs everything, including full e2e, visual and performance checks, in CI and at end of shift. Never call work done with a failing check, and never edit or skip a test to get a pass.
 
 ## Run the app yourself
 

@@ -58,7 +58,7 @@ A suite is good when it fails if the product breaks and passes when it doesn't. 
 - Locate by role and accessible name, then test IDs. Never CSS classes or DOM shape.
 - Wait on conditions, never on time.
 - Fail on console errors and uncaught page errors.
-- The one or two most important journeys are tagged `@smoke` so `bin/verify` runs them on every stop.
+- The one or two most important journeys are tagged `@smoke` so `bin/verify` (the complete tier) runs them before any task counts as done.
 
 ## When a test fails
 

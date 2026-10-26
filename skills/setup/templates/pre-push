@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Pre-push: the complete verify must pass before code leaves the machine.
+# Install as .githooks/pre-push (git config core.hooksPath .githooks).
+#
+# With the Shipyard plugin installed, shipyard-verify reuses a pass already recorded for exactly
+# this code, so a push after the agent verified costs nothing. Otherwise it runs bin/verify.
+# It checks the working tree, so commit or stash anything you don't mean to push first.
+# Skip it for one push with: git push --no-verify
+
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+if command -v shipyard-verify >/dev/null 2>&1; then
+  exec shipyard-verify complete
+fi
+exec bin/verify

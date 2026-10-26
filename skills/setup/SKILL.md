@@ -36,7 +36,7 @@ Many projects already have their own versions of these pieces under other names:
 
 If the project root isn't a git repo but holds several package repos, use workspace mode:
 
-- Put `.shipyard/` at the workspace root. Set `packages` to the package folders and `package_verify_cmd` to the per-package check, with `{package}` where the folder name goes.
+- Put `.shipyard/` at the workspace root. Set `packages` to the package folders and `package_verify_cmd` to the per-package check, with `{package}` where the folder name goes. If the package check can scope itself to changed files, set `package_verify_quick_cmd` for mid-task stops too (`$SHIPYARD_CHANGED_FILES` lists paths relative to the package repo).
 - Keep `verify_scope = touched` (the default). The Stop hook then verifies only the packages the agent edited in that session, so the user's own unrelated work in progress never blocks an agent.
 - If packages keep committed copies of worksheets, set `package_worksheets_dir` so the evidence tool can find them on a branch.
 - Lists in `.shipyard/` use paths relative to the workspace root, such as `api/src/config/*`.
@@ -82,8 +82,13 @@ For row R, check with the tools you have: try loading each skill, and call the W
 The goal is one loop that works end to end: the agent can't stop while checks fail, and a reviewer checks the work.
 
 1. **Find the commands.** Typecheck, lint, unit tests, e2e, how to start the app, which port, how to seed data, how to log in with a test user. Run each one to confirm it works today. Note any that fail on a clean checkout: that's the first thing to tell the user.
-2. **`bin/verify`** from `templates/bin/verify`. Fast mode (default) must finish in a few minutes, because it runs every time the agent stops. `--full` runs everything. `chmod +x` it. Run it.
-3. **`.shipyard/`**: create `.shipyard/protected-paths` from `templates/protected-paths`, and `.shipyard/test-paths` from `templates/test-paths`, adjusted to where this project's tests actually live (check with `git ls-files`). Create `.shipyard/ui-paths` from `templates/ui-paths`, adjusted to where this project's UI code lives (it decides which changes need a screen recording as evidence). Append `templates/gitignore-additions` to `.gitignore`.
+2. **`bin/verify`** from `templates/bin/verify`, with its three tiers. Each check runs at the moment its result is needed, and none is skipped:
+   - `--quick` runs at mid-task stops. Scope each check to the files in `$SHIPYARD_CHANGED_FILES` (lint the changed files, type-check incrementally, run the tests related to the changes). Keep it to seconds.
+   - The default (complete) tier is every fast check, including the build and the e2e smoke test. It runs at the stop after the worksheet is marked done, at any stop that changes a path in `.shipyard/complete-paths`, before a push and before a PR. Keep it to a few minutes.
+   - `--full` runs everything, in CI and at end of shift.
+
+   Fill in the step functions with the project's real commands. Steps in `parallel` run at once, so only put independent checks there. Local caches (`eslint --cache`, `tsc --incremental`, the build tool's cache) are fine, because CI runs without them. If the project's tools can't scope a check to files, run the whole check in `--quick` too, as long as it's fast. Leave anything slow (a build, e2e) to the complete tier. `chmod +x` it. Run all three tiers and record each one's time in `docs/shipyard-setup.md`. Set `verify_quick_cmd = bin/verify --quick` in `.shipyard/config`.
+3. **`.shipyard/`**: create `.shipyard/protected-paths` from `templates/protected-paths`, and `.shipyard/test-paths` from `templates/test-paths`, adjusted to where this project's tests actually live (check with `git ls-files`). Create `.shipyard/ui-paths` from `templates/ui-paths`, adjusted to where this project's UI code lives (it decides which changes need a screen recording as evidence). Create `.shipyard/complete-paths` from `templates/complete-paths`: the build config, manifests and lockfiles whose changes need the complete tier at every stop, because a check scoped to changed files can't see their effect. Append `templates/gitignore-additions` to `.gitignore`.
 4. **Secrets.** Find how the project reads configuration today (`rg -l 'process\.env|os\.environ|getenv'`).
    - If there's no single config module, propose one to the user (`src/config/` or the stack's equivalent) that reads, validates and exports every variable. Moving existing reads into it is its own task: add it to the queue rather than doing it during setup.
    - Create `.shipyard/env-allowed-paths` from the template with the config module's path. If existing code reads the environment elsewhere, the hook only blocks new reads, so nothing breaks.
@@ -94,7 +99,7 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 5. **`AGENTS.md`** from the template, filled in for this project. If one exists, merge: keep everything the user wrote and add the missing sections. Keep it under about 120 lines. It routes, it doesn't explain.
 6. **`CLAUDE.md`**: if missing, create it from the template (it imports `@AGENTS.md`). If it exists with real content, move that content into `AGENTS.md` and leave the import, after showing the user.
 7. **Playwright smoke test** (web projects): if there's no e2e setup, install Playwright and add `templates/e2e/playwright.config.ts` at the repo root, adapted to the app's real start command (through `bin/with-secrets` if it needs secrets) and port. The smoke test itself is a test file, so you don't write it: spawn `shipyard:test-writer` with `templates/e2e/smoke.spec.ts` as the starting point, the app's main screen, and the instruction to make it a single `@smoke` test that fails on console errors. It runs the test, watches it pass, breaks it on purpose (wrong heading text), watches it fail, and restores it. If the project already has an e2e setup, ask test-writer for just the one `@smoke` test in it. For non-web projects, ask test-writer for the equivalent: one end-to-end test through the real entry point (CLI, API, worker).
-8. **Prove the gate.** Tell the user how to see it: make a small change that breaks a test, ask the agent to finish, and watch the Stop hook send it back. You can't trigger your own Stop hook in a way the user sees, so describe it and leave the test to them.
+8. **Prove the gate.** Run `shipyard-verify` and `shipyard-verify quick`, then `shipyard-verify status`, to show both tiers pass and are recorded. Tell the user how to see the hook: make a small change that breaks a test, ask the agent to finish, and watch the Stop hook send it back. You can't trigger your own Stop hook in a way the user sees, so describe it and leave the test to them. After a week of use, `shipyard-verify times` shows where verify time goes.
 9. **Prove the reviewers.** Run `agent_review --list` and report which CLIs are installed. If none is from a different family than Claude, tell the user cross-family review needs one of Codex, Gemini or Cursor's CLI. Check row R of the audit (security-audit, impeccable, Whiteboard) and report what's missing, with install commands.
 10. Commit with a message explaining the setup. Update `docs/shipyard-setup.md`.
 
@@ -113,12 +118,13 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 
 ## Phase 4: commit hooks (point 5)
 
-1. Copy `templates/bin/lint-fix` and `templates/bin/llm-fix` to `bin/`, `templates/pre-commit` to `.githooks/pre-commit` and `templates/commit-msg` to `.githooks/commit-msg`. Fill in the project's fixers and checkers in `bin/lint-fix`. In `.githooks/pre-commit`, add the project's generated files to `ignore`, and change the worksheets and evidence paths there if `.shipyard/config` maps them elsewhere. Keep `max_lines` at 400 unless the user asks otherwise.
+1. Copy `templates/bin/lint-fix` and `templates/bin/llm-fix` to `bin/`, `templates/pre-commit` to `.githooks/pre-commit`, `templates/commit-msg` to `.githooks/commit-msg` and `templates/pre-push` to `.githooks/pre-push`. The pre-push hook runs the complete verify, and reuses a pass the agent already recorded for the same code. Fill in the project's fixers and checkers in `bin/lint-fix`. In `.githooks/pre-commit`, add the project's generated files to `ignore`, and change the worksheets and evidence paths there if `.shipyard/config` maps them elsewhere. Keep `max_lines` at 400 unless the user asks otherwise.
 2. Run `git config core.hooksPath .githooks`, and add that command to the setup section of `AGENTS.md` so fresh clones get it. If the project already uses husky, lefthook or pre-commit, keep both hooks in `.githooks/` and call them from that tool's pre-commit and commit-msg stages instead (the commit-msg hook takes the message file as its argument).
 3. Check on a scratch branch, then delete it:
    - Stage a file with a fixable lint error and commit without a trailer. The commit-msg hook should refuse.
    - Commit again with `Worksheet: setup-check` as the last line. The lint error should be fixed and the commit should succeed.
    - Stage more than 400 changed lines and commit. The pre-commit hook should refuse and list the largest files.
+   - Run `.githooks/pre-push` by hand. It should report the complete verify as passed (reused if you ran `shipyard-verify` already).
 
 ## Phase 5: CI (automation)
 

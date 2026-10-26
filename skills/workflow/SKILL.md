@@ -23,7 +23,7 @@ This is how every task runs, interactive or autonomous. Skip steps only where th
 - Read the task. If it came from `TODOS.md`, claim it (shipyard:task-queue).
 - Start or resume a worksheet: `worksheet new <slug> "<title>"` or `worksheet use <name>`. If you're resuming, read the whole worksheet and `git log --grep "Worksheet: <name>"` before touching anything.
 - Find the relevant systems: `head -n 7 docs/systems/*.md`, then read the full doc for each system you'll touch.
-- Run `bin/verify` once before changing anything. If it already fails, note that in the worksheet. You're not responsible for pre-existing failures, but you need to know about them.
+- Run `shipyard-verify` once before changing anything. If it already fails, note that in the worksheet. You're not responsible for pre-existing failures, but you need to know about them.
 
 ## 2. Research (M and up)
 
@@ -74,7 +74,9 @@ Once it works, **record the evidence** (shipyard:evidence): a screenshot per acc
 
 ## 7. Verify
 
-Run `bin/verify`. It must pass. The Stop hook will run it anyway and send you back if it fails, so run it yourself first. Never edit, skip or delete a test to get a pass. If a test seems wrong, take it to test-writer with the spec (or, for protected tests, write it up under "Test change requests" in the worksheet).
+Run `shipyard-verify`. It runs the complete verify (`bin/verify`) and must pass. It records the pass for exactly this code, so the Stop hook, the pre-push hook and the PR gate reuse it instead of running it again. Committing the code, or editing only the worksheet, evidence or feedback log, keeps the pass. Any other change needs a new run.
+
+At mid-task stops the Stop hook runs only the quick tier, scoped to your changes. When you set the worksheet's Status to done, the next stop runs the complete tier, and a PR can't open without it. So "done" always means the complete verify passed on the final code. Never edit, skip or delete a test to get a pass. If a test seems wrong, take it to test-writer with the spec (or, for protected tests, write it up under "Test change requests" in the worksheet).
 
 ## 8. Review
 
