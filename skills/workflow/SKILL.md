@@ -103,4 +103,20 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipya
 
 ## Optional skills that fit this loop
 
-If installed, use them at the matching step: `grilling` to stress-test a plan in step 3, `tdd` in step 4, `diagnosing-bugs` when a bug resists, `codebase-design` when a change needs a new module boundary, `domain-modeling` when terms are fuzzy.
+If they're installed, use these at the matching step. Shipyard's rules win where they differ.
+
+| Skill | Step | How it fits here |
+|---|---|---|
+| `grilling` with `domain-modeling` | 3, interactive only | Before the spec for M and up, and when splitting an L task (shipyard:spec). Terms go in `CONTEXT.md`, hard-to-reverse decisions in `docs/adr/` |
+| `codebase-design` | 3 | When a change needs a new module or seam. Its vocabulary (depth, seam, adapter) is what reviewers use too. Its advice to delete old tests goes to test-writer, not you |
+| `prototype` | 3, interactive only | When a question needs a runnable answer. Write the answer in the spec or the worksheet's Decisions, and delete the prototype before the PR |
+| `research` | 2 | For external facts. Its findings go into the claims table with URL and date |
+| `diagnosing-bugs` | bug fixes | Phases 1-4 and 6 as written. Put its feedback-loop scripts in `$TMPDIR` or `bin/`, not in test paths. Its regression test (Phase 5) comes from test-writer in `regression` mode, from your minimised repro |
+| Impeccable | 3, 5, 8 | `shape` for a UI task's brief, `polish` before review, `detect` and `audit` in review (shipyard:review) |
+
+Don't run these next to shipyard, because they bypass its rules:
+
+- Any `tdd` skill (Matt Pocock's, pstack's). The implementer writes its own tests there, and here the hook only lets test-writer touch test files. Test-writer already follows the same rules: test behavior at the highest seam, no tautological tests, mock only at boundaries.
+- `implement`, Matt Pocock's `code-review` and the `code-review` plugin. Use shipyard:review, which uses a different model and records every response.
+- `to-prd`, `to-issues` and `triage`, unless the project's queue really is GitHub issues. They write a second spec format and a second queue. A to-prd issue can still be the input to shipyard:spec.
+- `setup-matt-pocock-skills` (it writes into `CLAUDE.md`; shipyard keeps content in `AGENTS.md`), pstack's `poteto-mode` router, and its `autopilot` and `shipping` playbooks (they merge and force-push).
