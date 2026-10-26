@@ -46,6 +46,9 @@ has "a proposal for a test file is still test-writer's" "$OUT" "is a test file"
 
 edit_hook .shipinetics/pending/../../e2e/acceptance/a.spec.ts shipinetics:test-writer
 has "a .. path can't use the pending folder to reach a protected file" "$OUT" "is protected"
+OUT="$(printf '{"tool_name":"Write","agent_type":"shipinetics:test-writer","tool_input":{"file_path":"%s","content":"x"}}' "$p/e2e/acceptance/a.spec.ts" |
+  SHIPINETICS_UNLOCK=1 CLAUDE_PROJECT_DIR="$p" bash "$SY/scripts/guard-edits.sh" 2>/dev/null)"
+eq "SHIPINETICS_UNLOCK allows a protected edit" "$OUT" ""
 has "pending lists the proposal" "$(shipinetics-config pending 2>&1)" "e2e/acceptance/a.spec.ts (+1 -1 lines)"
 out="$(shipinetics-config apply </dev/null 2>&1)"; rc=$?
 eq "apply without a terminal refuses" "$rc:$(cat e2e/acceptance/a.spec.ts)" "1:old"

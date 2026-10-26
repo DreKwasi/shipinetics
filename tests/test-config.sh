@@ -16,6 +16,4 @@ eq "paths are relative to where you are" "$out" "tests/x.test.ts matches 'tests/
 shipinetics-config match protected-paths src/app.ts >/dev/null; eq "no match exits 1" "$?" 1
 has "a pending proposal is never protected" "$(shipinetics-config match protected-paths .shipinetics/pending/e2e/acceptance/a.spec.ts)" "never protected"
 has "but it's still a test file" "$(shipinetics-config match test-paths .shipinetics/pending/tests/x.test.ts)" "matches 'tests/*'"
-printf '.shipyard/*\n' >.shipinetics/protected-paths
-has "an old .shipyard/* line covers .shipinetics/" "$(shipinetics-config match protected-paths .shipinetics/config)" "matches '.shipyard/*'"
 done_testing

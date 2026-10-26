@@ -39,6 +39,11 @@ git commit -q --allow-empty -m start
 replace docs/worksheets/w.md "Status: in progress" "Status: done"
 stop_hook "$p"; eq "done-only stop runs complete" "$(last_timing "$p")" "complete pass"
 
+# SHIPINETICS_SKIP_VERIFY turns the hook off for a session.
+echo e >>"b c.txt"; rm -f .shipinetics/.cache/verify.log
+SHIPINETICS_SKIP_VERIFY=1 stop_hook "$p"
+eq "SHIPINETICS_SKIP_VERIFY turns the Stop hook off" "$([ -f .shipinetics/.cache/verify.log ] && echo ran || echo skipped)" skipped
+
 # No quick tier configured: every stop runs complete, as before.
 : >.shipinetics/config; echo d >>"b c.txt"; replace docs/worksheets/w.md "Status: done" "Status: in progress"
 stop_hook "$p"; eq "without a quick tier, complete runs" "$(last_timing "$p")" "complete pass"

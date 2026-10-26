@@ -6,10 +6,6 @@
 # evidence_dir, which is relative to the git repo a PR comes from.
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
-#
-# Compatibility, in 0.6 only (removed in 0.7): Shipinetics was called Shipyard. A project that only has the
-# old .shipyard/ folder still works (sy_dir picks it, with a notice), and every SHIPINETICS_*
-# setting falls back to its old SHIPYARD_* name (sy_env). See MIGRATING.md.
 
 SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo"
 
@@ -38,44 +34,27 @@ sy_default() {
 }
 
 SY_DIR_NAME=".shipinetics"
-SY_LEGACY_DIR_NAME=".shipyard"
 
-# sy_env <NAME> [default]: $SHIPINETICS_<NAME>, else the legacy $SHIPYARD_<NAME>, else the
-# default. A variable set to empty counts as set.
+# sy_env <NAME> [default]: $SHIPINETICS_<NAME>, else the default. A variable set to empty counts
+# as set.
 sy_env() {
-  local n="SHIPINETICS_$1" o="SHIPYARD_$1"
-  if [ -n "${!n+x}" ]; then printf '%s\n' "${!n}"
-  elif [ -n "${!o+x}" ]; then printf '%s\n' "${!o}"
-  else printf '%s\n' "${2:-}"; fi
+  local n="SHIPINETICS_$1"
+  if [ -n "${!n+x}" ]; then printf '%s\n' "${!n}"; else printf '%s\n' "${2:-}"; fi
 }
 
 # sy_flag <NAME>: true if the setting (see sy_env) is 1
 sy_flag() { [ "$(sy_env "$1" 0)" = "1" ]; }
 
-# sy_dir_name <root>: the name of the project's folder. .shipinetics, or the legacy .shipyard
-# when that's the only one there.
-sy_dir_name() {
-  if [ ! -d "$1/$SY_DIR_NAME" ] && [ -d "$1/$SY_LEGACY_DIR_NAME" ]; then
-    printf '%s\n' "$SY_LEGACY_DIR_NAME"
-  else
-    printf '%s\n' "$SY_DIR_NAME"
-  fi
-}
-
 # sy_dir <root>: the project's folder (settings, policy lists and .cache)
-sy_dir() { printf '%s/%s\n' "$1" "$(sy_dir_name "$1")"; }
+sy_dir() { printf '%s/%s\n' "$1" "$SY_DIR_NAME"; }
 
 # sy_root [start]: nearest folder at or above start (default: the project dir, else PWD) holding
-# .shipinetics/ (or the legacy .shipyard/, with a one-line notice on stderr)
+# .shipinetics/
 sy_root() {
   local d="${1:-${CLAUDE_PROJECT_DIR:-$PWD}}"
   d="$(cd "$d" 2>/dev/null && pwd)" || return 1
   while :; do
     if [ -d "$d/$SY_DIR_NAME" ]; then printf '%s\n' "$d"; return 0; fi
-    if [ -d "$d/$SY_LEGACY_DIR_NAME" ]; then
-      echo "shipinetics: $d uses the old .shipyard/ folder. Run shipinetics-config migrate there (see MIGRATING.md)." >&2
-      printf '%s\n' "$d"; return 0
-    fi
     [ "$d" = "/" ] && return 1
     d="$(dirname "$d")"
   done
@@ -347,21 +326,14 @@ PL
 # sy_list_match <root> <list> <path relative to root>: true if the path matches a glob in one of
 # the project's lists (protected-paths, test-paths, env-allowed-paths, ui-paths, complete-paths)
 # the way the guards see it, and sets SY_MATCHED to the glob. A proposal in the pending folder is
-# checked as the file it would replace, but protected-paths never covers it. In protected-paths, a
-# glob for either folder name (.shipinetics/ or the legacy .shipyard/) covers both.
+# checked as the file it would replace, but protected-paths never covers it.
 sy_list_match() {
-  local dn list rel="$3" alias=""
-  dn="$(sy_dir_name "$1")"; list="$1/$dn/$2"; SY_MATCHED=""
+  local rel="$3"
+  SY_MATCHED=""
   case "$rel" in
-    "$dn/pending/"*) [ "$2" = protected-paths ] && return 1; rel="${rel#"$dn/pending/"}" ;;
+    "$SY_DIR_NAME/pending/"*) [ "$2" = protected-paths ] && return 1; rel="${rel#"$SY_DIR_NAME/pending/"}" ;;
   esac
-  sy_in_list "$list" "$rel" && return 0
-  [ "$2" = protected-paths ] || return 1
-  case "$rel" in
-    "$SY_DIR_NAME"/*) alias="$SY_LEGACY_DIR_NAME/${rel#"$SY_DIR_NAME"/}" ;;
-    "$SY_LEGACY_DIR_NAME"/*) alias="$SY_DIR_NAME/${rel#"$SY_LEGACY_DIR_NAME"/}" ;;
-  esac
-  [ -n "$alias" ] && sy_in_list "$list" "$alias"
+  sy_in_list "$1/$SY_DIR_NAME/$2" "$rel"
 }
 
 # sy_json_field <json> <dotted.path>: a value from hook input, with a python fallback when jq is missing
@@ -392,7 +364,7 @@ sy_key_suffix() { if [ -n "$1" ]; then printf -- '-%s' "${1//\//_}"; fi; }
 # sy_verify_excludes <root> <package or empty>: pathspecs that aren't code as far as verify goes
 sy_verify_excludes() {
   local pkg_ws
-  printf '%s\n' ":(exclude)$(sy_dir_name "$1")/.cache" ":(exclude)$(sy_cfg "$1" evidence_dir)"
+  printf '%s\n' ":(exclude)$SY_DIR_NAME/.cache" ":(exclude)$(sy_cfg "$1" evidence_dir)"
   if [ -n "$2" ]; then
     pkg_ws="$(sy_cfg "$1" package_worksheets_dir)"
     if [ -n "$pkg_ws" ]; then printf '%s\n' ":(exclude)$pkg_ws"; fi
@@ -516,7 +488,6 @@ sy_verify_log() {
 # Runs the tier's command, unless a pass is already recorded for exactly this code. The command
 # runs from the root with SHIPINETICS_VERIFY_TIER set, and SHIPINETICS_CHANGED_FILES naming a file
 # that lists the changed paths (relative to the repo being verified; unset means check everything).
-# Both are also exported under their old SHIPYARD_* names, for verify scripts copied before the rename.
 # Records the pass, logs the timing, and returns the command's status. Afterwards SY_VERIFY_TIER
 # is the tier that ran, SY_VERIFY_FP the fingerprint, SY_VERIFY_LOG the output, and SY_VERIFY_RAN
 # is 1 if the command ran (0 if a recorded pass was reused).
@@ -536,9 +507,8 @@ sy_verify_run() {
   t0="$(date +%s)"
   (
     cd "$root" || exit 1
-    export SHIPINETICS_VERIFY_TIER="$tier" SHIPYARD_VERIFY_TIER="$tier"
-    if [ -n "$list" ]; then export SHIPINETICS_CHANGED_FILES="$list" SHIPYARD_CHANGED_FILES="$list"
-    else unset SHIPINETICS_CHANGED_FILES SHIPYARD_CHANGED_FILES; fi
+    export SHIPINETICS_VERIFY_TIER="$tier"
+    if [ -n "$list" ]; then export SHIPINETICS_CHANGED_FILES="$list"; else unset SHIPINETICS_CHANGED_FILES; fi
     sh -c "$cmd"
   ) >"$SY_VERIFY_LOG" 2>&1
   rc=$?

@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# shipyard-config: the old name of shipinetics-config, kept in 0.6 (removed in 0.7) so projects set up before
-# the rename keep working. See MIGRATING.md.
-echo "shipyard-config is deprecated. Use shipinetics-config (see MIGRATING.md)." >&2
-exec "$(dirname "$0")/shipinetics-config" "$@"

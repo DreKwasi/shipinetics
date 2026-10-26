@@ -31,7 +31,7 @@ sy_flag SKIP_VERIFY && exit 0
 root="$(sy_root)" || exit 0
 cd "$root" || exit 0
 
-dn="$(sy_dir_name "$root")"
+dn="$SY_DIR_NAME"
 cache="$root/$dn/.cache"
 mkdir -p "$cache"
 

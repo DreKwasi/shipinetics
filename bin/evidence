@@ -27,7 +27,7 @@ die() { echo "evidence: $*" >&2; exit 1; }
 repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
 cd "$repo"
 root="$(sy_env ROOT)"; [ -n "$root" ] || root="$(sy_root "$repo" || echo "$repo")"
-dn="$(sy_dir_name "$root")"
+dn="$SY_DIR_NAME"
 ev_base="$(sy_cfg "$root" evidence_dir)"
 wsdir="$root/$(sy_cfg "$root" worksheets_dir)"
 pkg_ws="$(sy_cfg "$root" package_worksheets_dir)"
@@ -102,7 +102,7 @@ fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if 
   mine="$(branch_files "$3")"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
-    case "$f" in "$ev_base"/*|docs/*|*.md|"$SY_DIR_NAME"/*|"$SY_LEGACY_DIR_NAME"/*) continue ;; esac
+    case "$f" in "$ev_base"/*|docs/*|*.md|"$SY_DIR_NAME"/*) continue ;; esac
     printf '%s\n' "$mine" | grep -qxF -- "$f" || continue
     if [ -n "$pkg_ws" ]; then case "$f" in "$pkg_ws"/*) continue ;; esac; fi
     sy_in_list "$root/$dn/test-paths" "$prefix$f" && continue

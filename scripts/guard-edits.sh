@@ -11,9 +11,7 @@
 #   env-allowed-paths   New environment-variable reads (process.env and friends) are only allowed
 #                       in files matching these globs, normally the config module.
 #
-# Globs are bash patterns relative to the Shipinetics root, and * also matches /. A glob for one of
-# the folder's names (.shipinetics/ or the legacy .shipyard/) protects the other too, so a
-# protected-paths list written before the rename keeps covering the folder after it's renamed.
+# Globs are bash patterns relative to the Shipinetics root, and * also matches /.
 # It also records which files the agent edits this session, so the Stop hook knows which
 # packages to verify in workspace mode.
 # Per-session overrides, set when starting Claude Code:
@@ -31,7 +29,7 @@ input="$(cat)"
 . "$(dirname "$0")/lib.sh"
 root="$(sy_root)" || exit 0
 dir="$(sy_dir "$root")"
-dn="$(sy_dir_name "$root")"
+dn="$SY_DIR_NAME"
 
 jget() { sy_json_field "$input" "$1"; }
 
@@ -60,14 +58,6 @@ target_rel="$rel"
 case "$rel" in "$dn/pending/"*) target_rel="${rel#"$dn/pending/"}" ;; esac
 testing_guide="$(sy_cfg "$root" testing_guide_file)"
 test_index="$(sy_cfg "$root" test_index_file)"
-
-# ---- 0. a project still on the legacy folder ----
-# Creating .shipinetics/ there would switch the guards to an empty folder, so only migrate does it.
-if [ "$dn" = "$SY_LEGACY_DIR_NAME" ] && ! sy_flag UNLOCK; then
-  case "$rel" in "$SY_DIR_NAME"/*|"$SY_DIR_NAME")
-    deny "This project still uses $SY_LEGACY_DIR_NAME/. Writing $rel would create $SY_DIR_NAME/, and the guards would switch to it, leaving its rules behind. To move to the new name, a human runs shipinetics-config migrate. Put proposals in $SY_LEGACY_DIR_NAME/pending/ until then." ;;
-  esac
-fi
 
 # ---- 1. protected paths: existing files only ----
 if ! sy_flag UNLOCK && [ -e "$path" ] && sy_list_match "$root" protected-paths "$rel"; then

@@ -35,8 +35,6 @@ claude plugin install shipinetics@shipinetics
 
 Once it's in a GitHub repo, use `claude plugin marketplace add <owner>/<repo>` on any machine, then the same install command. To try it for one session without installing, run `claude --plugin-dir ~/Projects/shipinetics`.
 
-Shipinetics used to be called Shipyard. A project set up under that name (it has a `.shipyard/` folder) keeps working in 0.6 (removed in 0.7). Move it over with `shipinetics-config migrate`, as described in [MIGRATING.md](MIGRATING.md).
-
 ### Companions (install separately)
 
 shipinetics uses these when they're installed and falls back when they aren't. `/shipinetics:setup` checks for them. Scan each with SkillSpector before installing it.
@@ -176,8 +174,6 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 
 ## Environment variables
 
-Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name in 0.6 (removed in 0.7). The new name wins if both are set.
-
 | Variable | Effect |
 |---|---|
 | `SHIPINETICS_SKIP_VERIFY=1` | Turn off the Stop hook, and the PR gate's verify check, for a session |
@@ -202,7 +198,7 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name in 0.6 (re
 
 ## Known limits
 
-- The guards match what Claude's tools are asked to do. Maintenance on guarded files goes through a human or a named command (`shipinetics-config apply`, `bench-compare --init`, `known-failing init`, `shipinetics-config migrate`), as the setup skill lists. An agent could still write a test file or print a variable through a script it writes and then runs. The env scrub, the reviewers and the night shift sandbox are the layers behind them.
+- The guards match what Claude's tools are asked to do. Maintenance on guarded files goes through a human or a named command (`shipinetics-config apply`, `bench-compare --init`, `known-failing init`), as the setup skill lists. An agent could still write a test file or print a variable through a script it writes and then runs. The env scrub, the reviewers and the night shift sandbox are the layers behind them.
 - The reviewers have Bash so they can run `git diff` and tests, which makes them read-only by instruction, not enforcement. Claude Code ignores hooks on plugin subagents.
 - The install gate asks you, so in a headless run (where nobody can answer) installs are refused.
 - `agent_review`'s runners for Codex, Gemini and Cursor use each CLI's non-interactive mode as documented when this was written. Check them against `--help` the first time you use one.
@@ -218,15 +214,13 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name in 0.6 (re
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
 bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift, scan-skills, shipinetics-config,
-                  shipinetics-verify, worksheet   (on the agent's PATH; shipyard-config and
-                  shipyard-verify are deprecated shims, removed in 0.7)
+                  shipinetics-verify, worksheet   (on the agent's PATH)
 hooks/            hooks.json
 scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,
                   visual-regression, perf, end-of-shift, verification-map
-MIGRATING.md      moving a project from Shipyard to Shipinetics
 tests/            shipinetics's own tests for the hooks and tools. Run tests/run.sh (CI runs it on
                   Linux and on macOS's bash 3.2)
 ```

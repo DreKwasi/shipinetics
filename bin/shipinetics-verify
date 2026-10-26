@@ -69,7 +69,7 @@ force=0
 case "${1:-}" in
   times) times_summary "${2:-}"; exit 0 ;;
   status)
-    sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in $(sy_dir_name "$root")/config)"
+    sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in $SY_DIR_NAME/config)"
     for t in complete quick; do
       if sy_verify_passed "$root" "$pkg" "$t"; then echo "$t: passed on the current code"
       else echo "$t: not passed on the current code"; fi
@@ -80,7 +80,7 @@ case "${1:-}" in
 esac
 tier="${1:-complete}"
 case "$tier" in quick|complete) ;; *) die "unknown tier: $tier (quick or complete)" ;; esac
-sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in $(sy_dir_name "$root")/config)"
+sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in $SY_DIR_NAME/config)"
 
 sfx="$(sy_key_suffix "$pkg")"
 if [ "$force" = 1 ]; then rm -f "$cache/pass-quick$sfx" "$cache/pass-complete$sfx"; fi

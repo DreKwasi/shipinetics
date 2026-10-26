@@ -5,12 +5,6 @@
 #   shipinetics-config              print every setting, marking the ones the project sets itself
 #   shipinetics-config get <key>    print one value (the project's, else the default)
 #   shipinetics-config root         print the Shipinetics root (the folder that holds .shipinetics/)
-#   shipinetics-config migrate [--dry-run]
-#                                   move a project set up under the old Shipyard name to the new
-#                                   names: .shipyard/ becomes .shipinetics/, and SHIPYARD_* variables,
-#                                   shipyard-verify, shipyard-config and shipyard:<skill or agent>
-#                                   references in the project's files are rewritten. Leaves the
-#                                   changes uncommitted for you to review. See MIGRATING.md.
 #   shipinetics-config match <list> <path>
 #                                   which glob in a list (protected-paths, test-paths,
 #                                   env-allowed-paths, ui-paths, complete-paths) matches the path,
@@ -27,77 +21,6 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$here/scripts/lib.sh"
-
-# migrate [--dry-run]: see the usage above
-migrate() {
-  local dry=0 force=0 a old new repos=() r f n=0 changed=()
-  for a in "$@"; do
-    case "$a" in --dry-run) dry=1 ;; --force) force=1 ;; *) echo "usage: shipinetics-config migrate [--dry-run] [--force]" >&2; exit 2 ;; esac
-  done
-  old="$root/$SY_LEGACY_DIR_NAME" new="$root/$SY_DIR_NAME"
-  [ -d "$old" ] && [ -d "$new" ] && { echo "shipinetics-config: both $old and $new exist. Merge them by hand, then run migrate again." >&2; exit 1; }
-  # A workspace with a separate harness repo links its files into it: migrate the repo itself.
-  for f in "$old" "$root/docs/shipyard-setup.md"; do
-    [ -L "$f" ] && { echo "shipinetics-config: $f is a link into $(readlink "$f"). Run migrate inside the repo it points to, then point the link at the new name." >&2; exit 1; }
-  done
-
-  # The repos to rewrite: the root's own (if it has one) and each package repo in workspace mode.
-  if git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then repos+=("$root"); fi
-  for r in $(sy_cfg "$root" packages); do
-    [ -e "$root/$r/.git" ] && repos+=("$root/$r")
-  done
-  if [ "$force" = 0 ] && [ "$dry" = 0 ]; then
-    for r in ${repos[@]+"${repos[@]}"}; do
-      [ -z "$(git -C "$r" status --porcelain -- . 2>/dev/null)" ] ||
-        { echo "shipinetics-config: $r has uncommitted changes. Commit or stash them first, so the migration is its own diff (or pass --force)." >&2; exit 1; }
-    done
-  fi
-
-  # move <from> <to>: git mv when the path is tracked, else mv
-  move() {
-    if [ "$dry" = 1 ]; then echo "would move ${1#"$root"/} to ${2#"$root"/}"; return; fi
-    if git -C "$(dirname "$1")" ls-files --error-unmatch "$1" >/dev/null 2>&1; then git -C "$(dirname "$1")" mv "$1" "$2"
-    else mv "$1" "$2"; fi
-    echo "moved ${1#"$root"/} to ${2#"$root"/}"
-  }
-  [ -d "$old" ] && move "$old" "$new"
-  [ -f "$root/docs/shipyard-setup.md" ] && [ ! -e "$root/docs/shipinetics-setup.md" ] &&
-    move "$root/docs/shipyard-setup.md" "$root/docs/shipinetics-setup.md"
-
-  # Text files that name the old folder, commands, variables or skills.
-  local re='SHIPYARD_|shipyard-(verify|config)|shipyard:|[.]shipyard([^a-zA-Z0-9_-]|$)|shipyard-setup[.]md'
-  list_files() {
-    local r
-    for r in ${repos[@]+"${repos[@]}"}; do
-      git -C "$r" grep -lIE "$re" -- . ":(exclude)$SY_DIR_NAME/.cache" ":(exclude)$SY_LEGACY_DIR_NAME/.cache" 2>/dev/null |
-        while IFS= read -r f; do printf '%s/%s\n' "$r" "$f"; done
-    done
-    # A workspace root that isn't a repo: its own files, outside the package repos.
-    if ! git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-      local p pkgs
-      pkgs="$(sy_cfg "$root" packages)"
-      grep -rlIE --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.cache "$re" "$root" 2>/dev/null |
-        while IFS= read -r f; do
-          for p in $pkgs; do case "${f#"$root"/}" in "$p"/*) continue 2 ;; esac; done
-          printf '%s\n' "$f"
-        done
-    fi
-  }
-  while IFS= read -r f; do
-    [ -f "$f" ] && [ ! -L "$f" ] || continue
-    if [ "$dry" = 0 ]; then
-      perl -pi -e 's/SHIPYARD_/SHIPINETICS_/g; s/shipyard-(verify|config)\b/shipinetics-$1/g; s/\bshipyard:(?=[a-z])/shipinetics:/g; s/(?<![\w-])\.shipyard(?![\w.-])/.shipinetics/g; s/shipyard-setup\.md/shipinetics-setup.md/g' "$f"
-    fi
-    changed+=("${f#"$root"/}"); n=$((n + 1))
-  done < <(list_files | sort -u)
-
-  if [ "$n" -gt 0 ]; then
-    if [ "$dry" = 1 ]; then echo "would update $n files:"; else echo "updated $n files:"; fi
-    printf '  %s\n' "${changed[@]}"
-  fi
-  [ "$dry" = 1 ] && return 0
-  echo "Review the changes (git diff), then commit them. Rename any SHIPYARD_* variables you set outside the repo too: your shell profile, CI settings."
-}
 
 # proposals [path...]: "<proposal file>\t<target path relative to root>" for each pending change
 proposals() {
@@ -153,16 +76,15 @@ root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder 
 case "${1:-}" in
   get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
   root) echo "$root" ;;
-  migrate) shift; migrate "$@" ;;
   match)
     [ -n "${2:-}" ] && [ -n "${3:-}" ] || { echo "usage: shipinetics-config match <list> <path>" >&2; exit 2; }
     l="${2##*/}"
-    [ -f "$(sy_dir "$root")/$l" ] || { echo "shipinetics-config: there's no $(sy_dir_name "$root")/$l" >&2; exit 2; }
+    [ -f "$(sy_dir "$root")/$l" ] || { echo "shipinetics-config: there's no $SY_DIR_NAME/$l" >&2; exit 2; }
     case "$3" in /*) p="$3" ;; *) p="$PWD/$3" ;; esac
     rel="$(sy_rel "$root" "$(sy_norm_path "$p")")"
     if sy_list_match "$root" "$l" "$rel"; then echo "$rel matches '$SY_MATCHED' in $l"
     else
-      case "$rel" in "$(sy_dir_name "$root")/pending/"*) [ "$l" = protected-paths ] && echo "$rel is a pending proposal, which is never protected" && exit 1 ;; esac
+      case "$rel" in "$SY_DIR_NAME/pending/"*) [ "$l" = protected-paths ] && echo "$rel is a pending proposal, which is never protected" && exit 1 ;; esac
       echo "$rel matches nothing in $l"; exit 1
     fi ;;
   pending) list_pending ;;
@@ -180,6 +102,6 @@ case "${1:-}" in
       printf '%-24s %-8s %s\n' "$k" "$mark" "${v:-(none)}"
     done
     ;;
-  -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "shipinetics-config: unknown command: $1" >&2; exit 2 ;;
 esac
