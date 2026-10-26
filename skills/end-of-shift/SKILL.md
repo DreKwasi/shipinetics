@@ -53,6 +53,7 @@ Write the report in plain controlled English (shipinetics:explain): short senten
 > Branch: night/YYYY-MM-DD | Base: <sha> | Head: <sha> | Spend: $<amount> | Duration: <h>
 > Stopped because: <time limit | budget | queue empty | agent stop: reason>
 > Per task: <cost and turns for each task, from the metrics CSV>
+> Quarantined tests: <`known-failing count`, and the change since the last shift; omit if the project has no list>
 
 ## Needs you (start here)
 <Ordered by urgency. Blocked questions, failing checks, test change requests, risky changes that deserve a close look.>

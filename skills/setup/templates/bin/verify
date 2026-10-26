@@ -75,6 +75,10 @@ check_unit_tests_related_to_changes() { {{UNIT_RELATED_CMD}}; }
 check_typecheck() { {{TYPECHECK_CMD}}; }
 check_lint() { {{LINT_CMD}}; }
 check_unit_tests() { {{UNIT_TEST_CMD}}; }
+# A suite with known failures (.shipinetics/known-failing, see the testing skill) gates on new
+# failures only. Write a JUnit report, let it fail, then check it. Example:
+#   npx vitest run --reporter=junit --outputFile=.shipinetics/.cache/junit.xml >/dev/null || true
+#   known-failing check .shipinetics/.cache/junit.xml
 check_build() { {{BUILD_CMD}}; }
 check_e2e_smoke() { {{E2E_SMOKE_CMD}}; }
 # Full tier

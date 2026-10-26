@@ -68,6 +68,17 @@ A suite is good when it fails if the product breaks and passes when it doesn't. 
 
 Never make a test pass by loosening, deleting, skipping or re-snapshotting it. The hooks block the direct route and the reviewers check for the indirect ones.
 
+## A suite that already fails
+
+When a project starts with failing tests nobody can fix yet, the gate would block every task. Quarantine them instead of skipping them, so only new failures fail:
+
+1. Have the test runner write a JUnit XML report (`vitest --reporter=junit`, `jest-junit`, `pytest --junitxml`, `go-junit-report`, `cargo nextest`, Playwright's junit reporter).
+2. A human records today's failures: `known-failing init <report.xml>` writes `.shipinetics/known-failing`, one test ID per line. The list is protected. Agents propose changes through `.shipinetics/pending/` like any protected file.
+3. In `bin/verify`, run the suite without letting its exit code decide, then gate on the report: `known-failing check <report.xml>`. It fails on any failure that isn't listed, and fails on an empty or missing report, so a crashed runner can't pass.
+4. Shrinking the list is real work: each entry is a queue task. When `check` says a listed test passes now, propose removing it. Never add a new failure to the list to get a pass. That's a human's decision, and the reviewers flag any change to the list.
+
+In CI, where the plugin isn't installed, copy `known-failing` from the plugin's `bin/` into the project's `bin/`. It runs on its own.
+
 ## Escape hatch
 
 If a session genuinely needs the implementer to touch tests (a mass rename, a framework migration), the user starts Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1`. Say why in the worksheet.

@@ -31,4 +31,6 @@ bc --init; has "re-baselining goes to pending" "$OUT" ".shipinetics/pending/perf
 eq "and leaves the baseline alone" "$(grep '^load' perf/baselines/m1.tsv | cut -f2)" "100.000"
 rm -f count; OUT="$(bench-compare --machine m2 -- ./bench.sh 2>&1)"
 eq "another machine needs its own baseline" "$?" 2
+mkdir -p bin; cp "$SY/bin/bench-compare" bin/; printf 'load 100,api 50\n' >vals; rm -f count
+bin/bench-compare --machine m1 -- ./bench.sh >/dev/null 2>&1; eq "a copy works without the plugin" "$?" 0
 done_testing

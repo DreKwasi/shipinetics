@@ -110,6 +110,8 @@ Skills are instructions. These parts are hooks and scripts, so they hold even wh
 - `test-paths`: only `shipinetics:test-writer` can create or edit test files, and it can't edit source.
 - `env-allowed-paths`: new `process.env`, `os.environ` and similar reads are only allowed in the config module. Docs and text files (`.md`, `.txt`, `docs/`) and reads of the safe variables above don't count.
 
+**Known failures** (`bin/known-failing`). A suite that already fails can be gated on new failures only: `bin/verify` runs `known-failing check <junit.xml>` against the protected `.shipinetics/known-failing` list (shipinetics:testing).
+
 **Secrets guard** (`scripts/guard-secrets.sh`, every project). Blocks commands that would put a secret in the agent's context: environment dumps, inline scripts that read the environment, echoing secret-looking variables, direct vault reads, and reading credential files with Bash or the Read tool. It ignores what only mentions the environment: heredoc bodies written to a file, the pattern given to grep, rg and similar, and reads of variables that never hold secrets (`HOME`, `PATH`, `TMPDIR`, `NODE_ENV`, `CI` and the like, plus `env_safe_names` in the project config). Deny messages name the project's `secrets_runner`.
 
 **PR gate** (`scripts/guard-pr.sh`, set-up projects only). `gh pr create` and `gh pr ready` are blocked until `evidence check --branch` passes, the complete verify has passed on exactly this code, and the PR body has the `## Evidence` section. `evidence check` also fails when code changed after the evidence was recorded (docs, tests and records don't count). Docs-only branches pass.
@@ -215,7 +217,7 @@ Each `SHIPINETICS_*` variable still accepts its old `SHIPYARD_*` name for one ve
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
-bin/              agent_review, bench-compare, design-check, evidence, night-shift, scan-skills, shipinetics-config,
+bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift, scan-skills, shipinetics-config,
                   shipinetics-verify, worksheet   (on the agent's PATH; shipyard-config and
                   shipyard-verify are deprecated shims, kept for one version)
 hooks/            hooks.json

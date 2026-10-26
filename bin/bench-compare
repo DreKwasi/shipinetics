@@ -31,8 +31,16 @@
 
 set -uo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
-# shellcheck source=../scripts/lib.sh
-. "$here/scripts/lib.sh"
+# Runs from the plugin, or as a copy in a project's bin/ (CI has no plugin), with just what it needs.
+if [ -f "$here/.claude-plugin/plugin.json" ] && [ -f "$here/scripts/lib.sh" ]; then
+  # shellcheck source=../scripts/lib.sh
+  . "$here/scripts/lib.sh"
+else
+  sy_root() { local d="$PWD"; while [ ! -d "$d/.shipinetics" ]; do [ "$d" = / ] && return 1; d="$(dirname "$d")"; done; echo "$d"; }
+  sy_dir() { echo "$1/.shipinetics"; }
+  sy_rel() { case "$2" in "$1"/*) echo "${2#"$1"/}" ;; *) echo "$2" ;; esac; }
+  sy_env() { local n="SHIPINETICS_$1"; if [ -n "${!n+x}" ]; then echo "${!n}"; else echo "${2:-}"; fi; }
+fi
 
 usage() { sed -n '2,31p' "$0" | sed 's/^# \{0,1\}//'; }
 die() { echo "bench-compare: $*" >&2; exit 2; }

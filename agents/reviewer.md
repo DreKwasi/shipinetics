@@ -37,7 +37,7 @@ Work through these in order. Stop going deeper on style if you've found correctn
    - snapshots or screenshot baselines regenerated in the same change as the code they cover
    - the unit under test mocked, so the test can't fail
    - retries or longer timeouts added to hide flakiness
-   - files listed in `.shipinetics/protected-paths` changed at all
+   - files listed in `.shipinetics/protected-paths` changed at all, and any entry added to `.shipinetics/known-failing`
 3. **Correctness.** Edge cases, empty and error paths, off-by-one, null handling, concurrency, resource cleanup, security of inputs. Trace at least one real path end to end.
 4. **Does it actually run?** Run `shipinetics-verify status`. If the complete tier hasn't passed on the current code, run `shipinetics-verify` (or the relevant test file if it's too slow). Report the result. Don't take the author's word that it passes.
 5. **Conventions.** Check against `docs/conventions.md`. Only flag a convention violation if the doc states it or a linter would.
