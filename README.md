@@ -2,9 +2,11 @@
 
 A portable agentic coding setup for Claude Code. Install it once and every project gets the same workflow, review process and guardrails:
 
-- A Stop hook that won't let the agent finish while checks fail.
+- A Stop hook that won't let the agent finish while checks fail. Checks run in tiers, each at the moment its result is needed: quick ones at mid-task stops, every fast check before work counts as done, the full suite in CI. Nothing is skipped, and a pass is reused until the code changes.
 - Tests written by an independent agent, never by the one that wrote the code.
-- Every PR carries evidence from the running app (screenshots, recordings, transcripts) and an independent merge-risk grade.
+- A verification map of the real app (launch, health check, every feature and every way a user reaches it), so any agent can prove a change works the way a user would. A reviewer re-drives the change itself instead of trusting the author's screenshots.
+- Every PR carries fresh evidence from the running app (screenshots, recordings, transcripts) and an independent merge-risk grade.
+- UI changes checked against the project's own design system (DESIGN.md), which setup writes from the tokens the code already uses.
 - Secrets that stay in the vault and out of the agent's context.
 - Read-only reviewers on different models, including security (Cloudflare's security-audit skill) and frontend (impeccable), all at high effort.
 - Security scanning of agent tooling (NVIDIA SkillSpector) and of your app (Strix), with you approving every app test.
@@ -40,7 +42,8 @@ shipyard uses these when they're installed and falls back when they aren't. `/sh
 | Companion | Used by | Install |
 |---|---|---|
 | Cloudflare `security-audit` skill | `shipyard:security-reviewer` | `npx skills add cloudflare/security-audit-skill` |
-| `impeccable` skill or plugin | `shipyard:ui-reviewer`, HTML explainers | `npx skills add pbakaus/impeccable`, or the impeccable plugin |
+| Impeccable plugin | `shipyard:ui-reviewer`, `design-check`, the design-system setup step, HTML explainers | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the Codex build |
+| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs and L splits, `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `npx skills add mattpocock/skills`. Some of the others in that pack clash with shipyard's rules: `shipyard:workflow` lists which to leave alone |
 | `merge-risk` skill (Warp) | Merge-risk grades on every PR | `npx skills add warpdotdev/common-skills --skill merge-risk` |
 | NVIDIA SkillSpector | `scan-skills`, the install gate | `uv tool install git+https://github.com/NVIDIA/skillspector.git` |
 | Strix | App security testing (shipyard:security-scans) | See its README. Needs Docker and a provider key in your vault |
@@ -49,11 +52,15 @@ shipyard uses these when they're installed and falls back when they aren't. `/sh
 
 They aren't declared as hard plugin dependencies on purpose. A missing hard dependency stops the whole plugin from loading, and some of them (Whiteboard, Docker) won't exist in CI or on every machine.
 
+### Other skill packs
+
+Shipyard borrows the strongest ideas from Matt Pocock's skills and from pstack (Lauren Tan's skill stack for Cursor) instead of running them side by side. The verification map and the independent re-check come from pstack's verification skills, and the review filters, blast-radius ladder, test rules and feedback criteria come from both. Running those packs' routers, `tdd`, `implement` or autopilot playbooks next to shipyard bypasses its rules (test-writer owns tests, a different model reviews, nothing merges by itself). `shipyard:workflow` lists what fits and what to leave out.
+
 ## Projects with their own setup, and multi-repo workspaces
 
 Shipyard's paths and commands are defaults. A project can map them to what it already has in `.shipyard/config` (template: `skills/setup/templates/config`): worksheet folder, feedback log, system docs, conventions, test docs, verify command, worksheet scripts, tag prefix and secrets runner. Skills, hooks and tools then use the project's own files. `shipyard-config` prints the effective settings.
 
-Workspace mode (`packages = ...`) is for a root that holds several package repos and isn't a repo itself. The Stop hook runs `package_verify_cmd` for each package the agent edited in that session, so the user's unrelated work in progress never blocks it. The PR gate and `evidence` work from whichever package repo the PR comes from. `night-shift` doesn't support workspace mode yet.
+Workspace mode (`packages = ...`) is for a root that holds several package repos and isn't a repo itself. The Stop hook runs `package_verify_cmd` (or `package_verify_quick_cmd` mid-task) for each package the agent edited in that session, so the user's unrelated work in progress never blocks it. The PR gate and `evidence` work from whichever package repo the PR comes from. `night-shift` doesn't support workspace mode yet.
 
 `/shipyard:setup` audits first, asks all its questions in one message (including anything it could only infer from comments or old docs), then installs every phase in one run with a commit per phase.
 
@@ -64,7 +71,7 @@ Workspace mode (`packages = ...`) is for a root that holds several package repos
 | 0 | Router | setup writes it | `AGENTS.md`, `CLAUDE.md` (imports `@AGENTS.md`) |
 | 1 | Workflow | `shipyard:workflow` | your `AGENT_WORKFLOW.md` overrides it if present |
 | 2 | Self-healing docs | `shipyard:system-docs` (with claims checked against sources) | `docs/systems/*.md` with 7-line headers |
-| 3 | Run the app | `shipyard:workflow` step 6 | "Run the app yourself" in `AGENTS.md` |
+| 3 | Run the app | `shipyard:verification-map`, `shipyard:workflow` step 6 | `docs/verification/` (launch, doctor, drive, cleanup, a file per feature), "Run the app yourself" in `AGENTS.md` |
 | 4 | Tests | `shipyard:testing`, `shipyard:test-writer`, `shipyard:spec` | `docs/testing/`, `e2e/`, `.shipyard/test-paths` |
 | 5 | Linters that fix | `shipyard:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (also caps commits at 400 changed lines), `.githooks/commit-msg` (requires the `Worksheet:` trailer) |
 | 6 | Cross-agent review | `shipyard:review`, four reviewer agents, `agent_review`, 7 personas | `docs/review/personas/` for domain personas |
@@ -82,6 +89,7 @@ Workspace mode (`packages = ...`) is for a root that holds several package repos
 | 18 | End of shift | `shipyard:end-of-shift` | `bin/verify --full`, `docs/shifts/*.md` and `*.html` |
 | S | Secrets | `shipyard:secrets`, `guard-secrets` hook | `.shipyard/secrets.list`, `bin/with-secrets`, config module |
 | V | Evidence on every PR | `shipyard:evidence`, `evidence`, PR gate hook, CI job | `docs/evidence/<worksheet>/`, `.shipyard/ui-paths` |
+| D | Design system | `design-check`, `shipyard:ui-reviewer`, setup's design-system step (Impeccable's `document`) | `DESIGN.md` with token frontmatter, `PRODUCT.md`, design-system change requests in worksheets |
 | M | Merge risk | `shipyard:review` (merge-risk stage) | `## Merge risk` in every PR body |
 | X | Security tools | `shipyard:security-scans`, `scan-skills`, install gate hook | `docs/security/` |
 | E | Understanding outputs | `shipyard:explain`, Whiteboard | `.shipyard/explainers/` (gitignored) |
@@ -90,7 +98,9 @@ Workspace mode (`packages = ...`) is for a root that holds several package repos
 
 Skills are instructions. These parts are hooks and scripts, so they hold even when an agent doesn't follow instructions:
 
-**Stop hook** (`scripts/stop-verify.sh`, set-up projects only). Every time the agent tries to finish with changes, it runs `bin/verify`. Changes means uncommitted changes or commits made since the session started, so an agent that commits each step and stops on a clean tree is still checked. If verify fails, the agent gets the last 60 lines of output and has to keep going. If it stops again without changing anything, the hook lets it stop and shows you a message instead of looping. It also reminds the agent once per session about the worksheet and feedback log.
+**Stop hook** (`scripts/stop-verify.sh`, set-up projects only). Every time the agent tries to finish with changes, it runs the project's checks. Changes means uncommitted changes or commits made since the session started, so an agent that commits each step and stops on a clean tree is still checked. Which tier runs depends on the moment (see "When checks run" below). If a check fails, the agent gets the last 60 lines of output and has to keep going. If it stops again without changing anything, the hook lets it stop and shows you a message instead of looping. When only the quick tier has run, it tells you so. It also reminds the agent once per session about the worksheet and feedback log.
+
+**Pre-push hook** (`.githooks/pre-push`, installed by setup). The complete verify must pass before code leaves the machine. It reuses a recorded pass, so it costs nothing after the agent verified.
 
 **Edit guard** (`scripts/guard-edits.sh`, set-up projects only). Three rules, each driven by a list in `.shipyard/`:
 
@@ -100,7 +110,7 @@ Skills are instructions. These parts are hooks and scripts, so they hold even wh
 
 **Secrets guard** (`scripts/guard-secrets.sh`, every project). Blocks commands that would put a secret in the agent's context: environment dumps, inline scripts that read the environment, echoing secret-looking variables, direct vault reads, and reading credential files with Bash or the Read tool.
 
-**PR gate** (`scripts/guard-pr.sh`, set-up projects only). `gh pr create` and `gh pr ready` are blocked until `evidence check --branch` passes and the PR body has the `## Evidence` section. Docs-only branches pass.
+**PR gate** (`scripts/guard-pr.sh`, set-up projects only). `gh pr create` and `gh pr ready` are blocked until `evidence check --branch` passes, the complete verify has passed on exactly this code, and the PR body has the `## Evidence` section. `evidence check` also fails when code changed after the evidence was recorded (docs, tests and records don't count). Docs-only branches pass.
 
 **Install gate** (`scripts/guard-installs.sh`, every project). Installing a skill, plugin, marketplace or MCP server asks you first, with a reminder to scan it with SkillSpector.
 
@@ -112,9 +122,26 @@ Skills are instructions. These parts are hooks and scripts, so they hold even wh
 
 **Night shift launcher** (`bin/night-shift`). Separate worktree and branch, per-task cost and turn caps, overall time and budget limits, OS sandbox with no escape, pushes and vault reads denied, env scrub on. Each task runs as a `/goal` with a fixed completion condition, and each run is logged to a metrics CSV.
 
+## When checks run
+
+Each check runs at the earliest moment its result is useful and the latest moment before something depends on it. None is dropped to save time.
+
+| Moment | What runs | Blocks |
+|---|---|---|
+| Commit | Lint and fix on staged files (pre-commit hook) | The commit |
+| Mid-task stop | `bin/verify --quick` (`verify_quick_cmd`): lint the changed files, incremental typecheck, tests related to the changes. The complete tier instead when a path in `.shipyard/complete-paths` changed (build config, manifests, lockfiles) | The stop |
+| "Done" stop (worksheet `Status: done`) | `bin/verify`, every fast check, including the build and e2e smoke | Reporting the work as done |
+| Push, PR | A recorded complete pass for exactly this code | The push, the PR |
+| CI | `bin/verify --full`, without local caches | The merge |
+| End of shift, weekly | `--full`, visual and perf, sweep, verification-map drift, design-system drift | Report |
+
+A pass is recorded against a hash of the code's contents, not the commit, so committing verified code or editing only worksheets, evidence and the feedback log doesn't run anything again. Run `shipyard-verify` to run a tier and record it, `shipyard-verify status` to see what has passed on the current code, and `shipyard-verify times` for where verify time goes. A project without `verify_quick_cmd` runs the complete tier at every stop, as before.
+
 ## Reviews, evidence and explanations
 
-- **Agent reviews** at each checkpoint: `shipyard:reviewer` on a different Claude model, `agent_review` for a different model family, `shipyard:security-reviewer` for anything security-relevant, and `shipyard:ui-reviewer` (impeccable's critique and audit on real screenshots) for anything visual.
+- **Agent reviews** at each checkpoint: `shipyard:reviewer` on a different Claude model, `agent_review` for a different model family, `shipyard:security-reviewer` for anything security-relevant, and `shipyard:ui-reviewer` for anything visual. The UI reviewer checks conformance to DESIGN.md first (`design-check` plus a manual pass for what the detector can't see), then runs Impeccable's critique and audit on real screenshots. Findings from several reviewers are merged and filtered before the author acts on them.
+- **Independent re-check:** for medium tasks and up, UI changes and every night shift task, the wrap-up reviewer drives the change itself from the verification map, through every entry point, at the final code, and reports PASS, ISSUES or BLOCKED.
+- **Design system:** agents never change tokens to make a finding go away. They propose the change in the worksheet's "Design-system change requests", and you decide. Setup can protect the design files so that's enforced.
 - **Claims tables:** research and docs reviews check every factual claim against evidence the reviewer opened (`file:line`, or a primary source URL with the date checked), with a verdict of verified, incorrect or unresolved.
 - **Evidence:** every PR shows the change working in the real app. Screenshots per acceptance criterion, a recording for UI changes, terminal transcripts for CLIs and APIs, recorded with `evidence` and the Playwright template in `shipyard:evidence`.
 - **Merge risk:** an independent reviewer grades every PR (alignment, impact, verification, rollback cost, error detection) as low, medium or high, using Warp's `merge-risk` skill. The grade tells you how closely to review. It never merges anything by itself.
@@ -147,7 +174,7 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 
 | Variable | Effect |
 |---|---|
-| `SHIPYARD_SKIP_VERIFY=1` | Turn off the Stop hook for a session |
+| `SHIPYARD_SKIP_VERIFY=1` | Turn off the Stop hook, and the PR gate's verify check, for a session |
 | `SHIPYARD_UNLOCK=1` | Allow edits to protected paths for a session |
 | `SHIPYARD_ALLOW_AUTHOR_TESTS=1` | Let any agent edit tests for a session (mass renames, framework migrations) |
 | `SHIPYARD_ALLOW_ENV_READ=1` | Turn off both env guards for a session |
@@ -175,18 +202,20 @@ Each worksheet has a Metrics block: model and effort, plugin version, cost, turn
 - SkillSpector and Strix weren't installed where this was built, so `scan-skills` was tested against a stand-in with SkillSpector's documented JSON format. Run `scan-skills` once after installing the real tool and check the summary.
 - `evidence pr-body` links to files on the pushed branch, so push before opening the PR. Without git LFS, keep recordings small.
 - `bin/with-secrets` reads Google Secret Manager via gcloud, or runs `infisical run` when `.shipyard/config` sets `vault = infisical`. Projects with their own runner set `secrets_runner` instead.
-- `bin/verify` runs on every agent stop where something changed, so keep fast mode to a few minutes, and never let it print environment values.
+- The Stop hook can't tell a pause from a finished task by itself. The worksheet's `Status: done` is the signal for the complete tier. If an agent never sets it, the complete tier still runs at push and PR, but not at its last stop. Keep `--quick` to seconds and the complete tier to a few minutes, and never let either print environment values.
+- `design-check` sees fonts, colors, radii and font sizes outside DESIGN.md's frontmatter. Spacing, unknown `var()` names, new token definitions and duplicated components are left to the UI reviewer. Without token frontmatter in DESIGN.md there's nothing to check against.
 
 ## Layout
 
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
-bin/              agent_review, evidence, night-shift, scan-skills, shipyard-config, worksheet   (on the agent's PATH)
+bin/              agent_review, design-check, evidence, night-shift, scan-skills, shipyard-config,
+                  shipyard-verify, worksheet   (on the agent's PATH)
 hooks/            hooks.json
 scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,
-                  visual-regression, perf, end-of-shift
+                  visual-regression, perf, end-of-shift, verification-map
 ```
