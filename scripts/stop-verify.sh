@@ -2,10 +2,13 @@
 # Stop hook. Keeps the agent working while the project's verify command fails.
 #
 # Only active in projects with a .shipyard/ folder (here or in a parent folder).
-# Single-repo mode: runs verify_cmd (default bin/verify) when the repo has uncommitted changes.
+# Single-repo mode: runs verify_cmd (default bin/verify) when the repo has changes: uncommitted
+# ones, or commits made since the session started. Agents commit each step as they go, so a
+# clean tree doesn't mean there's nothing to check.
 # Workspace mode (packages set in .shipyard/config): runs package_verify_cmd for each package
-# repo with uncommitted changes. With verify_scope = touched (the default), only packages the
-# agent edited this session count, so the user's own unrelated work never blocks the agent.
+# repo with changes in the same sense. With verify_scope = touched (the default), only packages
+# the agent edited this session count, so the user's own unrelated work never blocks the agent.
+# The session's starting HEAD is recorded per repo in .shipyard/.cache/head-<session>*.
 # Skips states that already passed, and lets a stuck agent stop with a message to the user.
 # Reminds the agent once per session to update its worksheet and feedback log.
 # Set SHIPYARD_SKIP_VERIFY=1 in the environment to turn it off for a session.
@@ -52,8 +55,26 @@ fingerprint() {
   ) | shasum | cut -d' ' -f1
 }
 
+# committed_since_start <repo dir> <cache key> <exclude pathspecs...>: files changed by commits
+# made since the session started. Records the starting HEAD the first time it sees the session.
+# The first Stop can come after the agent has already committed, so that first lookup asks the
+# reflog where HEAD was when the session marker was made (guard-edits.sh makes it at the
+# session's first edit). With no marker or no reflog, it falls back to the current HEAD.
+committed_since_start() {
+  local repo="$1" f="$cache/head-$session${2:+-$2}" since start
+  shift 2
+  if [ ! -f "$f" ]; then
+    since="$(date -r "$cache/session-$session" +%s 2>/dev/null)"
+    { { [ -n "$since" ] && git -C "$repo" rev-parse -q --verify "HEAD@{@$since +0000}" 2>/dev/null; } ||
+      git -C "$repo" rev-parse -q --verify HEAD 2>/dev/null; } >"$f"
+  fi
+  start="$(cat "$f")"
+  [ -n "$start" ] || start="$(git -C "$repo" hash-object -t tree /dev/null)" # no commits yet at start
+  git -C "$repo" diff --name-only "$start" HEAD -- . "$@" 2>/dev/null
+}
+
 reminder_text() { # reminder_text <missing>
-  printf 'shipyard: there are uncommitted code changes, but you have not updated %s. If your task is finished, do that before you stop (see the shipyard:worksheet and shipyard:feedback skills). If you are mid-task or waiting on the user, ignore this.' "$1"
+  printf 'shipyard: there are code changes this session, but you have not updated %s. If your task is finished, do that before you stop (see the shipyard:worksheet and shipyard:feedback skills). If you are mid-task or waiting on the user, ignore this.' "$1"
 }
 
 block_with() { # block_with <log> <label>
@@ -88,7 +109,8 @@ if sy_workspace "$root"; then
     [ -d "$root/$p/.git" ] || [ -f "$root/$p/.git" ] || continue
     excl=(':(exclude)'"$evidence")
     [ -n "$pkg_ws" ] && excl+=(':(exclude)'"$pkg_ws")
-    [ -n "$(git -C "$root/$p" status --porcelain --untracked-files=all -- . "${excl[@]}" 2>/dev/null)" ] || continue
+    committed="$(committed_since_start "$root/$p" "${p//\//_}" "${excl[@]}")"
+    [ -n "$committed" ] || [ -n "$(git -C "$root/$p" status --porcelain --untracked-files=all -- . "${excl[@]}" 2>/dev/null)" ] || continue
     if [ "$scope" = "touched" ]; then
       [ -f "$touched" ] && grep -q "^$p/" "$touched" || continue
     fi
@@ -146,6 +168,9 @@ git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 ignore=(':(exclude).shipyard/.cache' ':(exclude)'"$worksheets" ':(exclude)'"$feedback" ':(exclude)'"$evidence")
 
 changed="$(git status --porcelain --untracked-files=all -- . ':(exclude).shipyard/.cache' | cut -c4-)"
+if [ -n "$session" ]; then
+  changed="$(printf '%s\n' "$changed" "$(committed_since_start "$root" "" ':(exclude).shipyard/.cache')" | sed '/^$/d')"
+fi
 [ -z "$changed" ] && exit 0
 
 reminded="$cache/reminded-${session:-none}"

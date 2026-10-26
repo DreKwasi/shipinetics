@@ -90,7 +90,7 @@ Workspace mode (`packages = ...`) is for a root that holds several package repos
 
 Skills are instructions. These parts are hooks and scripts, so they hold even when an agent doesn't follow instructions:
 
-**Stop hook** (`scripts/stop-verify.sh`, set-up projects only). Every time the agent tries to finish with uncommitted changes, it runs `bin/verify`. If verify fails, the agent gets the last 60 lines of output and has to keep going. If it stops again without changing anything, the hook lets it stop and shows you a message instead of looping. It also reminds the agent once per session about the worksheet and feedback log.
+**Stop hook** (`scripts/stop-verify.sh`, set-up projects only). Every time the agent tries to finish with changes, it runs `bin/verify`. Changes means uncommitted changes or commits made since the session started, so an agent that commits each step and stops on a clean tree is still checked. If verify fails, the agent gets the last 60 lines of output and has to keep going. If it stops again without changing anything, the hook lets it stop and shows you a message instead of looping. It also reminds the agent once per session about the worksheet and feedback log.
 
 **Edit guard** (`scripts/guard-edits.sh`, set-up projects only). Three rules, each driven by a list in `.shipyard/`:
 
