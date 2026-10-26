@@ -30,6 +30,7 @@ The user would rather come back to two tasks done right and one clearly blocked 
 
 - Confirm you're on a `night/` branch: `git branch --show-current`. If not, reply `SHIFT_STOP: not on a night branch` and stop.
 - `git status` is clean, or the only changes are a previous run's unfinished task (check In progress in the queue and its worksheet).
+- If `docs/verification/` exists, launch the app and run its doctor check once, so a broken environment shows up now and not halfway through a task.
 - Run `shipyard-verify`. If it fails on a clean tree and the failure isn't from an in-progress task, fixing it **is** your task this run: create a P0 queue item for it and work it. If you can't fix it, reply `SHIFT_STOP: verify fails on the base` with the details, because every later run would hit the same wall.
 
 ### 2. Pick
@@ -45,7 +46,7 @@ Follow the full loop in shipyard:workflow. In particular:
 - Spec with runnable criteria, and acceptance tests that fail first, for anything above XS.
 - No human to answer questions. If a product decision is needed, mark the task Blocked with a one-line question, commit, and stop. Don't guess on product decisions. Do decide technical details, and record them under Decisions.
 - Run the app and check the feature works, then record the evidence (shipyard:evidence) and run `evidence check`. A task without complete evidence isn't done.
-- Plan review and implementation review with a different model (shipyard:review), including the security and UI reviewers when the change calls for them. Address every finding. For night shift, also get a wrap-up review.
+- Plan review and implementation review with a different model (shipyard:review), including the security and UI reviewers when the change calls for them. Address every finding. For night shift, also get a wrap-up review with the independent re-check: the reviewer drives the change itself. A task whose re-check isn't PASS isn't done.
 - Author a Whiteboard of the task's change for the human, if Whiteboard is available (shipyard:review, "Whiteboard for the human"). Link it in the worksheet.
 - Get the task's merge-risk grade from `shipyard:reviewer` (stage `merge-risk`) and record it in the worksheet's Metrics.
 - Keep the worksheet current after every step. You may hit your turn or budget cap at any moment, and the next run resumes from the worksheet alone.

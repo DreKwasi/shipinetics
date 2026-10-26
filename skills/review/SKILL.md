@@ -34,6 +34,10 @@ Research and docs reviews return a **claims table** instead of findings: every c
 5. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option.
 6. **Re-review** only if your fixes were substantial or a reviewer said `blocked`. Stop after two rounds and flag the disagreement for a human.
 
+### Independent re-check at wrap-up
+
+The author's screenshots show what the author saw. For tasks M and up, any change that touches UI, and every night shift task, the wrap-up reviewer also drives the change itself. Tell `shipyard:reviewer` to re-check: it launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
+
 ## Choosing personas
 
 Persona files live in `${CLAUDE_SKILL_DIR}/personas/`. A project can add its own or override one in `docs/review/personas/<name>.md` (the project version wins).

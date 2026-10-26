@@ -35,6 +35,7 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Worksheet follow-ups** that never made it into the queue.
 - **Review dispositions** marked "deferred" whose queue task doesn't exist.
 - **Guardrails not in force:** rerun rows S and V of the setup audit (shipyard:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
+- **Verification map drift:** run shipyard:verification-map `maintain` (weekly sweeps; at end of shift, `light` instead). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
 - **Verify time:** `shipyard-verify times 7`. If the quick tier regularly takes more than a minute, find which step is slow and scope it better. If the complete tier keeps failing at the done gate on things the quick tier could have caught, move a scoped version of that check into `--quick`.
 
 ## Act

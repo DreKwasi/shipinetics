@@ -29,10 +29,11 @@ Worksheet: `$ARGUMENTS` (default: the current one).
 | Bug fix | The same, showing the bug's reproduction steps now producing the right result. If you can, also the "before" from the base commit |
 | Docs, config, tests only | None. Humans add the `no-evidence` label; the hook passes docs-only branches by itself |
 
-Evidence is real or it's nothing:
+Evidence is real or it's nothing. The verification map's evidence standards apply (shipyard:verification-map): the real user path, the action *and* the resulting state, changes read back from a second view, every entry point the feature lists, each artifact labeled with its feature ID and entry point. In short:
 
 - Recorded from the app started the normal way (`bin/with-secrets <start command>`), at the code you're submitting. Not mocks, not Storybook, not a test's fixture server, unless that is the product.
-- Shows the result the criterion talks about, not just that a page loaded.
+- Shows the result the criterion talks about, not just that a page loaded, and the state it left behind.
+- For a bug, the symptom reproduced twice through the real UI before the fix, and gone after it. Never force or inject the symptom.
 - Contains no secrets, tokens or personal data. Use seeded test accounts. Check every screenshot before you commit it.
 - Recordings stay short: under a minute, one flow. Several short recordings beat one long one.
 

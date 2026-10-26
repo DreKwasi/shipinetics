@@ -161,10 +161,10 @@ case "$cmd" in
       echo
       echo "One row per acceptance criterion. Evidence is a file in this folder: a screenshot, a recording, or terminal.log."
       echo
-      echo "| Criterion | Evidence | What it shows |"
-      echo "|---|---|---|"
+      echo "| Criterion | Feature and entry point | Evidence | What it shows (action and resulting state) |"
+      echo "|---|---|---|---|"
       acs="$(acs_of "$ws")"
-      if [ -n "$acs" ]; then for ac in $acs; do echo "| $ac | | |"; done; else echo "| AC1 | | |"; fi
+      if [ -n "$acs" ]; then for ac in $acs; do echo "| $ac | | | |"; done; else echo "| AC1 | | | |"; fi
       echo
       echo "## How it was recorded"
       echo

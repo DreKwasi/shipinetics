@@ -62,9 +62,10 @@ Read its report. "Suspected bugs" are yours to fix. "Gaps" usually mean the spec
 
 ## 6. Run the app yourself
 
-Tests aren't enough. Start the app (commands in `AGENTS.md`), go through the feature the way a user would, and check:
+Tests aren't enough. Start the app and run the doctor check from `docs/verification/README.md` (shipyard:verification-map), then go through the feature the way a user would, using its file in `docs/verification/features/`. Drive every entry point the file lists, not just the most convenient one. If the feature has no file, or the file is out of date, fix that in this task. Check:
 
 - The feature works on the main path and at least one edge case (empty, error, long input).
+- What changed is really stored: read it back from a second, read-only view (a query, a GET, another screen).
 - No errors in the browser console or server logs.
 - Nothing nearby broke. Click through the screens next to the one you changed.
 

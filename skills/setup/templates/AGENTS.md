@@ -8,7 +8,7 @@ Work is done when **`bin/verify` passes** on the final code and the change has b
 
 ## Run the app yourself
 
-Always run the app and use the feature you changed before you say it works. Tests passing isn't enough.
+Always run the app and use the feature you changed before you say it works. Tests passing isn't enough. `docs/verification/README.md` has the full recipe (launch, doctor, drive, cleanup) and a file per feature with every entry point a user has (shipyard:verification-map).
 
 - Install: `{{INSTALL_CMD}}`
 - Start: `bin/with-secrets {{START_CMD}}` (serves on {{URL}})

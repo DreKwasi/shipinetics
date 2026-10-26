@@ -29,6 +29,7 @@ If something fails and the fix is small and obvious, fix it, with `bin/verify` p
 2. **Sweep** today's commits (shipyard:sweep), so cross-task problems surface tonight, not next week.
 3. **Light test audit:** run shipyard:test-audit on the tests added or changed during the shift only.
 4. **Agent tooling:** if the shift added or changed any skill, agent, hook or MCP config, run `scan-skills` on those paths and report the results.
+5. **Verification map:** shipyard:verification-map `light` for the features the shift's tasks touched. Report its outcome (clean, changed or blocked). Product bugs it finds go in the queue.
 
 Fix what's small. Queue the rest.
 
