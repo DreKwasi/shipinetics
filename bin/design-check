@@ -4,6 +4,7 @@
 # Usage:
 #   design-check [base]      check UI files changed since base (default: where the branch left main)
 #   design-check --all       check every file matching .shipyard/ui-paths (for sweeps)
+#   design-check --help      this text
 #
 # Runs Impeccable's detector on the changed files in .shipyard/ui-paths, and on the same files at
 # the base, then reports only the design-system findings this branch added: fonts, colors, radii
@@ -18,6 +19,7 @@
 # `impeccable hooks ignore-value <value> --reason "<who decided>"`.
 
 set -uo pipefail
+case "${1:-}" in -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$here/scripts/lib.sh"

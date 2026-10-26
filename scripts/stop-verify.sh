@@ -62,7 +62,7 @@ committed_since_start() {
   fi
   start="$(cat "$f")"
   [ -n "$start" ] || start="$(git -C "$repo" hash-object -t tree /dev/null)" # no commits yet at start
-  git -C "$repo" diff --name-only "$start" HEAD -- . "$@" 2>/dev/null
+  git -C "$repo" -c core.quotePath=false diff --name-only --no-renames "$start" HEAD -- . "$@" 2>/dev/null
 }
 
 reminder_text() { # reminder_text <missing>
@@ -155,7 +155,7 @@ if sy_workspace "$root"; then
     list="$cache/changed-$session$sfx"
     {
       committed_since_start "$root/$p" "${p//\//_}"
-      git -C "$root/$p" status --porcelain --untracked-files=all | cut -c4-
+      sy_changed_paths "$root/$p"
     } | sed '/^$/d' | sort -u >"$list"
     tier="$(pick_tier "$list" "$p/")"
     if sy_verify_run "$root" "$p" "$tier" "$list" stop; then
@@ -181,7 +181,7 @@ verify_bin="${verify_cmd%% *}"
 [ -x "$root/$verify_bin" ] || command -v "$verify_bin" >/dev/null 2>&1 || exit 0
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || exit 0
 
-changed="$(git status --porcelain --untracked-files=all -- . ':(exclude).shipyard/.cache' | cut -c4-)"
+changed="$(sy_changed_paths "$root" | grep -v '^\.shipyard/\.cache/' || true)"
 if [ -n "$session" ]; then
   changed="$(printf '%s\n' "$changed" "$(committed_since_start "$root" "" ':(exclude).shipyard/.cache')" | sed '/^$/d')"
 fi
@@ -206,8 +206,16 @@ fi
 
 list="$cache/changed-${session:-none}"
 printf '%s\n' "$code_changed" | sed '/^$/d' | sort -u >"$list"
-[ -s "$list" ] || exit 0
-tier="$(pick_tier "$list" "" $(printf '%s\n' "$changed" | grep "^$worksheets/.*\.md$" || true))"
+ws_changed="$(printf '%s\n' "$changed" | grep "^$worksheets/.*\.md$" || true)"
+if [ ! -s "$list" ]; then
+  # Only records changed this session. Nothing to check, unless the task was just marked done
+  # and the complete tier hasn't passed on this code (a resumed session that only wraps up).
+  # shellcheck disable=SC2086  # worksheet paths, one per word
+  sy_task_done "$root" $ws_changed && ! sy_verify_passed "$root" "" complete || exit 0
+  list=""
+fi
+# shellcheck disable=SC2086
+tier="$(if [ -z "$list" ]; then echo complete; else pick_tier "$list" "" $ws_changed; fi)"
 if sy_verify_run "$root" "" "$tier" "$list" stop; then
   [ "$SY_VERIFY_RAN" = 1 ] && [ "$SY_VERIFY_TIER" = quick ] && quick_note "this session's changes"
   exit 0

@@ -6,7 +6,8 @@
 #
 # Works from the repo the command runs in, so in workspace mode it checks the package repo.
 # Active only when a .shipyard/ folder exists at or above that repo. Docs-only branches pass.
-# Start Claude Code with SHIPYARD_ALLOW_NO_EVIDENCE=1 to skip it for a session.
+# Start Claude Code with SHIPYARD_ALLOW_NO_EVIDENCE=1 to skip the whole gate for a session
+# (evidence and verify), or SHIPYARD_SKIP_VERIFY=1 to skip only the verify check.
 
 set -uo pipefail
 
@@ -51,8 +52,12 @@ case "$out" in *docs-only*) exit 0 ;; esac
 # The complete verify must have passed on exactly this code. Mid-task stops may only have run the
 # quick tier, so this is where the complete tier is guaranteed. A recorded pass is reused, so
 # this costs nothing when the agent already ran it.
+# A repo under the root that isn't one of the workspace's packages has no verify command of its
+# own, so there's nothing to require.
 pkg=""; [ "$root" != "$repo" ] && pkg="$(sy_rel "$root" "$repo")"
-if [ "${SHIPYARD_SKIP_VERIFY:-0}" != "1" ] && sy_verify_configured "$root" "$pkg" &&
+enrolled=1
+if [ -n "$pkg" ]; then sy_workspace "$root" && sy_package_of "$root" "$pkg" >/dev/null || enrolled=0; fi
+if [ "${SHIPYARD_SKIP_VERIFY:-0}" != "1" ] && [ "$enrolled" = 1 ] && sy_verify_configured "$root" "$pkg" &&
    ! sy_verify_passed "$root" "$pkg" complete; then
   deny "shipyard: the complete verify hasn't passed on this exact code, so the PR can't open yet. Run shipyard-verify (it runs $(sy_verify_cmd "$root" complete "$pkg") and records the pass), fix anything that fails, then open the PR again."
 fi

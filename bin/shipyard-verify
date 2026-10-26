@@ -17,6 +17,7 @@
 # Exit code: the verify command's, 0 when a recorded pass is reused.
 
 set -uo pipefail
+case "${1:-}" in -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$here/scripts/lib.sh"
@@ -40,10 +41,7 @@ changed_files() {
       base="$(git -C "$repo" merge-base HEAD "$b" 2>/dev/null)" && break
     fi
   done
-  {
-    [ -n "$base" ] && git -C "$repo" diff --name-only "$base" HEAD
-    git -C "$repo" status --porcelain --untracked-files=all | cut -c4-
-  } | sed '/^$/d' | sort -u
+  sy_changed_paths "$repo" "$base"
 }
 
 times_summary() {
@@ -69,7 +67,6 @@ times_summary() {
 
 force=0
 case "${1:-}" in
-  -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
   times) times_summary "${2:-}"; exit 0 ;;
   status)
     sy_verify_configured "$root" "$pkg" || die "no verify command configured (verify_cmd in .shipyard/config)"
@@ -96,10 +93,11 @@ if [ "$SY_VERIFY_RAN" = 0 ]; then
   echo "shipyard-verify: $SY_VERIFY_TIER already passed on this exact code. Nothing to run (use --force to run anyway)."
   exit 0
 fi
-cat "$SY_VERIFY_LOG"
 if [ "$rc" = 0 ]; then
-  echo "shipyard-verify: $SY_VERIFY_TIER passed. Recorded for this code."
+  tail -n 60 "$SY_VERIFY_LOG"
+  echo "shipyard-verify: $SY_VERIFY_TIER passed. Recorded for this code. Full output: $SY_VERIFY_LOG"
 else
+  cat "$SY_VERIFY_LOG"
   echo "shipyard-verify: $SY_VERIFY_TIER failed (exit $rc). Output above, also in $SY_VERIFY_LOG." >&2
 fi
 exit "$rc"

@@ -141,20 +141,30 @@ sy_verify_excludes() {
 # (tracked and untracked, minus ignored files and the excluded paths). It doesn't depend on HEAD,
 # so the same code has the same fingerprint before and after it's committed. It builds the tree
 # in a throwaway copy of the index and never touches the real one. Falls back to hashing HEAD
-# plus the diff if that fails.
+# plus the diff if that fails. Prints nothing and returns 1 if the folder isn't a usable git repo,
+# so a broken fingerprint can never match a recorded pass.
 sy_fingerprint() {
-  local repo="$1" idx tree="" p paths=()
+  local repo="$1" idx tree="" p paths=() add_excl=()
   shift
-  for p in "$@"; do paths+=("${p#:(exclude)}"); done
+  git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || return 1
+  for p in "$@"; do
+    paths+=("${p#:(exclude)}")
+    # git add refuses an exclude pathspec that names an ignored path, and ignored paths aren't
+    # added anyway, so only pass the others. Excluding them here saves hashing big evidence files.
+    git -C "$repo" check-ignore -q "${p#:(exclude)}" 2>/dev/null || add_excl+=("$p")
+  done
   idx="$(mktemp "${TMPDIR:-/tmp}/sy-index.XXXXXX")" || idx=""
   if [ -n "$idx" ]; then
     tree="$(
       cd "$repo" || exit 1
       real="$(git rev-parse --git-path index 2>/dev/null)" || exit 1
-      if [ -f "$real" ]; then cp "$real" "$idx" || exit 1; else rm -f "$idx"; fi
+      # Keep the mtime of the index file (cp -p). Git compares it with each entry to find racily
+      # clean entries, files changed in the same second their entry was written at the same size.
+      # A fresh mtime hides them, and the fingerprint would hash the old contents.
+      if [ -f "$real" ]; then cp -p "$real" "$idx" || exit 1; else rm -f "$idx"; fi
       export GIT_INDEX_FILE="$idx"
       [ -f "$real" ] || git read-tree --empty || exit 1
-      git add -A -- . >/dev/null 2>&1 || exit 1
+      git add -A -- . ${add_excl[@]+"${add_excl[@]}"} >/dev/null 2>&1 || exit 1
       [ "${#paths[@]}" -eq 0 ] || git rm -r -q --cached --ignore-unmatch -- "${paths[@]}" >/dev/null 2>&1 || exit 1
       git write-tree 2>/dev/null
     )" || tree=""
@@ -171,6 +181,19 @@ sy_fingerprint() {
         [ -f "$f" ] && shasum "$f"
       done
   ) | shasum | cut -d' ' -f1
+}
+
+# sy_changed_paths <repo> [since commit]: changed paths, one per line, relative to the repo:
+# uncommitted changes (staged or not), untracked files, and files changed by commits since the
+# given commit. Paths are unquoted, and a rename lists both its old and new path, so a verify
+# script can read the list line by line.
+sy_changed_paths() {
+  {
+    git -C "$1" -c core.quotePath=false diff --name-only --no-renames HEAD -- 2>/dev/null ||
+      git -C "$1" -c core.quotePath=false diff --name-only --no-renames --cached -- 2>/dev/null
+    git -C "$1" -c core.quotePath=false ls-files --others --exclude-standard 2>/dev/null
+    if [ -n "${2:-}" ]; then git -C "$1" -c core.quotePath=false diff --name-only --no-renames "$2" HEAD -- 2>/dev/null; fi
+  } | sed '/^$/d' | sort -u
 }
 
 # sy_has_quick <root> <package or empty>: true if the project defines a quick tier
@@ -211,6 +234,7 @@ sy_verify_passed() {
   sfx="$(sy_key_suffix "$2")"
   while IFS= read -r l; do excl+=("$l"); done < <(sy_verify_excludes "$1" "$2")
   SY_VERIFY_FP="$(sy_fingerprint "$1${2:+/$2}" "${excl[@]}")"
+  [ -n "$SY_VERIFY_FP" ] || return 1
   [ "$SY_VERIFY_FP" = "$(cat "$cache/pass-complete$sfx" 2>/dev/null)" ] && return 0
   [ "$3" = quick ] && [ "$SY_VERIFY_FP" = "$(cat "$cache/pass-quick$sfx" 2>/dev/null)" ]
 }
@@ -250,7 +274,7 @@ sy_verify_run() {
   ) >"$SY_VERIFY_LOG" 2>&1
   rc=$?
   if [ "$rc" = 0 ]; then
-    printf '%s' "$SY_VERIFY_FP" >"$cache/pass-$tier$sfx"
+    [ -n "$SY_VERIFY_FP" ] && printf '%s' "$SY_VERIFY_FP" >"$cache/pass-$tier$sfx"
     rm -f "$cache/last-fail$sfx"
     sy_verify_log "$root" "$src" "$pkg" "$tier" "$(( $(date +%s) - t0 ))" pass
   else

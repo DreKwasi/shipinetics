@@ -62,7 +62,7 @@ default_base() {
 }
 
 branch_files() { # branch_files <base>: files changed since base, committed or not
-  { git diff --name-only "$1" 2>/dev/null; git status --porcelain --untracked-files=all | cut -c4-; } | sed '/^$/d' | sort -u
+  sy_changed_paths "$repo" "$1"
 }
 
 branch_worksheets() { # branch_worksheets <base>
@@ -89,20 +89,24 @@ changed_files_of() { # changed_files_of <worksheet> <base>: files under that wor
   fi
 }
 
-fresh_one() { # fresh_one <worksheet> <EVIDENCE.md>: prints a problem if code changed since recording
-  local rec f stale="" n=0
+fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if code changed since recording
+  # Only files this branch changed count, so merging main doesn't make evidence stale. Docs and
+  # Markdown are skipped with the same rule as docs-only branches.
+  local rec f stale="" n=0 mine
   rec="$(sed -n 's/^>[[:space:]]*Commit:[[:space:]]*\([0-9a-fA-F]\{7,40\}\).*/\1/p' "$2" | head -n 1)"
   if [ -z "$rec" ] || ! git rev-parse -q --verify "$rec^{commit}" >/dev/null 2>&1; then
     echo "  $1: the Commit line in $2 doesn't name a commit in this repo. Set it to the commit you recorded the evidence at."
     return 1
   fi
+  mine="$(branch_files "$3")"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
     case "$f" in "$ev_base"/*|docs/*|*.md|.shipyard/*) continue ;; esac
+    printf '%s\n' "$mine" | grep -qxF -- "$f" || continue
     if [ -n "$pkg_ws" ]; then case "$f" in "$pkg_ws"/*) continue ;; esac; fi
     sy_in_list "$root/.shipyard/test-paths" "$prefix$f" && continue
     n=$((n + 1)); [ "$n" -le 5 ] && stale="${stale:+$stale, }$f"
-  done < <({ git diff --name-only "$rec" -- . 2>/dev/null; git ls-files --others --exclude-standard; } | sort -u)
+  done < <({ git -c core.quotePath=false diff --name-only --no-renames "$rec" -- . 2>/dev/null; git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)
   [ "$n" -eq 0 ] && return 0
   [ "$n" -gt 5 ] && stale="$stale and $((n - 5)) more"
   echo "  $1: the evidence was recorded at $rec, but code changed since: $stale. Re-record the criteria those changes affect, then set the Commit line to the commit you recorded at."
@@ -131,7 +135,7 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
       echo "  $ws: the $ac row doesn't name an evidence file"; bad=1
     fi
   done
-  fresh_one "$ws" "$ev" || bad=1
+  fresh_one "$ws" "$ev" "$2" || bad=1
   if [ -f "$root/.shipyard/ui-paths" ]; then
     while IFS= read -r f; do
       [ -z "$f" ] && continue
