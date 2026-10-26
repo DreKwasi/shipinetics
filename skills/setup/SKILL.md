@@ -185,6 +185,7 @@ Follow `shipinetics:visual-regression` and `shipinetics:perf` to add one visual 
 2. Check for Strix and Docker. If the user wants app security testing and they're missing, put the install on the For you list: install Strix, store its provider key in Secret Manager and add it to `.shipinetics/secrets.list`.
 3. Record the local or staging instance the user said Strix may test in the Secrets or Security section of `AGENTS.md`. Don't run Strix during setup unless they say so.
 4. Add the weekly security pass to their routine (GETTING-STARTED.md in the plugin repo).
+5. Ask how often to run a full security audit (security-audit's full mode: thorough, and it costs many agent runs): off, weekly, monthly, quarterly or every N days. Set `security_audit_every` in `.shipinetics/config` (`off`, `weekly`, `monthly`, `quarterly` or `<days>d`). The weekly sweep runs it when `shipinetics-config due security-audit` says it's due.
 
 ## Finish
 

@@ -29,7 +29,8 @@ If something fails and the fix is small and obvious, fix it, with `bin/verify` p
 2. **Sweep** today's commits (shipinetics:sweep), so cross-task problems surface tonight, not next week.
 3. **Light test audit:** run shipinetics:test-audit on the tests added or changed during the shift only.
 4. **Agent tooling:** if the shift added or changed any skill, agent, hook or MCP config, run `scan-skills` on those paths and report the results.
-5. **Verification map:** shipinetics:verification-map `light` for the features the shift's tasks touched. Report its outcome (clean, changed or blocked). Product bugs it finds go in the queue.
+5. **Security audit due:** if `shipinetics-config due security-audit` says due, put that under Needs you. Don't run the full audit in a shift.
+6. **Verification map:** shipinetics:verification-map `light` for the features the shift's tasks touched. Report its outcome (clean, changed or blocked). Product bugs it finds go in the queue.
 
 Fix what's small. Queue the rest.
 

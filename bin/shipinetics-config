@@ -5,6 +5,10 @@
 #   shipinetics-config              print every setting, marking the ones the project sets itself
 #   shipinetics-config get <key>    print one value (the project's, else the default)
 #   shipinetics-config root         print the Shipinetics root (the folder that holds .shipinetics/)
+#   shipinetics-config due security-audit
+#                                   whether the scheduled full security audit is due, from
+#                                   security_audit_every and the last line in docs/security/audits.md.
+#                                   Exit 0 if due, 1 if not yet, 2 if it isn't scheduled
 #   shipinetics-config match <list> <path>
 #                                   which glob in a list (protected-paths, test-paths,
 #                                   env-allowed-paths, ui-paths, complete-paths) matches the path,
@@ -21,6 +25,29 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$here/scripts/lib.sh"
+
+# epoch_of <YYYY-MM-DD>: seconds since 1970 at that date (BSD and GNU date)
+epoch_of() { date -j -f '%Y-%m-%d %H:%M:%S' "$1 00:00:00" +%s 2>/dev/null || date -d "$1" +%s; }
+
+# due security-audit: see the usage above
+due() {
+  local every days log last age
+  [ "${1:-}" = security-audit ] || { echo "usage: shipinetics-config due security-audit" >&2; exit 2; }
+  every="$(sy_cfg "$root" security_audit_every)"
+  case "$every" in
+    off|"") echo "security-audit: not scheduled (security_audit_every = off)"; exit 2 ;;
+    weekly) days=7 ;; monthly) days=30 ;; quarterly) days=91 ;;
+    *[0-9]d) days="${every%d}" ;;
+    *) echo "shipinetics-config: security_audit_every must be off, weekly, monthly, quarterly or <days>d, not '$every'" >&2; exit 2 ;;
+  esac
+  case "$days" in ''|*[!0-9]*) echo "shipinetics-config: bad security_audit_every: $every" >&2; exit 2 ;; esac
+  log="$root/docs/security/audits.md"
+  last="$(grep -oE '^- [0-9]{4}-[0-9]{2}-[0-9]{2}' "$log" 2>/dev/null | cut -c3- | sort | tail -n 1 || true)"
+  if [ -z "$last" ]; then echo "security-audit: due (never run; every $every)"; exit 0; fi
+  age=$(( ( $(date +%s) - $(epoch_of "$last") ) / 86400 ))
+  if [ "$age" -ge "$days" ]; then echo "security-audit: due (last run $last, $age days ago; every $every)"; exit 0; fi
+  echo "security-audit: not due (last run $last, $age days ago; due in $((days - age)) days)"; exit 1
+}
 
 # proposals [path...]: "<proposal file>\t<target path relative to root>" for each pending change
 proposals() {
@@ -76,6 +103,7 @@ root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder 
 case "${1:-}" in
   get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
   root) echo "$root" ;;
+  due) shift; due "$@" ;;
   match)
     [ -n "${2:-}" ] && [ -n "${3:-}" ] || { echo "usage: shipinetics-config match <list> <path>" >&2; exit 2; }
     l="${2##*/}"
@@ -102,6 +130,6 @@ case "${1:-}" in
       printf '%-24s %-8s %s\n' "$k" "$mark" "${v:-(none)}"
     done
     ;;
-  -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "shipinetics-config: unknown command: $1" >&2; exit 2 ;;
 esac

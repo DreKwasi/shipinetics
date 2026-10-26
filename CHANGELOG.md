@@ -20,6 +20,13 @@ release has a git tag, `vX.Y.Z`, on the commit that set its version.
 - You choose the secret files. A `secret-paths` list (one glob per line) in `.shipinetics/` or in
   `~/.config/shipinetics/` replaces the built-in list of credential files. Setup has a template.
 - The edit guard keeps agents out of `~/.config/shipinetics/`.
+- A cadence for the full security audit: `security_audit_every` (`off`, `weekly`, `monthly`,
+  `quarterly` or `<days>d`), chosen at setup. `shipinetics-config due security-audit` says when one
+  is due, and the weekly sweep runs it. Each audit adds a line of counts to
+  `docs/security/audits.md`. The findings stay outside the repo.
+- The tests are isolated from the machine: a scratch home, settings folder and git config, no
+  `SHIPINETICS_*` or Claude Code variables from the shell, and only this plugin's commands on the
+  `PATH`.
 - Tests for the `SHIPINETICS_SKIP_VERIFY` and `SHIPINETICS_UNLOCK` overrides.
 
 ## 0.6.0

@@ -41,7 +41,7 @@ shipinetics uses these when they're installed and falls back when they aren't. `
 
 | Companion | Used by | Install |
 |---|---|---|
-| Cloudflare `security-audit` skill | `shipinetics:security-reviewer` | `npx skills add cloudflare/security-audit-skill` |
+| Cloudflare `security-audit` skill | `shipinetics:security-reviewer`, and the full security audit on the cadence you pick (`security_audit_every`, checked by `shipinetics-config due security-audit` in the weekly sweep) | `npx skills add cloudflare/security-audit-skill` |
 | Impeccable plugin | `shipinetics:ui-reviewer`, `design-check`, the design-system setup step, HTML explainers | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the repo's `.agents/skills/` copy, written for Codex |
 | Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs and L splits, `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `claude plugin install mattpocock-skills@claude-plugins-official`. Some of the others in that pack clash with shipinetics's rules: `shipinetics:workflow` lists which to leave alone |
 | `merge-risk` skill (Warp) | Merge-risk grades on every PR | `npx skills add warpdotdev/common-skills --skill merge-risk` |

@@ -58,7 +58,13 @@ The security and frontend reviewers depend on skills you install separately: `se
 
 ### Full security audit
 
-`security-audit` also has a full six-phase audit mode that writes report artifacts outside the repo. It's expensive and thorough. Run it only when the user asks, before a major release, or on a schedule the user has agreed to, never automatically inside a task: spawn `shipinetics:security-reviewer` and tell it "full audit" with an output directory outside the repo. A release security pass also includes `scan-skills` and, with the user's approval, a Strix run against staging (shipinetics:security-scans).
+`security-audit` also has a full six-phase audit mode that writes report artifacts outside the repo. It's expensive and thorough. Run it when the user asks, before a major release, or when the user's cadence says it's due, never automatically inside a task.
+
+- **The cadence is the user's choice:** `security_audit_every` in `.shipinetics/config` (`off`, `weekly`, `monthly`, `quarterly` or `<days>d`; setup asks). `shipinetics-config due security-audit` says whether one is due. The weekly sweep checks it.
+- **To run one:** spawn `shipinetics:security-reviewer` and tell it "full audit" with an output directory outside the repo (security-audit's default, `~/security-audit-skill/<repo>/run-<N>`).
+- **Record it:** when it finishes, append one line to `docs/security/audits.md` (create it with a `# Security audits` heading) and commit it: `- YYYY-MM-DD <short commit> <profile>: <counts by severity> (<complete or incomplete>), report in <output directory>`. Only the counts go in the repo. The findings stay in the output directory, and each confirmed critical or high one becomes a queue task.
+
+A release security pass also includes `scan-skills` and, with the user's approval, a Strix run against staging (shipinetics:security-scans).
 
 ## Merge risk: how much of the human's attention a PR needs
 

@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off security_audit_every"
 
 sy_default() {
   case "$1" in
@@ -28,6 +28,7 @@ sy_default() {
     secrets_runner) echo "bin/with-secrets" ;;
     vault) echo "gsm" ;;
     launch) echo "agent" ;;
+    security_audit_every) echo "off" ;;
     bench_cmd) echo "bin/bench" ;;
     *) echo "" ;;
   esac

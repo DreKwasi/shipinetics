@@ -16,4 +16,19 @@ eq "paths are relative to where you are" "$out" "tests/x.test.ts matches 'tests/
 shipinetics-config match protected-paths src/app.ts >/dev/null; eq "no match exits 1" "$?" 1
 has "a pending proposal is never protected" "$(shipinetics-config match protected-paths .shipinetics/pending/e2e/acceptance/a.spec.ts)" "never protected"
 has "but it's still a test file" "$(shipinetics-config match test-paths .shipinetics/pending/tests/x.test.ts)" "matches 'tests/*'"
+
+# due security-audit: the cadence the user chose, against the last audit in docs/security/audits.md
+days_ago() { python3 -c 'import datetime, sys; print(datetime.date.today() - datetime.timedelta(days=int(sys.argv[1])))' "$1"; }
+printf 'launch = agent\n' >.shipinetics/config
+shipinetics-config due security-audit >/dev/null; eq "no cadence: not scheduled" "$?" 2
+printf 'security_audit_every = monthly\n' >.shipinetics/config
+has "never run: due" "$(shipinetics-config due security-audit)" "due (never run"
+mkdir -p docs/security; printf '# Security audits\n- %s abc1234 standard: 0 critical, 0 high\n' "$(days_ago 10)" >docs/security/audits.md
+shipinetics-config due security-audit >/dev/null; eq "10 days after a monthly audit: not due" "$?" 1
+printf -- '- %s def5678 standard: 0 critical, 0 high\n' "$(days_ago 40)" >>docs/security/audits.md
+shipinetics-config due security-audit >/dev/null; eq "the newest audit counts, not the last line" "$?" 1
+printf 'security_audit_every = 7d\n' >.shipinetics/config
+has "a custom cadence in days" "$(shipinetics-config due security-audit)" "due (last run $(days_ago 10)"
+printf 'security_audit_every = fortnightly\n' >.shipinetics/config
+shipinetics-config due security-audit >/dev/null 2>&1; eq "an unknown cadence is an error" "$?" 2
 done_testing
