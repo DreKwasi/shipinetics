@@ -3,13 +3,30 @@
 
 set -uo pipefail
 SY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PATH="$SY/bin:$PATH"
 fails=0
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/shipinetics-test.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
-# Never read the real user's settings or session switches.
-export XDG_CONFIG_HOME="$scratch/xdg"
-unset SHIPINETICS_HOOKS_OFF
+
+# Isolate the tests from this machine, so they pass or fail the same everywhere:
+# - a scratch home and settings folder, so the user's ~/.config/shipinetics, ~/.gitconfig and
+#   credential files never count;
+# - no git config but each repo's own (no global hooks, signing or default branch);
+# - no SHIPINETICS_* switches from the user's shell, and no Claude Code session variables;
+# - a PATH with this plugin's bin/ and the system tools only, so another plugin's commands
+#   (or an installed copy of this one) can't answer for ours. The bash running the tests comes
+#   first, so the tools run on the same bash.
+export HOME="$scratch/home" XDG_CONFIG_HOME="$scratch/xdg"
+mkdir -p "$HOME" "$XDG_CONFIG_HOME"
+export GIT_CONFIG_GLOBAL="$scratch/gitconfig" GIT_CONFIG_NOSYSTEM=1
+for v in $(compgen -e); do
+  case "$v" in SHIPINETICS_*|CLAUDE_PROJECT_DIR|CLAUDE_PLUGIN_ROOT|CLAUDECODE|CLAUDE_CODE_*) unset "$v" ;; esac
+done
+tool_dirs="$(dirname "${BASH:-/bin/bash}")"
+for t in git jq python3 perl; do
+  t="$(command -v "$t" 2>/dev/null)" && tool_dirs="$tool_dirs:$(dirname "$t")"
+done
+export PATH="$SY/bin:$tool_dirs:/usr/bin:/bin:/usr/sbin:/sbin"
+unset t v tool_dirs
 
 # new_repo <dir>: an empty git repo on main with a test identity
 new_repo() {
