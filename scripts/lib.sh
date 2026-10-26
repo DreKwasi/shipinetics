@@ -11,7 +11,7 @@
 # old .shipyard/ folder still works (sy_dir picks it, with a notice), and every SHIPINETICS_*
 # setting falls back to its old SHIPYARD_* name (sy_env). See MIGRATING.md.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names"
 
 sy_default() {
   case "$1" in
@@ -139,6 +139,108 @@ sy_in_list() {
   done <"$1"
   return 1
 }
+
+# ---------------------------------------------------------------- guard text
+# Variables that never hold secrets. The env guards ignore reads of these, and a project can add
+# its own with env_safe_names in the config.
+SY_SAFE_ENV="HOME PATH TMPDIR TMP TEMP USER LOGNAME SHELL PWD OLDPWD LANG LC_ALL TERM TZ HOSTNAME EDITOR NODE_ENV CI"
+
+# sy_safe_env_names [root]: the built-in safe names plus the project's env_safe_names
+sy_safe_env_names() {
+  if [ -n "${1:-}" ]; then printf '%s %s\n' "$SY_SAFE_ENV" "$(sy_cfg "$1" env_safe_names)"
+  else printf '%s\n' "$SY_SAFE_ENV"; fi
+}
+
+# sy_sanitize <cmd|code> <safe names>: stdin to stdout, minus the text the env guards shouldn't
+# judge. Both modes turn reads of safe variables into SAFE_ENV. cmd mode (a Bash command) also
+# drops heredoc bodies written to a file with cat or tee (a heredoc fed to a program stays), the
+# pattern argument of grep, egrep, fgrep, rg, ag, ack and git grep, and printenv of safe names.
+sy_sanitize() { perl -e "$SY_SANITIZE_PL" "$1" "$2"; }
+read -r -d '' SY_SANITIZE_PL <<'PL' || true
+use strict; use warnings;
+my ($mode, $names) = @ARGV;
+my $t = do { local $/; <STDIN> }; $t = '' unless defined $t;
+my $n = join '|', map { quotemeta } grep { /^[A-Za-z_][A-Za-z0-9_]*$/ } split ' ', ($names // '');
+
+sub heredocs {
+  my @out; my @open;
+  for my $line (split /\n/, $_[0], -1) {
+    if (@open) {
+      my ($delim, $drop, $dash) = @{$open[0]};
+      my $cmp = $dash ? ($line =~ s/^\t+//r) : $line;
+      if ($cmp eq $delim) { shift @open; push @out, $line } else { push @out, $drop ? '' : $line }
+      next;
+    }
+    push @out, $line;
+    while ($line =~ /<<(-?)[ \t]*(['"]?)([A-Za-z_][A-Za-z0-9_]*)\2/g) {
+      my ($dash, $delim) = ($1, $3);
+      (my $before = substr($line, 0, $-[0])) =~ s/.*[;&|]//s;
+      (my $after = substr($line, $+[0])) =~ s/[;&|].*//s;
+      my $cmd = "$before $after";
+      my $to_file = ($cmd =~ /^\s*cat\b/ && $cmd =~ />/) || $cmd =~ /^\s*tee\b/;
+      push @open, [$delim, $to_file, $dash];
+    }
+  }
+  return join "\n", @out;
+}
+
+sub unquote { my $w = shift; $w =~ s/^'(.*)'$/$1/s or $w =~ s/^"(.*)"$/$1/s; return $w }
+
+sub search_patterns {
+  my $s = shift; my @tok; my ($i, $len) = (0, length $s);
+  while ($i < $len) {
+    my $c = substr($s, $i, 1);
+    if ($c =~ /[ \t]/) { my $j = $i; $j++ while $j < $len && substr($s, $j, 1) =~ /[ \t]/; push @tok, ['sp', substr($s, $i, $j - $i)]; $i = $j; next }
+    if (substr($s, $i, 2) eq '$(') { push @tok, ['s', '$(']; $i += 2; next }
+    if ($c =~ /[;&|()`\n]/) { push @tok, ['s', $c]; $i++; next }
+    my $j = $i;
+    while ($j < $len) {
+      my $d = substr($s, $j, 1);
+      last if $d =~ /[ \t;&|()`\n]/ || substr($s, $j, 2) eq '$(';
+      if ($d eq "'") { my $k = index($s, "'", $j + 1); $j = $k < 0 ? $len : $k + 1; next }
+      if ($d eq '"') { my $k = $j + 1; while ($k < $len && substr($s, $k, 1) ne '"') { $k++ if substr($s, $k, 1) eq '\\'; $k++ } $j = $k < $len ? $k + 1 : $len; next }
+      $j += $d eq '\\' ? 2 : 1;
+    }
+    push @tok, ['w', substr($s, $i, $j - $i)]; $i = $j;
+  }
+  my %takes_arg = map { $_ => 1 } qw(-A -B -C -m -g -t -T -j -M -d -D -f --file --type --type-not --glob --iglob
+    --max-count --context --after-context --before-context --include --exclude --exclude-dir --max-depth --threads);
+  my @seg;
+  for my $k (0 .. $#tok + 1) {
+    if ($k <= $#tok && $tok[$k][0] ne 's') { push @seg, $k if $tok[$k][0] eq 'w'; next }
+    my @w = @seg; @seg = ();
+    shift @w while @w && (unquote($tok[$w[0]][1]) =~ /^[A-Za-z_][A-Za-z0-9_]*=/ || $tok[$w[0]][1] =~ /^(sudo|command|time|nohup|exec)$/);
+    next unless @w;
+    my $cmd = unquote($tok[$w[0]][1]); $cmd =~ s{.*/}{};
+    if ($cmd eq 'git' && @w > 1 && $tok[$w[1]][1] eq 'grep') { shift @w }
+    elsif ($cmd !~ /^(grep|egrep|fgrep|rg|ag|ack)$/) { next }
+    shift @w;
+    my ($have_e, $done, $only_pos) = (0, 0, 0);
+    for (my $a = 0; $a < @w; $a++) {
+      my $u = unquote($tok[$w[$a]][1]);
+      if (!$only_pos && $u eq '--') { $only_pos = 1; next }
+      if (!$only_pos && $u =~ /^-/) {
+        if ($u eq '-e' || $u eq '--regexp') { $tok[$w[$a]][1] = ''; $tok[$w[$a + 1]][1] = '' if $a + 1 < @w; $a++; $have_e = 1; next }
+        if ($u =~ /^(-e.|--regexp=)/) { $tok[$w[$a]][1] = ''; $have_e = 1; next }
+        $a++ if $takes_arg{$u};
+        next;
+      }
+      if (!$have_e && !$done) { $tok[$w[$a]][1] = ''; $done = 1 }
+    }
+  }
+  return join '', map { $_->[1] } @tok;
+}
+
+if ($mode eq 'cmd') {
+  $t = search_patterns(heredocs($t));
+  $t =~ s/(?<![\w-])printenv((?:[ \t]+(?:$n))+)(?=[ \t]*(?:$|[;&|>)\n]))/:/g if length $n;
+}
+if (length $n) {
+  $t =~ s/(?:process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|ENV)(?:\.(?:get|fetch))?\s*(?:\.|\[|\()\s*(["']?)(?:$n)\1(?!\w)\s*[\])]?/SAFE_ENV/g;
+  $t =~ s/(?:os\.getenv|os\.Getenv|os\.LookupEnv|std::env::var|env::var|System\.getenv|getenv)\s*\(\s*(["'])(?:$n)\1\s*\)/SAFE_ENV/g;
+}
+print $t;
+PL
 
 # sy_json_field <json> <dotted.path>: a value from hook input, with a python fallback when jq is missing
 sy_json_field() {

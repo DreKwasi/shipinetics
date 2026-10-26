@@ -44,3 +44,7 @@
 
 # ---- Secrets: how to run a command with secrets from the vault
 # secrets_runner = bin/with-secrets                 # or: infisical run --env=dev --
+# The env guards ignore reads of variables that never hold secrets: HOME, PATH, TMPDIR, TMP, TEMP,
+# USER, LOGNAME, SHELL, PWD, OLDPWD, LANG, LC_ALL, TERM, TZ, HOSTNAME, EDITOR, NODE_ENV and CI.
+# Add the project's own, space-separated. Never list a variable that can hold a secret.
+# env_safe_names = APP_ENV LOG_LEVEL

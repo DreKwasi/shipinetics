@@ -10,7 +10,12 @@
 #   - reading credential files (gcloud ADC, ~/.aws/credentials, SSH keys, .netrc, ...)
 #
 # Active in every project, because secrets in your shell environment are exposed everywhere.
-# Run things that need secrets through bin/with-secrets, which injects them without printing them.
+# Run things that need secrets through bin/with-secrets (or the project's secrets_runner), which
+# injects them without printing them.
+#
+# Not judged: reads of variables that never hold secrets (HOME, PATH, TMPDIR, NODE_ENV, CI and the
+# rest of SY_SAFE_ENV in lib.sh, plus the project's env_safe_names), heredoc bodies written to a
+# file, and the pattern given to grep, rg and similar search commands.
 # Start Claude Code with SHIPINETICS_ALLOW_ENV_READ=1 to turn this off for a session.
 #
 # It's a backstop that matches command text, not a sandbox. The stronger layer is
@@ -35,8 +40,12 @@ sys.stdout.write("" if v is None else str(v))' "$1"
   fi
 }
 
+root="$(sy_root 2>/dev/null)" || root=""
+runner="bin/with-secrets"
+[ -n "$root" ] && runner="$(sy_cfg "$root" secrets_runner)"
+
 deny() {
-  local reason="shipinetics: blocked because this would $1. Secrets here live in a vault and reach the app as environment variables, so agents never read their values. To run something that needs secrets, use bin/with-secrets <command>. To check a variable is set without seeing it: [ -n \"\${NAME+x}\" ] && echo set. If the user really wants this, they can run it themselves or start Claude Code with SHIPINETICS_ALLOW_ENV_READ=1."
+  local reason="shipinetics: blocked because this would $1. Secrets here live in a vault and reach the app as environment variables, so agents never read their values. To run something that needs secrets, use $runner <command>. To check a variable is set without seeing it: [ -n \"\${NAME+x}\" ] && echo set. If the user really wants this, they can run it themselves or start Claude Code with SHIPINETICS_ALLOW_ENV_READ=1."
   if command -v jq >/dev/null 2>&1; then
     jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
   else
@@ -57,11 +66,16 @@ fi
 
 cmd="$(jget tool_input.command)"
 [ -n "$cmd" ] || exit 0
+# Judge only what would run. If perl is missing, judge the whole command.
+clean="$(printf '%s' "$cmd" | sy_sanitize cmd "$(sy_safe_env_names "$root")")" && cmd="$clean"
 
 nl=$'\n'
 # Command position: start of the command, or after ; & | ( $( ` a newline or " -- " (as in evidence run -- cmd),
-# optionally behind a wrapper.
-pos='(^|[;&|(`'"$nl"']|\$\(|[[:space:]]--[[:space:]])[[:space:]]*((sudo|exec|command|nohup|time|[^[:space:];&|]*with-secrets)[[:space:]]+)*'
+# optionally behind a wrapper (the secrets runner included).
+wrap="with-secrets"
+rb="${runner%% *}"; rb="${rb##*/}"
+[ -n "$rb" ] && [ "$rb" != "with-secrets" ] && wrap="$wrap|$(printf '%s' "$rb" | sed 's/[][\.*^$+?(){}|]/\\&/g')"
+pos='(^|[;&|(`'"$nl"']|\$\(|[[:space:]]--[[:space:]])[[:space:]]*((sudo|exec|command|nohup|time|[^[:space:];&|]*('"$wrap"'))[[:space:]]+)*'
 
 r_env="$pos"'env([[:space:]]+-[A-Za-z0-9]+)*[[:space:]]*($|[|;&>)`])'
 r_printenv="$pos"'printenv([[:space:]]|$)'

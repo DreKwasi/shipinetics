@@ -87,9 +87,16 @@ if ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
 fi
 
 # ---- 3. environment reads in code ----
-if ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths" ] && ! sy_in_list "$dir/env-allowed-paths" "$target_rel"; then
+# Docs and plain text only mention the environment, and reads of safe variables (NODE_ENV, HOME,
+# env_safe_names) don't count.
+case "$target_rel" in *.md|*.mdx|*.markdown|*.txt|*.rst|*.adoc|docs/*) is_doc=1 ;; *) is_doc=0 ;; esac
+if [ "$is_doc" = 0 ] && ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths" ] && ! sy_in_list "$dir/env-allowed-paths" "$target_rel"; then
+  safe="$(sy_safe_env_names "$root")"
   re='process\.env|import\.meta\.env|Deno\.env|Bun\.env|os\.environ|os\.getenv|os\.Getenv|os\.LookupEnv|std::env::var|env::var\(|System\.getenv|ENV\[|ENV\.fetch|getenv\('
-  count() { grep -oE "$re" | wc -l | tr -d ' '; }
+  count() { # without perl, count every read
+    local t; t="$(cat)"
+    { printf '%s' "$t" | sy_sanitize code "$safe" || printf '%s' "$t"; } | grep -oE "$re" | wc -l | tr -d ' '
+  }
   tool="$(jget tool_name)"
   case "$tool" in
     Edit)         before="$(jget tool_input.old_string | count)"; after="$(jget tool_input.new_string | count)" ;;
