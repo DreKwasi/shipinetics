@@ -4,7 +4,7 @@
 set -uo pipefail
 SY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fails=0
-scratch="$(mktemp -d "${TMPDIR:-/tmp}/shipinetics-test.XXXXXX")"
+t="${TMPDIR:-/tmp}"; scratch="$(mktemp -d "${t%/}/shipinetics-test.XXXXXX")"   # macOS runners end TMPDIR in /
 trap 'rm -rf "$scratch"' EXIT
 
 # Isolate the tests from this machine, so they pass or fail the same everywhere:

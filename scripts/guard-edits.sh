@@ -49,7 +49,7 @@ case "$path" in /*) ;; *) path="${root:-${CLAUDE_PROJECT_DIR:-$PWD}}/$path" ;; e
 path="$(sy_norm_path "$path")"   # so .. can't step out of the pending folder past the rules
 
 # ---- the user's own settings: guarded in every project, whatever hooks_off says ----
-udir="$(sy_user_dir)"
+udir="$(sy_norm_path "$(sy_user_dir)")"   # XDG_CONFIG_HOME may end in / or hold //
 case "$path" in "$udir"|"$udir"/*)
   sy_flag UNLOCK || deny "$path is in your Shipinetics settings, which can switch hooks off and choose which secret files are guarded. Agents don't change them. Tell the user what you'd change and why, and they can edit the file themselves." ;;
 esac

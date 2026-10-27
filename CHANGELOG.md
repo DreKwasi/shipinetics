@@ -6,6 +6,12 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## 0.7.3
+
+### Fixed
+- The edit guard did not keep agents out of your settings when `XDG_CONFIG_HOME` ended in `/` or had `//` in it. Now it does.
+- Three tests failed on macOS in CI. There, `$TMPDIR` ends in `/`. The tests now remove that `/`.
+
 ## 0.7.2
 
 ### Changed

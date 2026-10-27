@@ -42,4 +42,5 @@ rm "$user/secret-paths"
 
 # ---- agents can't change the user's settings
 hook guard-edits.sh Write file_path "$user/config"; has "the edit guard keeps agents out of the user's settings" "$OUT" "Shipinetics settings"
+XDG_CONFIG_HOME="$XDG_CONFIG_HOME/" hook guard-edits.sh Write file_path "$user/config"; has "and when XDG_CONFIG_HOME ends in /" "$OUT" "Shipinetics settings"
 done_testing
