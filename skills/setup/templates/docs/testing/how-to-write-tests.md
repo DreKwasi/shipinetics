@@ -10,9 +10,10 @@
 
 | Change | Write |
 |---|---|
-| New user-facing behavior | An e2e test for the main path, written from the acceptance criteria before the code. Unit tests for tricky logic |
-| Bug fix | A regression test that fails without the fix. Watch it fail first |
-| Pure logic (parsing, calculation, state machines) | Unit tests, including edge cases and invalid input |
+| New user-facing behavior | An e2e test for the main path, written from the acceptance criteria before the code. Unit tests for the domain logic's behaviours |
+| Bug fix | A regression case in the test of the behaviour it broke, failing without the fix. Watch it fail first. Not a new file named after the fix |
+| Pure logic (parsing, calculation, state machines) | Tests of its behaviours through its public interface, with edge cases and invalid input as rows in a table |
+| Glue (routes, controllers, wiring) or trivial code | No unit tests. A behaviour test at the entry point covers it |
 | Refactor | No new tests. Existing ones must pass unchanged. If you had to change a test, it wasn't a pure refactor |
 | UI appearance | A screenshot test (shipinetics:visual-regression) |
 | Performance-sensitive path | A benchmark (shipinetics:perf) |
@@ -26,7 +27,8 @@
 
 ## Rules
 
-- **Test behavior, not implementation.** Assert on what a user or caller sees, not on private functions or call counts.
+- **Test behaviours, not functions.** One test per behaviour a user or caller can observe, through the public entry point, at one layer. Never one test per function, and never on private functions or call counts.
+- **One home per behaviour.** Tests live in the module's test file, grouped by behaviour. Extend the existing test before adding one.
 - **Every test must be able to fail.** Before committing a new test, break the code it covers and watch it fail.
 - **E2E selectors** use roles and accessible names (`getByRole('button', { name: 'Save' })`), then `data-testid`. Never CSS classes or DOM structure.
 - **No fixed sleeps.** Wait for a condition (`expect(...).toBeVisible()`), not for time.
@@ -45,4 +47,4 @@
 
 ## After writing tests
 
-Add each new test to `docs/testing/test-index.md` with one line on what it proves.
+Update `docs/testing/test-index.md`: one line per behaviour, under its module, naming the test that proves it.

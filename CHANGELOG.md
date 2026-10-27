@@ -5,6 +5,19 @@ something a project relies on (a removed command, setting, file name or hook beh
 minor version (0.6.0 to 0.7.0). Anything else bumps the patch version (0.7.0 to 0.7.1). Each
 release has a git tag, `vX.Y.Z`, on the commit that set its version.
 
+## 0.7.1
+
+### Changed
+- Tests are written per behaviour, never per function (Google's rule from "Software Engineering at
+  Google", ch. 12). Test-writer's plan lists behaviours as sentences from the spec, each with the
+  bug it catches, its layer and entry point, and the existing test it extends. It sorts the code
+  first: domain logic gets tests of its behaviours, glue code one test at its entry point, trivial
+  code none, and logic tangled with I/O is reported as a refactor candidate. Each behaviour has one
+  layer and one home: a fix adds a case to the behaviour's test, not a new file named after the fix.
+- The test-integrity persona flags per-function suites, a behaviour tested at two layers, test
+  files named after fixes, and tests that break on a refactor. `test-audit` reshapes such suites.
+- The test index lists behaviours, not files, so test-writer can find the test to extend.
+
 ## 0.7.0
 
 ### Changed (breaking)

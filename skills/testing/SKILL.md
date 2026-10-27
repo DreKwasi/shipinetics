@@ -39,17 +39,15 @@ Don't give it your implementation reasoning, your worry list or your expected ou
 
 ## What lean means
 
-Test-writer follows these, and reviewers check them (the test-integrity persona):
+**Test behaviours, not functions.** A test checks something a user or caller can observe, through the public entry point, in a sentence they would recognise ("ties go to whoever reached the total first"), never what one function returns. Each behaviour gets one test, at one layer, in one home: the module's test file, grouped by behaviour. A fix adds a case to the test of the behaviour it protects, not a new file named after the fix. This is Google's rule ("Software Engineering at Google", ch. 12: a test per behaviour, not per method), and the rest follows from it:
 
-- One test per behavior, equivalence class or boundary. Same-shaped cases go in one table-driven test.
-- Every test traces to a line of the spec.
-- No tests of the framework, libraries, getters and setters, private functions, or what the type checker guarantees.
-- Assert outputs and observable effects, never call counts on internal collaborators.
-- Mock only at system boundaries: network, clock, randomness, filesystem, external services.
-- Expected values come from the spec or hand calculation, never from running the code and pasting the output.
-- Each test must catch a mutation (a deliberate break in the code) that no other test catches, or encode a named requirement. Redundant tests get deleted.
+- Sort the code first. Domain logic gets tests of its behaviours. Glue code is covered by one test at its entry point. Trivial code gets none. Logic tangled with I/O is a refactor candidate, not something to mock around.
+- Every test names the plausible bug it catches, and is shown to catch it. No nameable bug, no test.
+- Mock only at system boundaries. Assert outputs and effects, never call counts on internal collaborators.
+- Expected values come from the spec, worked out by hand.
+- Tests that catch nothing unique are deleted.
 
-A suite is good when it fails if the product breaks and passes when it doesn't. More tests isn't better. Coverage numbers don't measure what matters. The periodic audit (shipinetics:test-audit) checks the suite stays that way.
+The detail is in the test-writer agent, and the test-integrity persona reviews it. A suite is good when it fails if the product breaks and passes when it doesn't. More tests isn't better, and coverage numbers don't measure what matters. The periodic audit (shipinetics:test-audit) reshapes suites that drifted.
 
 ## E2E specifics
 

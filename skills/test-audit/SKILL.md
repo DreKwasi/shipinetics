@@ -18,8 +18,9 @@ You won't audit everything in one go. Prioritize, and record the date in the `Au
 
 1. Tests for code where a bug recently shipped.
 2. Tests added or changed in the last two weeks (`git log --since=2.weeks --name-only -- '*test*' '*spec*'`).
-3. Tests for critical paths: auth, payments, data writes, anything in a domain persona's docs.
-4. Tests never audited, oldest first.
+3. Suites organised per function, or split into files named after fixes, in modules recent tasks touched.
+4. Tests for critical paths: auth, payments, data writes, anything in a domain persona's docs.
+5. Tests never audited, oldest first.
 
 Aim for 10 to 20 test files per run.
 
@@ -63,9 +64,10 @@ A suite that's too big is slow, noisy, and hides the tests that matter. For each
 
 1. **Find redundancy.** With a mutation tool, look at which mutants each test kills. Without one, group tests by the behavior they exercise. Any test that kills nothing another test doesn't already kill, and doesn't encode a named requirement, is redundant.
 2. **Find tests that test the wrong thing:** framework or library behavior, getters and setters, private functions, call counts on internal collaborators, what the type checker already guarantees.
-3. **Merge same-shaped cases** into one table-driven test.
-4. Have `shipinetics:test-writer` make the cuts and merges, then re-run the mutation check to confirm the suite still catches everything it caught before.
-5. Record in the report: tests before, tests after, mutations caught before and after. Fewer tests catching the same mutations is a win.
+3. **Reshape per-function suites into per-behaviour ones.** A file with one test per exported function becomes tests of the module's behaviours through its public entry point, grouped by behaviour. Files named after fixes or tickets merge into the module's test file. A behaviour tested at two layers keeps the lower one.
+4. **Merge same-shaped cases** into one table-driven test.
+5. Have `shipinetics:test-writer` make the reshapes, cuts and merges, then re-run the mutation check to confirm the suite still catches everything it caught before.
+6. Record in the report: tests and files before and after, and mutations caught before and after. Fewer tests catching the same mutations is a win.
 
 ## Report
 
@@ -76,7 +78,7 @@ Write `docs/test-audits/YYYY-MM-DD.md`:
 > Summary: <N files audited, M weak tests found, K fixed>
 | Test | Smell | Mutation tried | Survived? | Action |
 
-Bloat: <tests before> to <tests after>. Mutations caught: <before> to <after>.
+Bloat: <tests before> to <tests after>, <files before> to <files after>. Mutations caught: <before> to <after>.
 ```
 
 Update `docs/testing/test-index.md` audit dates. If the same smell shows up three or more times, add it to the "Patterns that make tests lie" list in `docs/testing/how-to-write-tests.md`, and consider a lint rule for it (shipinetics:lint-rule).

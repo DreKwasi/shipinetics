@@ -3,7 +3,7 @@
 A portable agentic coding setup for Claude Code. Install it once and every project gets the same workflow, review process and guardrails:
 
 - A Stop hook that won't let the agent finish while checks fail. Checks run in tiers, each at the moment its result is needed: quick ones at mid-task stops, every fast check before work counts as done, the full suite in CI. Nothing is skipped, and a pass is reused until the code changes.
-- Tests written by an independent agent, never by the one that wrote the code.
+- Tests written by an independent agent, never by the one that wrote the code: one per behaviour a user or caller can see, never one per function.
 - A verification map of the real app (launch, health check, every feature and every way a user reaches it), so any agent can prove a change works the way a user would. A reviewer re-drives the change itself instead of trusting the author's screenshots.
 - Every PR carries fresh evidence from the running app (screenshots, recordings, transcripts) and an independent merge-risk grade.
 - UI changes checked against the project's own design system (DESIGN.md), which setup writes from the tokens the code already uses.
