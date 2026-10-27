@@ -77,6 +77,10 @@ The `domain-modeling` skill writes `GLOSSARY.md` and ADRs in these formats, and 
 
 The `Owner persona` field says which review persona (shipinetics:review) checks this doc when its area changes. When that persona reviews a change, it reports docs that went stale. The author fixes them before the task is done.
 
+## Language
+
+Write system docs, ADRs and the glossary in ASD-STE100 (shipinetics:explain): short sentences, active voice, one word for one thing. A doc that's hard to read gets skipped, and then it stops being true.
+
 ## Don'ts
 
 - Don't paste code into docs. Link to `file:line`. Code in docs goes stale silently.

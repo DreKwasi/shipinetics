@@ -1,253 +1,325 @@
 # Shipinetics
 
-A portable agentic coding setup for Claude Code. Install it once and every project gets the same workflow, review process and guardrails:
+Shipinetics is a plugin for Claude Code. It gives every project the same workflow, reviews and guardrails. You install it one time. Then each project gets these parts:
 
-- A Stop hook that won't let the agent finish while checks fail. Checks run in tiers, each at the moment its result is needed: quick ones at mid-task stops, every fast check before work counts as done, the full suite in CI. Nothing is skipped, and a pass is reused until the code changes.
-- Tests written by an independent agent, never by the one that wrote the code: one per behaviour a user or caller can see, never one per function.
-- A verification map of the real app (launch, health check, every feature and every way a user reaches it), so any agent can prove a change works the way a user would. A reviewer re-drives the change itself instead of trusting the author's screenshots.
-- Every PR carries fresh evidence from the running app (screenshots, recordings, transcripts) and an independent merge-risk grade.
-- UI changes checked against the project's own design system (DESIGN.md), which setup writes from the tokens the code already uses.
-- Secrets that stay in the vault and out of the agent's context.
-- Read-only reviewers on different models, including security (Cloudflare's security-audit skill) and frontend (impeccable), all at high effort.
-- Security scanning of agent tooling (NVIDIA SkillSpector) and of your app (Strix), with you approving every app test.
-- Whiteboards and HTML explainers so you can understand what the agents did, with claims checked against sources.
-- Worksheets that let another agent pick up a half-done task, with metrics to measure the setup on accepted work.
-- A night shift launcher with hard limits.
+- **A Stop hook.** The agent cannot stop while the project's checks fail. Checks run in tiers: quick checks while the agent works, all fast checks before the work is done, and the full suite in CI. No check is skipped. A pass stays valid until the code changes.
+- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function.
+- **A verification map.** It tells any agent how to start the real app, check it, and use each feature the way a user does. A reviewer uses the feature again by itself. It does not trust the author's screenshots.
+- **Evidence on every PR.** Each PR shows the change in the running app: screenshots, a recording, or terminal output. An independent reviewer gives each PR a merge-risk grade.
+- **Design checks.** UI changes are compared with the project's design system (`DESIGN.md`). Setup writes `DESIGN.md` from the tokens that the code already uses.
+- **Secrets stay hidden.** Secrets stay in the vault. The agent never sees their values.
+- **Reviewers on other models.** The reviewers are read-only. They include a security reviewer (Cloudflare's security-audit skill) and a UI reviewer (Impeccable).
+- **Security scans.** SkillSpector scans agent tools before you install them. Strix tests your own app, but only after you approve each run. A full security audit runs on the schedule that you choose.
+- **Explanations.** Whiteboards and HTML pages show you what the agents did. All text for people uses ASD-STE100 (Simplified Technical English).
+- **Worksheets.** Each task has a worksheet. Another agent can continue a task from its worksheet.
+- **A night shift.** A launcher runs tasks without a person, inside hard limits.
 
-It has two layers:
+## Two layers
 
-- **The plugin** (this repo) carries the generic parts: skills, subagents, hooks and scripts. Update it in one place and every project gets the change.
-- **The project** gets the specific parts, written into the repo by `/shipinetics:setup` and committed: `AGENTS.md`, `bin/verify`, `bin/with-secrets`, the `.shipinetics/` lists, system docs, conventions, test docs and the task queue. They live in the repo so CI, teammates and other agents (Codex, Cursor) can use them without the plugin.
+- **The plugin** (this repo) has the general parts: skills, agents, hooks and tools. When you update the plugin, every project gets the change.
+- **The project** has its own parts. `/shipinetics:setup` writes them into the repo, and you commit them. Examples: `AGENTS.md`, `bin/verify`, `bin/with-secrets`, the lists in `.shipinetics/`, the system docs and the task queue. CI, other people and other agents (Codex, Cursor) can use these files without the plugin.
 
-[GETTING-STARTED.md](GETTING-STARTED.md) walks through the rollout step by step.
+[GETTING-STARTED.md](GETTING-STARTED.md) gives the steps to start, one by one.
 
 ## Install
 
-Locally, while it's not on GitHub yet:
-
 ```bash
-claude plugin marketplace add ~/Projects/shipinetics
+claude plugin marketplace add DreKwasi/shipinetics
 ```
 
 ```bash
 claude plugin install shipinetics@shipinetics
 ```
 
-Once it's in a GitHub repo, use `claude plugin marketplace add <owner>/<repo>` on any machine, then the same install command. To try it for one session without installing, run `claude --plugin-dir ~/Projects/shipinetics`.
+To try the plugin for one session without an install, run `claude --plugin-dir <path to a clone of this repo>`.
 
-### Companions (install separately)
+## Update
 
-shipinetics uses these when they're installed and falls back when they aren't. `/shipinetics:setup` checks for them. Scan each with SkillSpector before installing it.
+Each release has a version. [CHANGELOG.md](CHANGELOG.md) shows what changed.
 
-| Companion | Used by | Install |
+1. Update the plugin:
+
+   ```bash
+   claude plugin marketplace update shipinetics
+   claude plugin update shipinetics@shipinetics
+   ```
+
+2. Restart Claude Code.
+3. Read the changelog entry. If it has a **breaking** change, do the steps it gives in each project.
+
+The plugin update changes the skills, agents, hooks and tools. It does not change the files that setup copied into your projects. To compare a project with the newest templates, run `/shipinetics:setup audit` in the project. Setup merges changes into your files. It never overwrites them.
+
+## Companions
+
+Shipinetics uses these tools when they are installed. When a tool is missing, Shipinetics uses a simpler method. `/shipinetics:setup` checks for each tool. Scan each tool with SkillSpector before you install it.
+
+| Companion | What uses it | Install |
 |---|---|---|
-| Cloudflare `security-audit` skill | `shipinetics:security-reviewer`, and the full security audit on the cadence you pick (`security_audit_every`, checked by `shipinetics-config due security-audit` in the weekly sweep) | `npx skills add cloudflare/security-audit-skill -g -a claude-code` |
-| Impeccable plugin | `shipinetics:ui-reviewer`, `design-check`, the design-system setup step, HTML explainers | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the repo's `.agents/skills/` copy, written for Codex |
-| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs, L splits and hard-to-reverse decisions; `/wait-what` when a message doesn't land; `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `npx skills add mattpocock/skills --skill <name> -g -a claude-code` for each one you want. Some of the others in that pack clash with shipinetics's rules: `shipinetics:workflow` lists which to leave alone |
-| `merge-risk` skill (Warp) | Merge-risk grades on every PR | `npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code` |
-| NVIDIA SkillSpector | `scan-skills`, the install gate | `uv tool install git+https://github.com/NVIDIA/skillspector.git` |
-| Strix | App security testing (shipinetics:security-scans) | See its README. Needs Docker and a provider key in your vault |
-| dev.fast Whiteboard plugin | Whiteboards of changes for human review | from the dev.fast marketplace |
-| Codex, Gemini or Cursor CLI | `agent_review` cross-family reviews | each tool's installer |
+| Cloudflare `security-audit` skill | The security reviewer, and the full security audit (on the schedule in `security_audit_every`) | `npx skills add cloudflare/security-audit-skill -g -a claude-code` |
+| Impeccable plugin | The UI reviewer, `design-check`, the design-system setup step, HTML pages | `/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`. Do not use `npx skills add pbakaus/impeccable`: that copy is for Codex |
+| Matt Pocock's skills (optional) | `grilling` and `domain-modeling` before specs and before decisions that are hard to reverse. `/wait-what` when a message is not clear. `codebase-design`, `diagnosing-bugs`, `prototype`, `research` | `npx skills add mattpocock/skills --skill <name> -g -a claude-code`, one time for each skill. Some skills in this pack conflict with Shipinetics. `shipinetics:workflow` lists them |
+| `merge-risk` skill (Warp) | The merge-risk grade on each PR | `npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code` |
+| NVIDIA SkillSpector | `scan-skills` and the install gate | `uv tool install git+https://github.com/NVIDIA/skillspector.git` |
+| Strix | Security tests of your app (shipinetics:security-scans) | See its README. It needs Docker and a provider key in your vault |
+| dev.fast Whiteboard plugin | Whiteboards of changes, for your review | From the dev.fast marketplace |
+| Codex, Gemini or Cursor CLI | `agent_review`: a review from a different model family | The installer of each tool |
 
-They aren't declared as hard plugin dependencies on purpose. A missing hard dependency stops the whole plugin from loading, and some of them (Whiteboard, Docker) won't exist in CI or on every machine.
+These tools are not hard dependencies of the plugin. If a hard dependency is missing, the whole plugin does not load. Also, some tools (Whiteboard, Docker) are not on every machine or in CI.
 
-#### Keeping companions up to date
+### Keep the companions up to date
 
-Companions change upstream, and Shipinetics depends on some of their details, so updates are checked every week but applied only by you:
+Companions change upstream, and Shipinetics depends on some of their details. The weekly sweep checks for updates. Only you apply them.
 
-1. **Check.** The weekly sweep (shipinetics:sweep) runs `skills-outdated`. It compares each installed skill's folder with its repo upstream and changes nothing. For plugins, it compares `claude plugin list` with each plugin's marketplace. Don't use `npx skills check` to look: it can update and remove skills while it checks, so the install gate asks you first.
-2. **Scan.** Before you update, scan the new version with SkillSpector (shipinetics:security-scans).
-3. **Update.** Skills: `npx skills update -g <names>`. Plugins: `claude plugin marketplace update <marketplace>`, then `claude plugin update <plugin>@<marketplace>`. CLIs: their own installers. The install gate asks you before an agent runs any of these.
-4. **Re-check.** The sweep reads the updated companion's SKILL.md against the table below. If something Shipinetics relies on changed, it queues a task to update Shipinetics.
+1. **Check.** The sweep runs `skills-outdated`. This tool compares each installed skill with its repo. It changes nothing. For plugins, the sweep compares `claude plugin list` with each marketplace.
+   Do not use `npx skills check` to look for updates. It can update and remove skills while it checks. The install gate asks you before an agent runs it.
+2. **Scan.** Scan the new version with SkillSpector (shipinetics:security-scans).
+3. **Update.** For skills: `npx skills update -g <names>`. For plugins: `claude plugin marketplace update <marketplace>`, then `claude plugin update <plugin>@<marketplace>`. For CLIs: use their own installers. The install gate asks you before an agent runs these commands.
+4. **Check again.** The sweep reads each updated companion and compares it with the table below. If a detail that Shipinetics needs changed, the sweep adds a task to the queue.
 
-`skills-outdated` reads the `skills` CLI's lock file (`~/.agents/.skill-lock.json`), so it only sees skills installed with that CLI. Install them that way, with `-g`.
+`skills-outdated` reads the lock file of the `skills` CLI (`~/.agents/.skill-lock.json`). It only sees skills that the CLI installed. Install skills with the CLI and `-g`.
 
-#### What Shipinetics relies on
+### What Shipinetics needs from each companion
 
-| Companion | Shipinetics relies on |
+| Companion | Shipinetics needs |
 |---|---|
-| `security-audit` | A guidance mode for one change, a full six-phase mode that writes outside the repo (default `~/security-audit-skill/<repo>/run-<N>`), and its severity names |
-| Impeccable | The `critique`, `audit`, `document` and `detect` commands, and DESIGN.md with token frontmatter |
-| `grilling` | A recommended answer for each question, and facts looked up by the agent, not asked of you |
-| `domain-modeling` | The glossary in `GLOSSARY.md` (`GLOSSARY-MAP.md` for several) and ADRs in `docs/adr/` |
-| `wait-what` | A re-pitch in ASD-STE100 with the terms from `GLOSSARY.md` |
-| `diagnosing-bugs` | Its phases 1 to 6, with the regression test in phase 5 |
-| `merge-risk` | A low, medium or high grade with the files that set it |
+| `security-audit` | A guidance mode for one change. A full six-phase mode that writes its report outside the repo (default `~/security-audit-skill/<repo>/run-<N>`). Its severity names |
+| Impeccable | The `critique`, `audit`, `document` and `detect` commands. A `DESIGN.md` with token frontmatter |
+| `grilling` | A recommended answer for each question. The agent finds facts itself, and does not ask you for them |
+| `domain-modeling` | The glossary in `GLOSSARY.md` (`GLOSSARY-MAP.md` when there are several). Decision records (ADRs) in `docs/adr/` |
+| `wait-what` | A new explanation in ASD-STE100, with the terms from `GLOSSARY.md` |
+| `diagnosing-bugs` | Its phases 1 to 6. The regression test is in phase 5 |
+| `merge-risk` | A grade of low, medium or high, with the files that caused the grade |
 
 ### Other skill packs
 
-Shipinetics borrows the strongest ideas from Matt Pocock's skills and from pstack (Lauren Tan's skill stack for Cursor) instead of running them side by side. The verification map and the independent re-check come from pstack's verification skills, and the review filters, blast-radius ladder, test rules and feedback criteria come from both. Running those packs' routers, `tdd`, `implement` or autopilot playbooks next to shipinetics bypasses its rules (test-writer owns tests, a different model reviews, nothing merges by itself). `shipinetics:workflow` lists what fits and what to leave out.
+Shipinetics takes the best ideas from Matt Pocock's skills and from pstack (Lauren Tan's skills for Cursor). It does not run them next to its own skills. The verification map and the independent check come from pstack. The review filters, test rules and feedback rules come from both packs. Do not run their routers, `tdd`, `implement` or autopilot playbooks with Shipinetics. They skip its rules: test-writer writes all tests, a different model reviews, and nothing merges by itself. `shipinetics:workflow` lists what to use and what not to use.
 
 ## Projects with their own setup, and multi-repo workspaces
 
-Shipinetics's paths and commands are defaults. A project can map them to what it already has in `.shipinetics/config` (template: `skills/setup/templates/config`): worksheet folder, feedback log, system docs, conventions, test docs, verify command, worksheet scripts, tag prefix and secrets runner. Skills, hooks and tools then use the project's own files. `shipinetics-config` prints the effective settings, and `shipinetics-config match <list> <path>` shows which glob in a list (protected-paths, test-paths and the rest) covers a path, exactly as the guards match it. Set `launch = user` when the user runs the dev servers: agents then only run the doctor, never seed or reset, write only as a test account and clean up after themselves, and use the harness's preview browser if the sandbox blocks localhost (see shipinetics:verification-map).
+Shipinetics has default paths and commands. A project can change them in `.shipinetics/config` (the template is `skills/setup/templates/config`). For example, you can set the worksheet folder, the feedback log, the system docs, the verify command and the secrets runner. Then the skills, hooks and tools use the project's own files.
 
-Workspace mode (`packages = ...`) is for a root that holds several package repos and isn't a repo itself. The Stop hook runs `package_verify_cmd` (or `package_verify_quick_cmd` mid-task) for each package the agent edited in that session, so the user's unrelated work in progress never blocks it. The PR gate and `evidence` work from whichever package repo the PR comes from. The root's own files (`.shipinetics/`, the queue, worksheets, docs) belong in a git repo too: the root itself, ignoring the package folders, or a separate repo named by `harness_repo`. `shipinetics-config` warns when they aren't. With that in place, `night-shift` gives the shift a worktree of the harness repo with a worktree of each package inside it, all on `night/<date>`.
+Two commands help:
 
-`/shipinetics:setup` audits first, asks all its questions in one message (including anything it could only infer from comments or old docs), then installs every phase in one run with a commit per phase.
+- `shipinetics-config` shows all settings, and which ones the project set.
+- `shipinetics-config match <list> <path>` shows which line in a list covers a path. It uses the same rules as the guards.
 
-## How the points map to the plugin
+Set `launch = user` when you start the dev servers yourself. Then agents only run the doctor check. They do not seed or reset data. They write only as the test account, and they remove what they create. If the sandbox blocks localhost, they use the harness's preview browser. See shipinetics:verification-map.
 
-| # | Point | Plugin | In the project |
+**Workspace mode** is for a folder that holds several package repos and is not a repo itself. Set `packages` in the config to turn it on.
+
+- The Stop hook runs `package_verify_cmd` for each package that the agent edited in the session. It uses `package_verify_quick_cmd` while the agent works. Your own unrelated changes never block the agent.
+- The PR gate and `evidence` work in the package repo that the PR comes from.
+- The root's own files (`.shipinetics/`, the queue, worksheets, docs) must also be in a git repo. Make the root a repo that ignores the package folders, or set `harness_repo` to a separate repo. `shipinetics-config` warns you when neither is true.
+- `night-shift` then makes a worktree of the harness repo, with a worktree of each package inside it. All of them are on the branch `night/<date>`.
+
+`/shipinetics:setup` audits the project first. Then it asks all its questions in one message. Then it installs every phase in one run, with a commit for each phase.
+
+## Where each part lives
+
+| # | Part | In the plugin | In the project |
 |---|---|---|---|
-| 0 | Router | setup writes it | `AGENTS.md`, `CLAUDE.md` (imports `@AGENTS.md`) |
-| 1 | Workflow | `shipinetics:workflow` | your `AGENT_WORKFLOW.md` overrides it if present |
-| 2 | Self-healing docs | `shipinetics:system-docs` (with claims checked against sources) | `docs/systems/*.md` with 7-line headers |
-| 3 | Run the app | `shipinetics:verification-map`, `shipinetics:workflow` step 6 | `docs/verification/` (launch, doctor, drive, cleanup, a file per feature), "Run the app yourself" in `AGENTS.md` |
+| 0 | Router | setup writes it | `AGENTS.md`, `CLAUDE.md` (it imports `@AGENTS.md`) |
+| 1 | Workflow | `shipinetics:workflow` | Your `AGENT_WORKFLOW.md`, if you have one, replaces it |
+| 2 | System docs that stay true | `shipinetics:system-docs` | `docs/systems/*.md`, each with a 7-line header |
+| 3 | Run the app | `shipinetics:verification-map`, workflow step 6 | `docs/verification/`, and "Run the app yourself" in `AGENTS.md` |
 | 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer`, `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
-| 5 | Linters that fix | `shipinetics:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (also caps commits at 400 changed lines), `.githooks/commit-msg` (requires the `Worksheet:` trailer) |
-| 6 | Cross-agent review | `shipinetics:review`, four reviewer agents, `agent_review`, 7 personas | `docs/review/personas/` for domain personas |
-| 7 | Worksheets and tags | `shipinetics:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` commit trailers |
-| 8 | Session feedback | `shipinetics:feedback`, Stop hook reminder | `docs/agent-feedback.md` |
-| 9 | Agent-built tools | `shipinetics:build-tool` | `bin/`, `docs/tools.md` |
+| 5 | Linters that fix | `shipinetics:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (it also limits commits to 400 changed lines), `.githooks/commit-msg` (it requires the `Worksheet:` trailer) |
+| 6 | Reviews by other agents | `shipinetics:review`, four reviewer agents, `agent_review`, 7 personas | `docs/review/personas/` for the project's own personas |
+| 7 | Worksheets and tags | `shipinetics:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` trailers |
+| 8 | Session feedback | `shipinetics:feedback`, a Stop hook reminder | `docs/agent-feedback.md` |
+| 9 | Tools that agents build | `shipinetics:build-tool` | `bin/`, `docs/tools.md` |
 | 10 | Commit sweeps | `shipinetics:sweep` | `docs/sweeps/`, `sweep/*` tags |
 | 11 | Conventions | `shipinetics:lint-rule` moves them into linters | `docs/conventions.md` |
-| 12 | Night shift | `shipinetics:night-shift`, `night-shift` launcher | `TODOS.md`, `.claude/settings.json` |
+| 12 | Night shift | `shipinetics:night-shift`, the `night-shift` launcher | `TODOS.md`, `.claude/settings.json` |
 | 13 | Task queue | `shipinetics:task-queue` | `TODOS.md`, or Linear through `bin/tasks` |
-| 14 | False-confidence audit | `shipinetics:test-audit` (mutation checks, bloat pruning) | `docs/test-audits/` |
-| 15 | Visual regression | `shipinetics:visual-regression`, `shipinetics:ui-reviewer` | screenshot tests, LFS or PR artifacts |
-| 16 | Perf benchmarks | `shipinetics:perf` | `perf/baselines/`, `bin/bench` |
-| 17 | Profiling | `shipinetics:perf` (experiment protocol) | `docs/perf/experiments.md` |
+| 14 | Test audit | `shipinetics:test-audit` | `docs/test-audits/` |
+| 15 | Visual regression | `shipinetics:visual-regression`, `shipinetics:ui-reviewer` | Screenshot tests, with baselines in LFS or PR artifacts |
+| 16 | Benchmarks | `shipinetics:perf`, `bench-compare` | `perf/baselines/`, `bin/bench` |
+| 17 | Profiling | `shipinetics:perf` (experiment steps) | `docs/perf/experiments.md` |
 | 18 | End of shift | `shipinetics:end-of-shift` | `bin/verify --full`, `docs/shifts/*.md` and `*.html` |
-| S | Secrets | `shipinetics:secrets`, `guard-secrets` hook | `.shipinetics/secrets.list`, `bin/with-secrets`, config module |
-| V | Evidence on every PR | `shipinetics:evidence`, `evidence`, PR gate hook, CI job | `docs/evidence/<worksheet>/`, `.shipinetics/ui-paths` |
-| D | Design system | `design-check`, `shipinetics:ui-reviewer`, setup's design-system step (Impeccable's `document`) | `DESIGN.md` with token frontmatter, `PRODUCT.md`, design-system change requests in worksheets |
-| M | Merge risk | `shipinetics:review` (merge-risk stage) | `## Merge risk` in every PR body |
-| X | Security tools | `shipinetics:security-scans`, `scan-skills`, install gate hook | `docs/security/` |
-| E | Understanding outputs | `shipinetics:explain`, Whiteboard | `.shipinetics/explainers/` (gitignored) |
+| S | Secrets | `shipinetics:secrets`, the secrets guard | `.shipinetics/secrets.list`, `bin/with-secrets`, the config module |
+| V | Evidence on every PR | `shipinetics:evidence`, `evidence`, the PR gate, a CI job | `docs/evidence/<worksheet>/`, `.shipinetics/ui-paths` |
+| D | Design system | `design-check`, `shipinetics:ui-reviewer`, setup's design-system step | `DESIGN.md` with token frontmatter, `PRODUCT.md`, design-system change requests in worksheets |
+| M | Merge risk | `shipinetics:review` | `## Merge risk` in each PR body |
+| X | Security tools | `shipinetics:security-scans`, `scan-skills`, the install gate | `docs/security/` |
+| E | Explanations | `shipinetics:explain`, Whiteboard | `.shipinetics/explainers/` (not committed) |
 
-## What's enforced by code
+## What code enforces
 
-Skills are instructions. These parts are hooks and scripts, so they hold even when an agent doesn't follow instructions.
+Skills are instructions. The parts below are hooks and scripts. They work even when an agent does not follow its instructions.
 
-Each hook can be switched off: `hooks_off = stop edits secrets pr installs` (any of them) in the project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for every project. A project that sets `hooks_off` ignores the user's setting. `SHIPINETICS_HOOKS_OFF` does the same for one session. The edit guard keeps agents out of `~/.config/shipinetics/`.
+You can switch off each hook. Put `hooks_off` in the project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. The names are `stop`, `edits`, `secrets`, `pr` and `installs`. Example: `hooks_off = secrets installs`. If a project sets `hooks_off`, the project setting is used, not yours. `SHIPINETICS_HOOKS_OFF` does the same for one session. Agents cannot edit `~/.config/shipinetics/`.
 
-**Stop hook** (`scripts/stop-verify.sh`, set-up projects only). Every time the agent tries to finish with changes, it runs the project's checks. Changes means uncommitted changes or commits made since the session started, so an agent that commits each step and stops on a clean tree is still checked. Which tier runs depends on the moment (see "When checks run" below). If a check fails, the agent gets the last 60 lines of output and has to keep going. If it stops again without changing anything, the hook lets it stop and shows you a message instead of looping. When only the quick tier has run, it tells you so. It also reminds the agent once per session about the worksheet and feedback log, and, when the worksheet is a bug fix (`Type: bug`, or bug, fix, crash, regression or Sentry in its title) and the session changed code but no tests, to get a failing regression test from test-writer first.
+**Stop hook** (`scripts/stop-verify.sh`, only in set-up projects)
+- It runs each time the agent tries to stop with changes. Changes are uncommitted changes, or commits made in this session. An agent that commits each step is checked too.
+- The time decides the tier. See "When checks run" below.
+- If a check fails, the agent gets the last 60 lines of the output, and it must continue.
+- If the agent stops again with no change, the hook lets it stop. Then it tells you that the checks still fail. This prevents a loop.
+- When only the quick tier ran, it tells you.
+- One time in each session, it reminds the agent to update the worksheet and the feedback log.
+- On a bug fix with code changes but no test changes, it reminds the agent to get a failing test from test-writer first. A worksheet is a bug fix when its header says `Type: bug`, or its title has the word bug, fix, crash, regression or Sentry.
 
-**Pre-push hook** (`.githooks/pre-push`, installed by setup). The complete verify must pass before code leaves the machine. It reuses a recorded pass, so it costs nothing after the agent verified.
+**Pre-push hook** (`.githooks/pre-push`, setup installs it). The complete checks must pass before code leaves the machine. It uses a recorded pass, so it costs no time after the agent ran the checks.
 
-**Edit guard** (`scripts/guard-edits.sh`, set-up projects only). Three rules, each driven by a list in `.shipinetics/`:
+**Edit guard** (`scripts/guard-edits.sh`, only in set-up projects). It has three rules. Each rule uses a list in `.shipinetics/`:
 
-- `protected-paths`: acceptance tests and baselines can be created, then not modified. To change one, an agent writes the new version to `.shipinetics/pending/<path>`, and you review and apply it with `shipinetics-config apply` (it needs a terminal, so an agent's Bash tool can't run it by accident; like the guards, it's a speed bump, not a lock). `shipinetics-config pending` lists what's waiting. The same route covers `.claude/settings.json`, which Claude Code doesn't let agents edit.
-- `test-paths`: only `shipinetics:test-writer` can create or edit test files, and it can't edit source.
-- `env-allowed-paths`: new `process.env`, `os.environ` and similar reads are only allowed in the config module. Docs and text files (`.md`, `.txt`, `docs/`) and reads of the safe variables above don't count.
+- `protected-paths`: an agent can create these files (acceptance tests, baselines) but cannot change them. To change one, the agent writes the new version to `.shipinetics/pending/<path>`. You read the change and apply it with `shipinetics-config apply`. `shipinetics-config pending` lists the changes that wait for you. `apply` needs a terminal, so an agent's Bash tool cannot run it by accident. Like the guards, it slows an agent down. It is not a lock. The same method works for `.claude/settings.json`, which Claude Code does not let agents edit.
+- `test-paths`: only `shipinetics:test-writer` can create or edit test files. Test-writer cannot edit source files.
+- `env-allowed-paths`: new reads of the environment (`process.env`, `os.environ` and similar) are allowed only in the config module. Docs, text files and reads of safe variables (see the secrets guard) do not count.
 
-**Known failures** (`bin/known-failing`). A suite that already fails can be gated on new failures only: `bin/verify` runs `known-failing check <junit.xml>` against the protected `.shipinetics/known-failing` list (shipinetics:testing).
+**Known failures** (`bin/known-failing`). Some suites already fail. For them, `bin/verify` can run `known-failing check <junit.xml>`. Then only new failures fail the check. The list of known failures is `.shipinetics/known-failing`, and it is protected. See shipinetics:testing.
 
-**Secrets guard** (`scripts/guard-secrets.sh`, every project). Blocks commands that would put a secret in the agent's context: environment dumps, inline scripts that read the environment, echoing secret-looking variables, direct vault reads, and reading or naming a secret file with Bash or the Read tool. You choose the secret files: a `secret-paths` list (one glob per line, template in `skills/setup/templates/secret-paths`) in `.shipinetics/`, or in `~/.config/shipinetics/` for every project. The first list found is the whole list. Without one, a built-in list covers cloud and tool credentials (gcloud, AWS, Azure, SSH keys, `.netrc`, `.npmrc` and the like). It ignores what only mentions the environment: heredoc bodies written to a file, the pattern given to grep, rg and similar, and reads of variables that never hold secrets (`HOME`, `PATH`, `TMPDIR`, `NODE_ENV`, `CI` and the like, plus `env_safe_names` in the project config). Deny messages name the project's `secrets_runner`.
+**Secrets guard** (`scripts/guard-secrets.sh`, in every project). It blocks commands that could show a secret to the agent:
+- commands that show the environment;
+- inline scripts that read the environment;
+- commands that print a variable with a secret-like name;
+- direct reads from a vault;
+- reading or naming a secret file, with Bash or the Read tool.
 
-**PR gate** (`scripts/guard-pr.sh`, set-up projects only). `gh pr create` and `gh pr ready` are blocked until `evidence check --branch` passes, the complete verify has passed on exactly this code, and the PR body has the `## Evidence` section. `evidence check` also fails when code changed after the evidence was recorded (docs, tests and records don't count). Docs-only branches pass.
+You choose the secret files. Write a `secret-paths` list in `.shipinetics/`, or in `~/.config/shipinetics/` for all projects. Put one pattern on each line. The template is `skills/setup/templates/secret-paths`. The first list that the guard finds is the whole list. If there is no list, a built-in list covers cloud and tool credentials: gcloud, AWS, Azure, SSH keys, `.netrc`, `.npmrc` and others.
 
-**Install gate** (`scripts/guard-installs.sh`, every project). Installing a skill, plugin, marketplace or MCP server asks you first, with a reminder to scan it with SkillSpector.
+The guard ignores text that only mentions the environment:
+- the body of a heredoc that goes into a file;
+- the pattern given to grep, rg and similar commands;
+- reads of variables that never hold secrets: `HOME`, `PATH`, `TMPDIR`, `NODE_ENV`, `CI` and others, plus the names in `env_safe_names`.
 
-**CI** (the project's `verify.yml`). Runs `bin/verify --full`, and fails any PR whose description has no Evidence section with a screenshot, recording or transcript, unless it has the `no-evidence` label.
+The block message names the project's secrets runner (`secrets_runner`).
 
-**`bin/with-secrets`** fetches the secrets named in `.shipinetics/secrets.list` from Google Secret Manager and runs a command with them set. The agent never sees a value.
+**PR gate** (`scripts/guard-pr.sh`, only in set-up projects). It blocks `gh pr create` and `gh pr ready` until three things are true:
+1. `evidence check --branch` passes;
+2. the complete checks passed on exactly this code;
+3. the PR body has a `## Evidence` section.
 
-**Env scrub** (`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` in project settings and night shift runs) strips credentials from every command, hook and MCP server Claude Code starts. It's the strongest secrets layer. The guard is a backstop.
+`evidence check` also fails when the code changed after the evidence was recorded. Changes to docs, tests and records do not count. A branch that changes only docs passes.
 
-**Night shift launcher** (`bin/night-shift`). Separate worktree and branch, per-task cost and turn caps, overall time and budget limits, OS sandbox with no escape, pushes and vault reads denied, env scrub on. Each task runs as a `/goal` with a fixed completion condition, and each run is logged to a metrics CSV.
+**Install gate** (`scripts/guard-installs.sh`, in every project). Before an agent installs or updates a skill, plugin, marketplace or MCP server, the gate asks you. It also tells you to scan the source with SkillSpector first.
+
+**CI** (the project's `verify.yml`). It runs `bin/verify --full`. It fails a PR that has no Evidence section with a screenshot, recording or terminal output. A PR with the `no-evidence` label passes.
+
+**`bin/with-secrets`**. It gets the secrets in `.shipinetics/secrets.list` from Google Secret Manager. Then it runs a command with the secrets set. The agent never sees a value.
+
+**Environment scrub** (`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1`, in the project settings and in night shift runs). It removes credentials from every command, hook and MCP server that Claude Code starts. This is the strongest secrets layer. The guard is a second layer.
+
+**Night shift launcher** (`bin/night-shift`)
+- It uses a separate worktree and branch.
+- Each task has limits on cost and turns. The shift has limits on time and budget.
+- It runs in the OS sandbox, with no way out. Pushes and vault reads are blocked. The environment scrub is on.
+- Each task runs as a `/goal` with a fixed completion condition.
+- It writes each run to a metrics file (CSV).
 
 ## When checks run
 
-Each check runs at the earliest moment its result is useful and the latest moment before something depends on it. None is dropped to save time.
+Each check runs at the first time its result is useful, and before anything depends on it. No check is dropped to save time.
 
-| Moment | What runs | Blocks |
+| When | What runs | What it blocks |
 |---|---|---|
-| Commit | Lint and fix on staged files (pre-commit hook) | The commit |
-| Mid-task stop | `bin/verify --quick` (`verify_quick_cmd`): lint the changed files, incremental typecheck, tests related to the changes. The complete tier instead when a path in `.shipinetics/complete-paths` changed (build config, manifests, lockfiles) | The stop |
-| "Done" stop (worksheet `Status: done`) | `bin/verify`, every fast check, including the build and e2e smoke | Reporting the work as done |
-| Push, PR | A recorded complete pass for exactly this code | The push, the PR |
+| A commit | Lint, with fixes, on the staged files (the pre-commit hook) | The commit |
+| A stop while the agent works | `bin/verify --quick` (`verify_quick_cmd`): lint of the changed files, an incremental type check, the tests related to the changes. If a path in `.shipinetics/complete-paths` changed (build config, manifests, lock files), the complete tier runs instead | The stop |
+| The "done" stop (the worksheet says `Status: done`) | `bin/verify`: all fast checks, with the build and the e2e smoke test | The report that the work is done |
+| A push or a PR | A recorded complete pass for exactly this code | The push or the PR |
 | CI | `bin/verify --full`, without local caches | The merge |
-| End of shift, weekly | `--full`, visual and perf, sweep, verification-map drift, design-system drift | Report |
+| End of shift, and weekly | `--full`, visual and performance checks, the sweep, a check of the verification map and the design system | The report |
 
-A pass is recorded against a hash of the code's contents, not the commit, so committing verified code or editing only worksheets, evidence and the feedback log doesn't run anything again. Run `shipinetics-verify` to run a tier and record it, `shipinetics-verify status` to see what has passed on the current code, and `shipinetics-verify times` for where verify time goes. A project without `verify_quick_cmd` runs the complete tier at every stop, as before.
+A pass is recorded against a hash of the code's contents, not against the commit. So a commit of checked code does not run the checks again. Changes to worksheets, evidence and the feedback log do not run them again either.
+
+- `shipinetics-verify` runs a tier and records the pass.
+- `shipinetics-verify status` shows which tiers passed on the current code.
+- `shipinetics-verify times` shows where the check time goes.
+
+A project without `verify_quick_cmd` runs the complete tier at every stop.
 
 ## Reviews, evidence and explanations
 
-- **Agent reviews** at each checkpoint: `shipinetics:reviewer` on a different Claude model, `agent_review` for a different model family, `shipinetics:security-reviewer` for anything security-relevant, and `shipinetics:ui-reviewer` for anything visual. The UI reviewer checks conformance to DESIGN.md first (`design-check` plus a manual pass for what the detector can't see), then runs Impeccable's critique and audit on real screenshots. Findings from several reviewers are merged and filtered before the author acts on them.
-- **Independent re-check:** for medium tasks and up, UI changes and every night shift task, the wrap-up reviewer drives the change itself from the verification map, through every entry point, at the final code, and reports PASS, ISSUES or BLOCKED.
-- **Design system:** agents never change tokens to make a finding go away. They propose the change in the worksheet's "Design-system change requests", and you decide. Setup can protect the design files so that's enforced.
-- **Claims tables:** research and docs reviews check every factual claim against evidence the reviewer opened (`file:line`, or a primary source URL with the date checked), with a verdict of verified, incorrect or unresolved.
-- **Evidence:** every PR shows the change working in the real app. Screenshots per acceptance criterion, a recording for UI changes, terminal transcripts for CLIs and APIs, recorded with `evidence` and the Playwright template in `shipinetics:evidence`.
-- **Merge risk:** an independent reviewer grades every PR (alignment, impact, verification, rollback cost, error detection) as low, medium or high, using Warp's `merge-risk` skill. The grade tells you how closely to review. It never merges anything by itself.
-- **Human review:** for medium tasks and up and every night shift task, the agent authors a Whiteboard with the merge-risk grade, review verdicts and evidence screenshots at the top. Without Whiteboard, it writes an HTML explainer instead.
-- **Explaining:** `shipinetics:explain` sets the format ladder: about 80% ASD-STE100 prose, diagrams, Whiteboards, self-contained HTML pages, and narrated explainer videos when you ask for one.
+- **Agent reviews** happen at each checkpoint:
+  - `shipinetics:reviewer` on a different Claude model;
+  - `agent_review` for a different model family;
+  - `shipinetics:security-reviewer` for changes that touch security;
+  - `shipinetics:ui-reviewer` for changes that people see.
+
+  The UI reviewer first compares the change with `DESIGN.md` (`design-check`, then a check by hand). Then it runs Impeccable's critique and audit on real screenshots. The findings of all reviewers are merged and filtered before the author acts on them.
+- **Independent check.** For medium tasks and larger, UI changes and all night shift tasks, the final reviewer uses the change in the app itself. It uses every entry point from the verification map, on the final code. Its result is PASS, ISSUES or BLOCKED.
+- **Design system.** Agents never change tokens to remove a finding. They write the change in the worksheet, under "Design-system change requests". You decide. Setup can protect the design files.
+- **Claims tables.** Reviews of research and docs check each fact against evidence that the reviewer opened: `file:line`, or a source URL with the date. Each fact gets a result: verified, incorrect or unresolved.
+- **Evidence.** Each PR shows the change in the real app: a screenshot for each acceptance criterion, a recording for UI changes, and terminal output for CLIs and APIs. Agents record it with `evidence` and the Playwright template in `shipinetics:evidence`.
+- **Merge risk.** An independent reviewer grades each PR as low, medium or high. It uses Warp's `merge-risk` skill. The grade tells you how carefully to review. Nothing merges by itself.
+- **Your review.** For medium tasks and larger, and all night shift tasks, the agent makes a Whiteboard. The merge-risk grade, the review results and the evidence screenshots are at the top. Without Whiteboard, the agent makes an HTML page.
+- **Explanations.** `shipinetics:explain` sets the formats: ASD-STE100 text, diagrams, Whiteboards, HTML pages, and videos with narration when you ask for one.
 
 ## Effort
 
-Everything runs at high effort by default:
+All parts run at high effort by default:
 
 - All four agents (`reviewer`, `test-writer`, `security-reviewer`, `ui-reviewer`) set `effort: high`.
 - The project settings template sets `"effortLevel": "high"` for the main session.
-- `night-shift` passes `--effort high`, and `agent_review` asks Claude and Codex reviewers for high effort.
+- `night-shift` uses `--effort high`. `agent_review` asks the Claude and Codex reviewers for high effort.
 
-To change it:
+To change the effort:
 
-| Scope | How |
+| For | Do this |
 |---|---|
-| Everything at once, agents included | Start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium` (or any level). It overrides every other setting |
-| The main session | `/effort` in the session, or `effortLevel` in the project's `.claude/settings.json` |
-| One agent | Edit its `effort:` line in `agents/<name>.md` here, or ask Claude to run it at a given effort for one task |
+| All parts, agents too | Start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium` (or another level). It overrides all other settings |
+| The main session | Use `/effort` in the session, or set `effortLevel` in the project's `.claude/settings.json` |
+| One agent | Edit its `effort:` line in `agents/<name>.md`, or ask Claude to use a different effort for one task |
 | Night shift | `night-shift --effort medium` |
 | Review and lint-fix CLIs | `SHIPINETICS_CLAUDE_REVIEW_EFFORT`, `SHIPINETICS_CODEX_EFFORT`, `SHIPINETICS_FIX_EFFORT` (empty means the tool's default) |
 
-## Measuring the setup
+## Measure the setup
 
-Each worksheet has a Metrics block: model and effort, plugin version, cost, turns, wall time, merge risk, review rounds, finding dispositions, test-writer's suspected bugs, and three fields only you fill in (corrections needed after your review, your review minutes, accepted or not). Night shift runs log cost, turns and duration to a CSV automatically. `/shipinetics:feedback ingest` summarizes them per accepted task. Change one thing at a time and compare the next batch of accepted tasks.
+Each worksheet has a Metrics block. It records the model, the effort, the plugin version, cost, turns, time and merge risk. It also records the review rounds, what happened to each finding, and the bugs that test-writer suspected. Three fields are for you: the corrections you needed, your review time, and whether you accepted the work. Night shift runs write cost, turns and time to a CSV file. `/shipinetics:feedback ingest` summarises them for each accepted task. Change one thing at a time, then compare the next group of accepted tasks.
 
 ## Environment variables
 
 | Variable | Effect |
 |---|---|
-| `SHIPINETICS_SKIP_VERIFY=1` | Turn off the Stop hook, and the PR gate's verify check, for a session |
-| `SHIPINETICS_UNLOCK=1` | Allow edits to protected paths for a session |
-| `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` | Let any agent edit tests for a session (mass renames, framework migrations) |
-| `SHIPINETICS_ALLOW_ENV_READ=1` | Turn off both env guards for a session |
-| `SHIPINETICS_ALLOW_NO_EVIDENCE=1` | Turn off the PR gate for a session |
-| `SHIPINETICS_ALLOW_INSTALLS=1` | Turn off the install gate for a session |
-| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Switch the named hooks off for a session (stop, edits, secrets, pr, installs) |
-| `SHIPINETICS_ALLOW_NO_WORKSHEET=1` | Let one commit through without a `Worksheet:` trailer (work that belongs to no task) |
-| `SHIPINETICS_ALLOW_BIG_COMMIT=1` | Let one commit through over the size limit (a codemod, a vendored library). Say why in the message |
-| `CLAUDE_CODE_EFFORT_LEVEL` | One effort level for the session and every agent |
+| `SHIPINETICS_SKIP_VERIFY=1` | Turns off the Stop hook, and the PR gate's check of verify, for a session |
+| `SHIPINETICS_UNLOCK=1` | Lets agents edit protected paths for a session |
+| `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` | Lets any agent edit tests for a session (for example, a rename of many files) |
+| `SHIPINETICS_ALLOW_ENV_READ=1` | Turns off both environment guards for a session |
+| `SHIPINETICS_ALLOW_NO_EVIDENCE=1` | Turns off the PR gate for a session |
+| `SHIPINETICS_ALLOW_INSTALLS=1` | Turns off the install gate for a session |
+| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Switches off the named hooks for a session (stop, edits, secrets, pr, installs) |
+| `SHIPINETICS_ALLOW_NO_WORKSHEET=1` | Lets one commit through without a `Worksheet:` trailer (work that is not part of a task) |
+| `SHIPINETICS_ALLOW_BIG_COMMIT=1` | Lets one commit through above the size limit (for example, a vendored library). Say why in the commit message |
+| `CLAUDE_CODE_EFFORT_LEVEL` | One effort level for the session and all agents |
 | `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` | Claude Code's own credential scrub. Setup puts it in the project settings |
-| `SHIPINETICS_AUTHOR` | Model family that wrote the code, for `agent_review` (default `claude`) |
-| `SHIPINETICS_REVIEW_ORDER` | CLI preference for `agent_review --cli auto` (default `codex gemini cursor claude`) |
-| `SHIPINETICS_CODEX_MODEL`, `SHIPINETICS_GEMINI_MODEL`, `SHIPINETICS_CURSOR_MODEL`, `SHIPINETICS_CLAUDE_REVIEW_MODEL` | Model per review CLI |
-| `SHIPINETICS_CURSOR_FAMILY` | Family of the Cursor model you picked, so auto doesn't pick Claude-through-Cursor to review Claude |
-| `SHIPINETICS_CLAUDE_REVIEW_EFFORT`, `SHIPINETICS_CODEX_EFFORT`, `SHIPINETICS_FIX_EFFORT` | Effort for review and lint-fix CLIs (default `high`) |
-| `SHIPINETICS_FIX_CLI`, `SHIPINETICS_FIX_MODEL` | CLI and model for `bin/llm-fix` (default `claude`, `sonnet`) |
-| `SHIPINETICS_LLM_FIX=0` | Skip the LLM pass in `bin/lint-fix` |
-| `SHIPINETICS_BENCH_MACHINE` | Machine name for `bench-compare` baselines (default `<host>-<arch>`). Set it in CI so runners share one baseline |
-| `GOOGLE_CLOUD_PROJECT` | Default project for `bin/with-secrets` (else gcloud's configured project) |
+| `SHIPINETICS_AUTHOR` | The model family that wrote the code, for `agent_review` (default `claude`) |
+| `SHIPINETICS_REVIEW_ORDER` | The order in which `agent_review --cli auto` tries CLIs (default `codex gemini cursor claude`) |
+| `SHIPINETICS_CODEX_MODEL`, `SHIPINETICS_GEMINI_MODEL`, `SHIPINETICS_CURSOR_MODEL`, `SHIPINETICS_CLAUDE_REVIEW_MODEL` | The model for each review CLI |
+| `SHIPINETICS_CURSOR_FAMILY` | The family of your Cursor model. Then `auto` does not choose Claude through Cursor to review Claude |
+| `SHIPINETICS_CLAUDE_REVIEW_EFFORT`, `SHIPINETICS_CODEX_EFFORT`, `SHIPINETICS_FIX_EFFORT` | The effort for the review and lint-fix CLIs (default `high`) |
+| `SHIPINETICS_FIX_CLI`, `SHIPINETICS_FIX_MODEL` | The CLI and model for `bin/llm-fix` (default `claude`, `sonnet`) |
+| `SHIPINETICS_LLM_FIX=0` | Skips the LLM step in `bin/lint-fix` |
+| `SHIPINETICS_BENCH_MACHINE` | The machine name for `bench-compare` baselines (default `<host>-<arch>`). Set it in CI, so all runners use one baseline |
+| `GOOGLE_CLOUD_PROJECT` | The default project for `bin/with-secrets` (else gcloud's project) |
 
 ## Known limits
 
-- The guards match what Claude's tools are asked to do. Maintenance on guarded files goes through a human or a named command (`shipinetics-config apply`, `bench-compare --init`, `known-failing init`), as the setup skill lists. An agent could still write a test file or print a variable through a script it writes and then runs. The env scrub, the reviewers and the night shift sandbox are the layers behind them.
-- The reviewers have Bash so they can run `git diff` and tests, which makes them read-only by instruction, not enforcement. Claude Code ignores hooks on plugin subagents.
-- The install gate asks you, so in a headless run (where nobody can answer) installs are refused.
-- `agent_review`'s runners for Codex, Gemini and Cursor use each CLI's non-interactive mode as documented when this was written. Check them against `--help` the first time you use one.
-- SkillSpector and Strix weren't installed where this was built, so `scan-skills` was tested against a stand-in with SkillSpector's documented JSON format. Run `scan-skills` once after installing the real tool and check the summary.
-- `evidence pr-body` links to files on the pushed branch, so push before opening the PR. Without git LFS, keep recordings small.
-- `bin/with-secrets` reads Google Secret Manager via gcloud, or runs `infisical run` when `.shipinetics/config` sets `vault = infisical`. Projects with their own runner set `secrets_runner` instead.
-- The Stop hook can't tell a pause from a finished task by itself. The worksheet's `Status: done` is the signal for the complete tier. If an agent never sets it, the complete tier still runs at push and PR, but not at its last stop. Keep `--quick` to seconds and the complete tier to a few minutes, and never let either print environment values.
-- `design-check` sees fonts, colors, radii and font sizes outside DESIGN.md's frontmatter. Spacing, unknown `var()` names, new token definitions and duplicated components are left to the UI reviewer. Without token frontmatter in DESIGN.md there's nothing to check against.
+- The guards only see Claude's file tools and the text of commands. Changes to guarded files go through a person or a named command (`shipinetics-config apply`, `bench-compare --init`, `known-failing init`). The setup skill lists them. An agent can still write a file or print a variable through a script that it writes and runs. The environment scrub, the reviewers and the night shift sandbox are the layers behind the guards.
+- The reviewers have Bash, so they can run `git diff` and tests. They are read-only because their instructions say so, not because code enforces it. Claude Code ignores hooks on plugin agents.
+- The install gate asks you. In a run without a person, nobody can answer, so installs are refused.
+- `agent_review` runs Codex, Gemini and Cursor in their documented non-interactive modes. These modes can change. Check them with `--help` the first time.
+- SkillSpector and Strix were not installed when these parts were built. `scan-skills` was tested with a copy of SkillSpector's documented JSON format. After you install SkillSpector, run `scan-skills` one time and check the summary.
+- `evidence pr-body` links to files on the pushed branch. Push before you open the PR. Without git LFS, keep recordings small.
+- `bin/with-secrets` reads Google Secret Manager through gcloud. When `.shipinetics/config` has `vault = infisical`, it runs `infisical run`. A project with its own runner sets `secrets_runner`.
+- The Stop hook cannot tell a pause from a finished task. The worksheet's `Status: done` tells it to run the complete tier. If an agent never sets it, the complete tier still runs before a push and a PR, but not at the agent's last stop. Keep `--quick` to seconds and the complete tier to a few minutes. Never let a check print environment values.
+- `design-check` finds fonts, colours, radii and font sizes that are not in `DESIGN.md`. The UI reviewer checks the rest: spacing, unknown `var()` names, new tokens and copied components. Without token frontmatter in `DESIGN.md`, there is nothing to check against.
 
 ## Layout
 
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer, test-writer, security-reviewer, ui-reviewer   (all at effort: high)
-bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift, scan-skills, shipinetics-config, skills-outdated,
-                  shipinetics-verify, worksheet   (on the agent's PATH)
+bin/              agent_review, bench-compare, design-check, evidence, known-failing, night-shift,
+                  scan-skills, shipinetics-config, shipinetics-verify, skills-outdated, worksheet
+                  (on the agent's PATH)
 hooks/            hooks.json
-scripts/          lib.sh (shared config helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh
+scripts/          lib.sh (shared helpers), stop-verify.sh, guard-edits.sh, guard-secrets.sh,
+                  guard-pr.sh, guard-installs.sh
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
                   feedback, task-queue, build-tool, sweep, night-shift, test-audit,
                   visual-regression, perf, end-of-shift, verification-map
 CHANGELOG.md      what changed in each release, and the versioning rules
-tests/            shipinetics's own tests for the hooks and tools. Run tests/run.sh (CI runs it on
-                  Linux and on macOS's bash 3.2)
+tests/            the tests for the hooks and tools. Run tests/run.sh. CI runs it on Linux and on
+                  macOS's bash 3.2
 ```

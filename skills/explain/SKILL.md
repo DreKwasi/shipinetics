@@ -1,6 +1,6 @@
 ---
 name: explain
-description: Present work, findings and systems to the human in the form that's fastest to understand, from controlled-English prose (about 80% ASD-STE100) through diagrams, Whiteboards and interactive HTML pages to narrated explainer videos. Use when reporting what you did, summarizing a review or shift, explaining how code or a change works, or when the user asks to understand something.
+description: Present work, findings and systems to the human in the form that's fastest to understand, in ASD-STE100 (the default language for all text for people), from prose through diagrams, Whiteboards and interactive HTML pages to narrated explainer videos. Use when reporting what you did, summarizing a review or shift, explaining how code or a change works, or when the user asks to understand something.
 argument-hint: "[topic] [prose|diagram|whiteboard|html|video]"
 ---
 
@@ -12,21 +12,23 @@ As agents do more of the work, the human's job moves up to oversight and underst
 
 Topic and format: `$ARGUMENTS`. If no format is given, pick one with the ladder below.
 
+**Language.** Everything Shipinetics writes for a person uses ASD-STE100, as "Prose" below describes: docs and READMEs, system docs, reports, worksheets, PR bodies, evidence notes, Whiteboards, HTML pages, video scripts and replies in chat. Other skills point here for the rules.
+
 ## The ladder
 
 Each step up costs more to make and is usually faster to understand. Pick the lowest step that does the job.
 
 | Format | Use it for |
 |---|---|
-| **Prose (STE-80)** | Final messages, worksheet summaries, review findings, anything a few paragraphs long |
+| **Prose (ASD-STE100)** | Final messages, worksheet summaries, review findings, anything a few paragraphs long |
 | **Diagram** | Anything with structure or flow: call paths, data flow, state machines, architecture, before and after |
 | **Whiteboard** | Explaining a code change or how part of the codebase works, when the Whiteboard tools (dev.fast) are available |
 | **HTML page** | Shift reports, big changes, comparisons, anything the human will explore or click through |
 | **Explainer video** | Concepts, onboarding to a system, algorithms. Only when the user asks or agrees |
 
-## Prose: about 80% of ASD-STE100
+## Prose: ASD-STE100
 
-ASD-STE100 (Simplified Technical English) is the controlled language used for aerospace maintenance manuals. The full spec is strict. Aim for about 80% of it:
+ASD-STE100 (Simplified Technical English) is the controlled language of aerospace maintenance manuals. It makes text simple to understand, also for readers whose first language is not English. Follow these rules:
 
 - One topic per sentence. Sentences of 20 words or fewer for instructions, 25 or fewer for descriptions.
 - Paragraphs of six sentences or fewer.
@@ -38,7 +40,7 @@ ASD-STE100 (Simplified Technical English) is the controlled language used for ae
 - Every factual claim in an explainer or report needs evidence you opened: `file:line`, or a primary source URL with the date checked. Mark anything unverified as unverified. Don't let a polished page or video make a guess look like a fact.
 - Avoid noun stacks ("user session token refresh handler failure") and vague words ("various", "appropriate", "robust").
 
-The 20% you relax: technical terms and code names are fine, and so are short sentences that read naturally over strict word lists.
+What you can relax: technical terms and code names are fine (the spec allows technical names), and natural short sentences are better than a strict approved-word list.
 
 When the user runs `/wait-what`, or says a message didn't land, re-pitch it with these rules: a little context first, then the point, in the terms from `GLOSSARY.md`.
 
@@ -52,7 +54,7 @@ When the user runs `/wait-what`, or says a message didn't land, re-pitch it with
 
 ## Whiteboard
 
-For a change or a system, if the Whiteboard MCP tools are available: call `session_capabilities`, then `session_get_instructions` (default topic for a change review, `scratchpad` for a quick drawing, `trace-archaeology` to explain how code came to be), and follow them exactly. Whiteboard's own guidance already asks for STE-80 prose and a visual every few sentences. Link the Whiteboard from the worksheet.
+For a change or a system, if the Whiteboard MCP tools are available: call `session_capabilities`, then `session_get_instructions` (default topic for a change review, `scratchpad` for a quick drawing, `trace-archaeology` to explain how code came to be), and follow them exactly. Write its text in ASD-STE100. Whiteboard's own guidance already asks for STE-80 prose and a visual every few sentences. Link the Whiteboard from the worksheet.
 
 ## HTML pages
 
@@ -70,7 +72,7 @@ A single self-contained `.html` file: inline CSS and JS, no external requests, n
 
 Bespoke videos are starting to work well for concepts and systems. They cost time and sometimes money, so make one only when the user asks or agrees.
 
-1. **Script first.** Write the narration in STE-80, scene by scene, with what's on screen for each line. Show the script to the user (interactive) before rendering.
+1. **Script first.** Write the narration in ASD-STE100, scene by scene, with what's on screen for each line. Show the script to the user (interactive) before rendering.
 2. **Pick a renderer:**
    - **Manim** (Python, the 3Blue1Brown style) for math, algorithms, data structures and step-by-step flows.
    - **Remotion** (React) for product walkthroughs, UI, and anything built from the app's own components. The `remotion-best-practices` skill helps if installed.
@@ -84,8 +86,8 @@ Bespoke videos are starting to work well for concepts and systems. They cost tim
 
 | Output | Default format |
 |---|---|
-| Final message to the user | STE-80 prose, plus a diagram if there's flow |
-| Worksheet summary and log | STE-80 prose |
+| Final message to the user | ASD-STE100 prose, plus a diagram if there's flow |
+| Worksheet summary and log | ASD-STE100 prose |
 | Review of a change (M and up) | Whiteboard, else HTML page |
 | Shift report | Markdown report plus `docs/shifts/YYYY-MM-DD.html` |
 | "How does X work?" | Whiteboard scratchpad, else diagram plus prose, else HTML page |

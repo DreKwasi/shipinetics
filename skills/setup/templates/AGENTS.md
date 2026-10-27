@@ -64,7 +64,7 @@ Scan any skill, plugin or MCP server with SkillSpector before installing it, and
 
 ## Explaining your work
 
-Write reports and summaries in plain controlled English (about 80% of ASD-STE100: short sentences, active voice, one word per concept). Use a diagram when there's structure or flow, a Whiteboard for code changes, and an HTML page for anything big. Details: shipinetics:explain.
+Write everything for people in ASD-STE100 (Simplified Technical English): docs, reports, worksheets, PR bodies, Whiteboards, HTML pages and replies. Short sentences, active voice, one word for one thing. Use a diagram when there's structure or flow, a Whiteboard for code changes, and an HTML page for anything big. Details: shipinetics:explain.
 
 ## Protected files
 

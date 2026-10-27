@@ -102,7 +102,7 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 4. Mark the worksheet done with a summary and exact next steps, if any. Fill in its Metrics block (shipinetics:worksheet). `worksheet tag`.
 5. Update the task queue: done, or follow-ups added.
 6. Append feedback to `docs/agent-feedback.md` (shipinetics:feedback).
-7. Tell the user what changed, what you verified and how, and anything not done or not verified. No hedging on what's verified, no claiming what isn't. Pick the format that makes it fastest to understand (shipinetics:explain): plain controlled English for short reports, a diagram when there's structure or flow, a Whiteboard or an HTML page for anything bigger.
+7. Tell the user, in ASD-STE100 (shipinetics:explain), what changed, what you verified and how, and anything not done or not verified. No hedging on what's verified, no claiming what isn't. Pick the format that makes it fastest to understand (shipinetics:explain): plain controlled English for short reports, a diagram when there's structure or flow, a Whiteboard or an HTML page for anything bigger.
 
 ## Optional skills that fit this loop
 

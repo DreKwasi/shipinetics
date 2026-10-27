@@ -90,7 +90,7 @@ Agent reviewers check the work. The human still has to understand it. For tasks 
 
 1. Call `session_capabilities`, then `session_get_instructions` (default topic), and follow those instructions exactly. They change between versions, so don't work from memory.
 2. Target the task's change: the worktree against the base branch for uncommitted work, or the commit range for committed work.
-3. Put the merge-risk grade, the agent review verdicts and any open findings in a callout near the top, so the human sees what's already been checked.
+3. Put the merge-risk grade, the agent review verdicts and any open findings in a callout near the top, so the human sees what's already been checked. Write all the Whiteboard's text in ASD-STE100 (shipinetics:explain).
 4. Add an Evidence section: upload the key screenshots from `docs/evidence/<worksheet>/` with `session_upload` and show them as image components next to the criteria they prove. Link the recording.
 5. Link the Whiteboard from the worksheet's Reviews section.
 

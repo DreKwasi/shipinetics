@@ -1,171 +1,190 @@
 # Getting started with Shipinetics
 
-How to roll shipinetics out: once per machine, once per project, then the daily, nightly and weekly rhythm. Read the README first for what each piece does.
+This guide gives the steps to start with Shipinetics. Do some steps one time on each machine, and some one time in each project. Then follow the daily, nightly and weekly routine. Read the README first: it tells you what each part does.
 
-## 1. Publish the plugin (once)
+## 1. Install on each machine (one time)
 
-Put this folder in a private GitHub repo so every machine installs the same version.
+1. Add the marketplace and install the plugin:
 
-```bash
-cd ~/Projects/shipinetics && git init -b main && git add -A && git commit -m "shipinetics v0.1.0"
-```
+   ```bash
+   claude plugin marketplace add DreKwasi/shipinetics
+   claude plugin install shipinetics@shipinetics
+   ```
 
-```bash
-gh repo create shipinetics --private --source ~/Projects/shipinetics --push
-```
+2. Install SkillSpector. Then you can scan each companion before you install it:
 
-To release a change: pick the version by the rules at the top of `CHANGELOG.md` (before 1.0.0, a breaking change bumps the minor version, anything else the patch), set it in `.claude-plugin/plugin.json`, add its CHANGELOG entry, commit, tag the commit `vX.Y.Z`, and push the commit and the tag. Machines pick it up with `claude plugin marketplace update shipinetics` and `claude plugin update shipinetics@shipinetics`. Without a new version, the update does nothing.
+   ```bash
+   uv tool install git+https://github.com/NVIDIA/skillspector.git
+   ```
 
-## 2. Install on each machine (once per machine)
+   To scan a source: `skillspector scan <git URL> --no-llm`. The install gate also asks you before any agent installs or updates a skill, plugin or MCP server.
 
-```bash
-claude plugin marketplace add <your-github-user>/shipinetics
-```
+3. Install the companions. Each one is optional. Shipinetics tells you when one is missing. Install skills with `-g`, so that `skills-outdated` can find their updates later.
 
-```bash
-claude plugin install shipinetics@shipinetics
-```
+   ```bash
+   npx skills add cloudflare/security-audit-skill -g -a claude-code
+   npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code
+   ```
 
-Then the companions. Each is optional, and shipinetics tells you when one is missing:
+4. Install Impeccable as a Claude Code plugin. In Claude Code, run `/plugin marketplace add pbakaus/impeccable`. Then open `/plugin` and install Impeccable from the list. Do not use `npx skills add` for Impeccable: that copy is for Codex.
 
-```bash
-npx skills add cloudflare/security-audit-skill
-```
+5. Optional: install Matt Pocock's skills. `grilling` asks you questions about a plan before the agent writes a spec. `domain-modeling` keeps the glossary. `/wait-what` makes the agent explain its last message again, more simply. `shipinetics:workflow` lists which of his skills to use and which not to use.
 
-Impeccable, as the Claude Code plugin. Not `npx skills add`, which installs the repo's `.agents/skills/` copy, written for Codex. In Claude Code:
+   ```bash
+   npx skills add mattpocock/skills --skill grilling --skill grill-me --skill domain-modeling --skill wait-what -g -a claude-code
+   ```
 
-```
-/plugin marketplace add pbakaus/impeccable
-```
+6. Install the other tools that you want:
+   - **Whiteboard:** the dev.fast Whiteboard plugin and desktop app.
+   - **Reviews from a different model family:** at least one of the Codex, Gemini or Cursor CLIs. Log in to it. In a project, `agent_review --list` shows which CLIs it found.
+   - **Secrets:** run `gcloud auth login` and `gcloud auth application-default login`. Then `bin/with-secrets` can read Secret Manager.
+   - **Security tests of your app:** Strix (see its README). It needs Docker. Keep its provider key in your vault.
 
-Then open `/plugin` and install Impeccable from the list.
+## 2. Set up a project (one time)
 
-Optionally, Matt Pocock's skills, for grilling a plan before the spec and naming domain terms. `shipinetics:workflow` says which ones fit and which to leave alone:
+Start with one test project. Choose a project that has tests and some small tasks to do.
 
-```bash
-claude plugin install mattpocock-skills@claude-plugins-official
-```
+1. Open the project in Claude Code, on a clean branch.
+2. Run `/shipinetics:setup`. It audits the project and writes the result to `docs/shipinetics-setup.md`.
+3. Answer its questions. They come in one message. For example, setup asks:
+   - about facts that it could not confirm;
+   - for secret names, and which files hold secrets;
+   - about git LFS and the `no-evidence` label;
+   - how often to run a full security audit;
+   - which optional phases you want.
+4. Setup then installs every phase in the same run. It proves that each phase works, and it commits each phase before it starts the next:
 
-```bash
-npx skills add warpdotdev/common-skills --skill merge-risk
-```
+   | Phase | Adds | Setup proves it with |
+   |---|---|---|
+   | 1 | `bin/verify` with its quick, complete and full tiers, `AGENTS.md`, the `.shipinetics/` lists, `bin/with-secrets`, one smoke test, the verification map in `docs/verification/` | Each verify tier through `shipinetics-verify`, the smoke test, and a full run of the map |
+   | 2 | System docs with 7-line headers, conventions, and for UI projects `DESIGN.md` from the tokens the code uses | `head -n 7 docs/systems/*.md` reads like a map of the code, and `design-check --all` runs |
+   | 3 | The worksheet template, the feedback log, `TODOS.md` | `worksheet new`, then `worksheet list` |
+   | 4 | Commit hooks: lint with automatic fixes, a 400-line limit, the `Worksheet:` trailer, and a pre-push hook that runs the complete checks | A commit with a lint error that can be fixed, a commit without a trailer, a commit that is too big, and a run of the pre-push hook |
+   | 5 | CI that runs `bin/verify --full` | A check of the workflow file |
+   | 6 | One visual test and one benchmark (optional) | Both run in `bin/verify --full` |
+   | 7 | Night shift (optional) | `night-shift --dry-run` |
+   | 8 | Security tools (optional) | `scan-skills` finds nothing marked DO_NOT_INSTALL |
 
-```bash
-uv tool install git+https://github.com/NVIDIA/skillspector.git
-```
+5. Read the report. It ends with a "For you" list: the things only you can do, for example an install, a login or a new GitHub label. Items about secrets and evidence are at the top. Until you do them, those guardrails are only partly active.
+   Some changes need a person. Setup puts them in `.shipinetics/pending/`, for example `.claude/settings.json`. Apply them with `shipinetics-config apply`.
+   If setup stopped early, run `/shipinetics:setup` again. It starts at the first phase that is not done.
+6. **Check the guardrails yourself:**
+   - Run `shipinetics-verify quick`, then `shipinetics-verify`. The quick tier must take seconds. The complete tier must take a few minutes at most. Then `shipinetics-verify status` shows that both passed.
+   - Ask the agent to make a small change that breaks a test, and then to finish. The Stop hook must send it back with the failure.
+   - Ask the agent to write a test itself. The edit guard must refuse and tell it to use `shipinetics:test-writer`.
+   - Ask the agent to run `env`. The secrets guard must refuse.
 
-Install SkillSpector first, then scan each skill before you install it, for example `skillspector scan https://github.com/warpdotdev/common-skills --no-llm`. Once shipinetics is installed, its install gate asks you before any agent installs a skill, plugin or MCP server.
+To do one phase again later, run `/shipinetics:setup <phase>`, for example `/shipinetics:setup 4`.
 
-- App security testing: install Strix (see its README; it needs Docker) and keep its provider key in Secret Manager.
+## 3. Daily: a normal task
 
-- Whiteboard: install the dev.fast Whiteboard plugin and desktop app.
-- Cross-family review: install at least one of the Codex, Gemini or Cursor CLIs, and log in to it. Check with `agent_review --list` inside a project.
-- Secrets: `gcloud auth login` and `gcloud auth application-default login`, so `bin/with-secrets` can read Secret Manager.
+Tell the agent what you want, as you do now. The agent follows `shipinetics:workflow`:
 
-## 3. Set up a project (once per project)
+1. It starts a worksheet.
+2. For medium tasks and larger, it asks you questions about the design first. Each question has its recommended answer. When the code can answer a question, it reads the code and does not ask you. Then it writes a spec with acceptance criteria. New domain terms go in `GLOSSARY.md`. You approve the criteria.
+3. `shipinetics:test-writer` writes the acceptance tests, then unit tests, in its own context. It writes one test for each behaviour, never one test for each function.
+4. The agent writes the code. At each stop, only the quick checks run, on what changed. The agent uses the feature in the real app, from the verification map, through each entry point. Then it runs `shipinetics-verify`. When it marks the worksheet done, the next stop runs the complete checks. A push or a PR needs the complete checks to pass on the final code.
+5. It gets reviews: `shipinetics:reviewer` on a different model, the security or UI reviewer when the change needs them, and `agent_review` for a different model family. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, the final reviewer uses the change in the app itself.
+6. It records evidence from the running app, on the final code: a screenshot for each acceptance criterion that shows the result, a recording for UI changes, and terminal output for CLIs and APIs. If the code changes after that, the old evidence fails the check.
+7. For medium tasks and larger, it makes a Whiteboard of the change for you.
+8. It commits each step that works. Each commit has a `Worksheet:` trailer and fewer than 400 changed lines. The git hooks refuse other commits. At the end, it tags the worksheet, fills in its metrics, and writes feedback.
+9. For a PR, it writes the body with the Evidence section and an independent merge-risk grade. The PR cannot open without the evidence.
 
-Start with one pilot project, not all of them. Pick one with an existing test suite and a few small tasks waiting.
+**What you do:**
+1. Answer the questions about the design.
+2. Approve the acceptance criteria.
+3. Decide the design-system change requests.
+4. Review the PR as its merge-risk grade tells you:
+   - **low:** check the evidence, read the change quickly, merge;
+   - **medium:** read the Whiteboard and the files that the grade names;
+   - **high:** do a full review.
+5. Fill in the three fields for you in the worksheet's Metrics: corrections, review time, and accepted or not.
 
-1. Open the project in Claude Code on a clean branch.
-2. Run `/shipinetics:setup`. It audits the project against every point and writes the status to `docs/shipinetics-setup.md`.
-3. Answer its questions. They come in one message: facts it couldn't confirm from live config, secret names, git LFS, the `no-evidence` label, and which optional phases you want.
-4. It then installs every phase in the same run. It proves each phase works and commits it before starting the next:
+If a message from the agent is not clear, type `/wait-what`. The agent explains it again, more simply.
 
-| Phase | Adds | Setup proves it by |
-|---|---|---|
-| 1 | `bin/verify` with its quick, complete and full tiers, `AGENTS.md`, `.shipinetics/` lists, `bin/with-secrets`, `.claude/settings.json`, one smoke test, the verification map in `docs/verification/` | Running each verify tier with `shipinetics-verify`, the smoke test, and the map's end-to-end self-proof |
-| 2 | System docs with 7-line headers, conventions, and for UI projects the design system: `DESIGN.md` written from the tokens the code already uses | `head -n 7 docs/systems/*.md` reads like a map of the codebase, and `design-check --all` runs |
-| 3 | Worksheet template, feedback log, `TODOS.md` | `worksheet new` then `worksheet list` |
-| 4 | Commit hooks: lint autofix with LLM fallback, a 400-line size limit, the `Worksheet:` trailer, and a pre-push hook that runs the complete verify | Committing a fixable lint error, a commit without a trailer and an oversized commit, and running the pre-push hook |
-| 5 | CI running `bin/verify --full` | Validating the workflow YAML |
-| 6 | One visual test, one benchmark (optional) | Both run in `bin/verify --full` |
-| 7 | Night shift readiness (optional) | `night-shift --dry-run` |
-| 8 | Security tools: SkillSpector and Strix (optional) | `scan-skills` shows no DO_NOT_INSTALL |
+For long tasks, paste the `/goal` line from the spec. Claude continues until a separate check sees all the results: the tests pass, the checks pass, the review is done and the work is committed.
 
-5. Read its report. It ends with a "For you" list: what only you can do, such as installing a CLI, logging in or creating a GitHub label. Anything about secrets or evidence is at the top, with what it leaves unprotected until you do it: those guardrails are only partly in force until then. If the run stopped early, run `/shipinetics:setup` again. It picks up at the first phase that isn't done.
-6. **Check the gates yourself:**
-   - Run `shipinetics-verify quick`, then `shipinetics-verify`. The quick tier should take seconds, the complete one a few minutes at most. `shipinetics-verify status` then shows both passed on the current code.
-   - Ask the agent to make a small change that breaks a test and then finish. The Stop hook should send it back with the failure.
-   - Ask the agent to write a test directly. The hook should refuse and point it at `shipinetics:test-writer`.
-   - Ask it to run `env`. The secrets guard should refuse.
-
-To redo or repair one phase later, run `/shipinetics:setup <phase>`, for example `/shipinetics:setup 4`.
-
-## 4. Daily: a normal task
-
-Tell the agent what you want, the way you do now. It follows `shipinetics:workflow`:
-
-1. Starts a worksheet.
-2. For medium tasks and up, grills you on the design first: numbered questions, each with its recommended answer, looking in the code instead of asking where it can. Then it writes a spec with acceptance criteria, and new domain terms go in `GLOSSARY.md`. You approve the criteria.
-3. Has `shipinetics:test-writer` write the acceptance tests, then unit tests, in its own context.
-4. Implements. While it works, each stop runs only the quick checks for what it changed. It drives the feature in the real app from the verification map, every entry point, then runs `shipinetics-verify`. When it marks the worksheet done, the next stop runs the complete checks, and a push or PR needs them to have passed on the final code.
-5. Gets reviews: `shipinetics:reviewer` on a different model, plus the security or UI reviewer when the change calls for them, plus `agent_review` for a different model family. UI changes are checked against `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet instead of adding it. For medium tasks and up, the wrap-up reviewer drives the change in the app itself.
-6. Records evidence from the running app once the code is final: screenshots per acceptance criterion showing the result and the state it left, a recording for UI changes, transcripts for CLIs and APIs. Evidence recorded before a later code change no longer passes.
-7. For medium tasks and up, authors a Whiteboard of the change for you.
-8. Commits each working step as it goes, each with a `Worksheet:` trailer and under 400 changed lines (the git hooks refuse anything else). Then tags the worksheet, fills in its metrics and leaves feedback.
-9. For a PR: builds the body with the Evidence section and an independent merge-risk grade. The PR can't open without the evidence.
-
-What you do: answer the grilling questions, approve the acceptance criteria, decide any design-system change requests, then let the merge-risk grade set how closely you review. Low: check the evidence, skim, merge. Medium: read the Whiteboard and the flagged files. High: full review. Fill in the three human fields in the worksheet's Metrics (corrections, review minutes, accepted).
-
-For longer tasks, paste the `/goal` line from the spec. Claude then keeps working until a separate evaluator sees the deliverables shown: tests passing, verify green, review done, work committed.
-
-Useful direct commands:
+**Useful commands:**
 
 | Command | When |
 |---|---|
-| `/shipinetics:spec <issue or idea>` | Turn an idea into acceptance criteria and failing tests first |
-| `/shipinetics:review impl` | Force a review now |
-| `/shipinetics:explain <topic> html` | Get an interactive page explaining something |
-| `/shipinetics:explain <topic> video` | Get a narrated explainer video (asks first) |
-| `/shipinetics:evidence` | Record or check the evidence for the current task |
-| `/shipinetics:security-scans app` | Security-test your own app with Strix (asks you to approve the targets first) |
+| `/shipinetics:spec <issue or idea>` | To make acceptance criteria and failing tests first |
+| `/shipinetics:review impl` | To get a review now |
+| `/shipinetics:explain <topic> html` | To get an interactive page that explains something |
+| `/shipinetics:explain <topic> video` | To get a video with narration (it asks first) |
+| `/shipinetics:evidence` | To record or check the evidence for the current task |
+| `/shipinetics:security-scans app` | To test your own app with Strix (it asks you to approve the targets first) |
+| `/wait-what` | When the last message was not clear |
 
-## 5. Nightly: the night shift
+## 4. Nightly: the night shift
 
-1. Put small, clear tasks in the Ready section of `TODOS.md`, each with acceptance criteria.
-2. Start it from a terminal in the project:
+1. Put small, clear tasks in the Ready section of `TODOS.md`. Give each task acceptance criteria.
+2. Start the night shift from a terminal in the project:
 
-```bash
-caffeinate -i night-shift --hours 6 --budget 30 --task-budget 6
-```
+   ```bash
+   caffeinate -i night-shift --hours 6 --budget 30 --task-budget 6
+   ```
 
-3. In the morning, open `docs/shifts/<date>.html` (or the `.md`) in the night worktree. Start with "Needs you": blocked questions, failing checks, test change requests.
-4. Read the Whiteboards for the tasks you care about, then review branch `night/<date>` and merge what you want.
+3. In the morning, open `docs/shifts/<date>.html` (or the `.md` file) in the night worktree. Start with "Needs you": questions about blocked tasks, failed checks, and requests to change tests.
+4. Read the Whiteboards for the tasks that you care about. Then review the branch `night/<date>` and merge what you want.
 
-Start with a small budget and two or three tasks for the first few nights. Raise the limits once the reports look trustworthy.
+For the first nights, use a small budget and two or three tasks. When the reports are correct, increase the limits.
 
-## 6. Weekly: keep it sharp
+## 5. Weekly: keep the setup good
 
 | Command | What it does |
 |---|---|
 | `/shipinetics:feedback ingest` | Groups the agents' feedback and proposes fixes to docs, tools and lint rules. You approve them |
-| `/shipinetics:sweep` | Looks across the week's commits for duplication, drift and half-finished work. Also checks the verification map against the app, design-system drift, the secrets and evidence guardrails, and `shipinetics-verify times` |
-| `/improve-codebase-architecture` | Optional (Matt Pocock's skills). When the sweep keeps finding the same hot spots: proposes deeper modules, and you pick what goes in the queue |
-| `/shipinetics:test-audit` | Finds tests that don't test what they claim, and prunes bloat |
-| `scan-skills` | Scans every installed skill, agent and plugin with SkillSpector. Deal with anything DO_NOT_INSTALL |
-| Full security audit | Ask for it before a release: "run a full security audit with shipinetics:security-reviewer", plus a Strix run against staging if you approve it |
+| `/shipinetics:sweep` | Looks at the week's commits for duplicate code, drift and work that is not complete. It also checks the verification map, the design system, the secrets and evidence guardrails, the time that checks take, and companions that have updates (`skills-outdated`). When a full security audit is due, it runs the audit |
+| `/improve-codebase-architecture` | Optional (Matt Pocock's skills). When the sweep finds the same problem areas each week, it proposes better modules. You choose what goes in the queue |
+| `/shipinetics:test-audit` | Finds tests that do not test what they say. It removes tests that add nothing, and it changes tests for each function into tests for each behaviour |
+| `scan-skills` | Scans all installed skills, agents and plugins with SkillSpector. Act on each result marked DO_NOT_INSTALL |
+
+**Full security audit.** Setup asks how often to run it: `security_audit_every` in `.shipinetics/config` (`off`, `weekly`, `monthly`, `quarterly` or a number of days, such as `14d`). `shipinetics-config due security-audit` tells you if an audit is due. The weekly sweep runs it when it is due. You can also ask for one at any time, for example before a release.
+
+## 6. Use it in more projects
+
+When the test project has run for two weeks and some night shifts without problems, run `/shipinetics:setup` in the next project. Each project keeps its own `AGENTS.md`, docs and lists. All projects share the plugin. So an improvement from one project's feedback goes to all projects at the next plugin update.
+
+## 7. Update to a new version
+
+1. Update the plugin, then restart Claude Code:
+
+   ```bash
+   claude plugin marketplace update shipinetics
+   claude plugin update shipinetics@shipinetics
+   ```
+
+2. Read the new entry in `CHANGELOG.md`. If it has a **breaking** change, do its steps in each project.
+3. Optional: run `/shipinetics:setup audit` in a project. It compares the project with the newest templates. A plugin update does not change the files that setup copied into the project.
+
+## 8. Release a change (for the plugin's maintainer)
+
+1. Choose the version with the rules at the top of `CHANGELOG.md`. Before 1.0.0, a breaking change increases the minor number (0.7.0 to 0.8.0). Other changes increase the last number (0.7.0 to 0.7.1).
+2. Set the version in `.claude-plugin/plugin.json`.
+3. Write the entry in `CHANGELOG.md`. For a breaking change, give the steps for each project.
+4. Commit, and tag the commit `vX.Y.Z`.
+5. Push the commit and the tag.
+
+If the version does not change, `claude plugin update` does nothing.
 
 ## Effort
 
-Everything runs at high effort by default: the main session (project settings), all four agents, night shift runs and the review CLIs. To turn it down for a session, start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium`, which overrides everything, agents included. The README lists the per-scope settings.
+All parts run at high effort by default. To use less effort for a session, start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium`. This setting overrides all others, also for agents. The README lists the settings for each part.
 
-## 7. Roll out to more projects
+## Problems and solutions
 
-Once the pilot has run a couple of weeks of tasks and a few night shifts without surprises, run `/shipinetics:setup` in the next project. Each project keeps its own `AGENTS.md`, docs and lists. The plugin stays shared, so an improvement from one project's feedback reaches every project on the next `claude plugin update shipinetics`.
-
-## Troubleshooting
-
-| Symptom | Likely cause and fix |
+| Problem | Cause and solution |
 |---|---|
-| Stop hook never fires | The project has no `.shipinetics/` folder or `bin/verify` isn't executable. Check `/plugin` for errors |
-| Stop hook makes every turn slow | Mid-task stops are running the complete tier. Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config` and scope `--quick` to the changed files. `shipinetics-verify times` shows which tier and step is slow. Keep slow suites behind `--full` |
-| A stop runs the complete checks mid-task | A path in `.shipinetics/complete-paths` changed (build config, a manifest, a lockfile), or the worksheet already says `Status: done`. Working as intended |
-| `gh pr create` is refused | Working as intended: the complete verify hasn't passed on this exact code (run `shipinetics-verify`), the branch has no complete evidence, or the body has no Evidence section. Run `evidence check --branch` to see what's missing |
-| `evidence check` says code changed since the evidence was recorded | A code fix landed after the screenshots. Re-record the criteria it affects and update the Commit line in `EVIDENCE.md`. Docs and test changes don't trigger this |
-| `design-check` says there's no design system to check against | `DESIGN.md` is missing or has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
-| Agent says it can't write a test | Working as intended. It should spawn `shipinetics:test-writer`. For a one-off mass change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |
-| Guard blocks a harmless command | Tell me the command so the pattern can be fixed. For now, run it yourself or use `SHIPINETICS_ALLOW_ENV_READ=1` for that session |
-| `bin/with-secrets` fails | gcloud isn't logged in, or the secret name in `.shipinetics/secrets.list` doesn't match Secret Manager |
-| `agent_review` warns about falling back to Claude | No Codex, Gemini or Cursor CLI is installed and logged in |
-| Night shift stops at once with a sandbox error | Claude Code's sandbox isn't available on this machine. Run `/sandbox` in Claude Code to check |
-| Every Bash call in a headless run fails with `EPERM ... srt-mux-*.sock` | You started `night-shift` or `claude -p` from inside another Claude Code session. A sandbox can't start inside another sandbox, and this machine's managed settings require one. Start it from a normal terminal instead |
+| The Stop hook never runs | The project has no `.shipinetics/` folder, `bin/verify` is not executable, or `hooks_off` includes `stop`. Look for errors in `/plugin` |
+| The Stop hook makes every turn slow | Stops during the work run the complete tier. Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows which tier and step is slow. Put slow suites behind `--full` |
+| A stop during the work runs the complete checks | A path in `.shipinetics/complete-paths` changed (build config, a manifest, a lock file), or the worksheet already says `Status: done`. This is correct |
+| `gh pr create` is refused | This is correct. The complete checks did not pass on this exact code (run `shipinetics-verify`), the branch has no complete evidence, or the body has no Evidence section. `evidence check --branch` shows what is missing |
+| `evidence check` says the code changed after the evidence | A code fix came after the screenshots. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests do not cause this |
+| `design-check` says there is no design system | `DESIGN.md` is missing or has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
+| The agent says it cannot write a test | This is correct. It must use `shipinetics:test-writer`. For a large one-time change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |
+| A guard blocks a safe command | Report the command, so the rule can be fixed. Until then, run the command yourself, or start the session with `SHIPINETICS_ALLOW_ENV_READ=1`. To keep agents away from more files, or fewer, write a `secret-paths` list |
+| `bin/with-secrets` fails | gcloud is not logged in, or a name in `.shipinetics/secrets.list` is not in Secret Manager |
+| `agent_review` says it uses Claude instead | No Codex, Gemini or Cursor CLI is installed and logged in |
+| The night shift stops at once with a sandbox error | Claude Code's sandbox is not available on this machine. Run `/sandbox` in Claude Code to check |
+| In a run without a person, each Bash command fails with `EPERM ... srt-mux-*.sock` | You started `night-shift` or `claude -p` from inside another Claude Code session. A sandbox cannot start inside another sandbox. Start it from a normal terminal |

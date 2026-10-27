@@ -1,120 +1,101 @@
 # Changelog
 
-Shipinetics follows [Semantic Versioning](https://semver.org). Before 1.0.0, a release that breaks
-something a project relies on (a removed command, setting, file name or hook behaviour) bumps the
-minor version (0.6.0 to 0.7.0). Anything else bumps the patch version (0.7.0 to 0.7.1). Each
-release has a git tag, `vX.Y.Z`, on the commit that set its version.
+Shipinetics uses [Semantic Versioning](https://semver.org).
+
+- Before 1.0.0, a **breaking** change increases the minor number (0.6.0 to 0.7.0). A breaking change removes or changes something that a project uses: a command, a setting, a file name or a hook rule. Its entry gives the steps for each project.
+- Other changes increase the last number (0.7.0 to 0.7.1).
+- Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
+
+## 0.7.2
+
+### Changed
+- All text for people uses ASD-STE100 (Simplified Technical English). This includes the README, GETTING-STARTED, this changelog, system docs, reports, worksheets, PR bodies, Whiteboards and chat replies. The `explain` skill gives the rules. Other skills point to it.
+- The README and GETTING-STARTED are written again in ASD-STE100. They now include steps to update to a new version, and steps to release a version.
+
+### Fixed
+- The README and GETTING-STARTED had old install steps. They said the plugin was not on GitHub, and they installed Matt Pocock's skills as a plugin.
 
 ## 0.7.1
 
 ### Changed
-- Tests are written per behaviour, never per function (Google's rule from "Software Engineering at
-  Google", ch. 12). Test-writer's plan lists behaviours as sentences from the spec, each with the
-  bug it catches, its layer and entry point, and the existing test it extends. It sorts the code
-  first: domain logic gets tests of its behaviours, glue code one test at its entry point, trivial
-  code none, and logic tangled with I/O is reported as a refactor candidate. Each behaviour has one
-  layer and one home: a fix adds a case to the behaviour's test, not a new file named after the fix.
-- The test-integrity persona flags per-function suites, a behaviour tested at two layers, test
-  files named after fixes, and tests that break on a refactor. `test-audit` reshapes such suites.
-- The test index lists behaviours, not files, so test-writer can find the test to extend.
+- Tests are written for each behaviour, never for each function. This is Google's rule ("Software Engineering at Google", chapter 12).
+  - Test-writer's plan lists behaviours. Each one is a sentence from the spec. For each one, the plan gives the bug that the test catches, the layer, the entry point, and the existing test that it extends.
+  - Test-writer sorts the code first. Domain logic gets tests of its behaviours. Glue code gets one test at its entry point. Trivial code gets no tests. Logic mixed with I/O is reported, so that someone can split it.
+  - Each behaviour has one layer and one test file. A fix adds a case to the test of its behaviour. It does not make a new file with the name of the fix.
+- The test-integrity persona finds four problems: tests for each function, behaviours tested at two layers, test files named after fixes, and tests that break when the code is restructured. `test-audit` changes these tests into tests for each behaviour.
+- The test index lists behaviours, not files. Test-writer uses it to find the test to extend.
 
 ## 0.7.0
 
 ### Changed (breaking)
-- The glossary is `GLOSSARY.md` (and `GLOSSARY-MAP.md` for several), following Matt Pocock's
-  `domain-modeling`. It was `CONTEXT.md`. Rename it in a project that has one.
-- The install gate also asks before `npx skills update`, `npx skills check`, `claude plugin update`
-  and `claude plugin marketplace update`: an update pulls new code too, and `skills check` can update
-  and remove skills while it checks.
+- The glossary is `GLOSSARY.md` (and `GLOSSARY-MAP.md` when there are several). The old name was `CONTEXT.md`. Matt Pocock's `domain-modeling` uses the new name. **Step:** if a project has `CONTEXT.md`, run `git mv CONTEXT.md GLOSSARY.md`.
+- The install gate also asks you before these commands: `npx skills update`, `npx skills check`, `claude plugin update` and `claude plugin marketplace update`. An update brings new code. `skills check` can update and remove skills while it checks.
 
 ### Removed (breaking)
-- Support for the plugin's former name. Projects must use `.shipinetics/`, `SHIPINETICS_*`
-  variables, and the `shipinetics-config` and `shipinetics-verify` commands. Removed: the
-  fallback to the old project folder and variable names, the old command names,
-  `shipinetics-config migrate` and the migration guide.
+- The plugin's former name. Projects must use `.shipinetics/`, the `SHIPINETICS_*` variables, and the commands `shipinetics-config` and `shipinetics-verify`. These parts are removed: the fallback to the old folder and variable names, the old command names, `shipinetics-config migrate`, and the migration guide. **Step:** if a project still has the old folder, rename it to `.shipinetics/`. Then rename the old variables in its scripts and docs.
 
 ### Added
-- Modular hooks. Switch any hook off with `hooks_off` (`stop`, `edits`, `secrets`, `pr`,
-  `installs`) in the project's config or in `~/.config/shipinetics/config`, or for a session with
-  `SHIPINETICS_HOOKS_OFF`.
-- You choose the secret files. A `secret-paths` list (one glob per line) in `.shipinetics/` or in
-  `~/.config/shipinetics/` replaces the built-in list of credential files. Setup has a template.
+- Hooks are modular. Switch off any hook with `hooks_off` (`stop`, `edits`, `secrets`, `pr`, `installs`). Put it in the project's config, or in `~/.config/shipinetics/config`. For one session, use `SHIPINETICS_HOOKS_OFF`.
+- You choose the secret files. Write a `secret-paths` list (one pattern on each line) in `.shipinetics/` or in `~/.config/shipinetics/`. It replaces the built-in list of credential files. Setup has a template.
 - The edit guard keeps agents out of `~/.config/shipinetics/`.
-- A cadence for the full security audit: `security_audit_every` (`off`, `weekly`, `monthly`,
-  `quarterly` or `<days>d`), chosen at setup. `shipinetics-config due security-audit` says when one
-  is due, and the weekly sweep runs it. Each audit adds a line of counts to
-  `docs/security/audits.md`. The findings stay outside the repo.
-- `/wait-what` (Matt Pocock) in the workflow and explain skills: the user's "say that again, simpler" command.
-- Grilling also before any hard-to-reverse decision, not only before specs.
-- Keeping companions up to date: the weekly sweep runs `skills-outdated`, a read-only check of
-  each installed skill against its repo, and compares plugins with their marketplaces, you scan and update, and the sweep checks what Shipinetics relies on in each
-  (README, "What Shipinetics relies on"). Setup installs skills with `-g` so the check finds them.
-- The tests are isolated from the machine: a scratch home, settings folder and git config, no
-  `SHIPINETICS_*` or Claude Code variables from the shell, and only this plugin's commands on the
-  `PATH`.
+- A schedule for the full security audit: `security_audit_every` (`off`, `weekly`, `monthly`, `quarterly` or a number of days such as `14d`). Setup asks for it. `shipinetics-config due security-audit` tells you when an audit is due. The weekly sweep runs it. Each audit adds one line of counts to `docs/security/audits.md`. The findings stay outside the repo.
+- `/wait-what` (Matt Pocock) in the workflow and explain skills. You type it when a message is not clear, and the agent explains again, more simply.
+- Grilling also happens before each decision that is hard to reverse, not only before specs.
+- Companions stay up to date. The weekly sweep runs `skills-outdated`, a read-only check of each installed skill against its repo. It also compares plugins with their marketplaces. You scan and update. Then the sweep checks the details that Shipinetics needs (README, "What Shipinetics needs from each companion"). Setup installs skills with `-g`, so the check finds them.
+- The tests are isolated from the machine. Each test has its own home folder, settings folder and git config. It ignores `SHIPINETICS_*` and Claude Code variables from the shell. Only this plugin's commands are on the `PATH`.
 - Tests for the `SHIPINETICS_SKIP_VERIFY` and `SHIPINETICS_UNLOCK` overrides.
 
 ## 0.6.0
 
 ### Added
-- Pending changes for protected files. Agents write a proposal to `.shipinetics/pending/<path>`, and
-  `shipinetics-config pending` and `apply` let a human review and apply it.
-- `launch = user`, for projects where the user runs the dev servers.
-- `bench-compare`, with per-machine baselines, budgets and a noise check, plus the `bench_cmd` and
-  `package_bench_cmd` keys.
-- `known-failing`, which gates a suite with existing failures on new failures only.
-- `harness_repo`, and a warning when a workspace's own files aren't in git.
+- Pending changes for protected files. An agent writes a proposal to `.shipinetics/pending/<path>`. A person reviews and applies it with `shipinetics-config pending` and `apply`.
+- `launch = user`, for projects where you start the dev servers yourself.
+- `bench-compare`, with baselines for each machine, budgets and a noise check. Also the keys `bench_cmd` and `package_bench_cmd`.
+- `known-failing`. When a suite already has failures, only new failures fail the check.
+- `harness_repo`. Also a warning when the own files of a workspace are not in git.
 - `night-shift` in workspace mode.
-- A Stop-hook reminder to write a regression test first on bug fixes.
+- A Stop hook reminder: on a bug fix, write a failing regression test first.
 - `shipinetics-config match <list> <path>`.
-- `env_safe_names`, for variables the env guards should ignore.
+- `env_safe_names`: variables that the environment guards ignore.
 
 ### Changed
-- The secrets guards ignore heredoc bodies written to files, inert search patterns, docs, and reads
-  of variables that never hold secrets. Deny messages name the project's `secrets_runner`.
-- Setup proposes `.claude/settings.json` through pending instead of editing it, and writes
-  `protected-paths` last.
+- The secrets guards ignore text that cannot show a secret: heredoc bodies that go into files, search patterns, docs, and reads of safe variables. Block messages name the project's `secrets_runner`.
+- Setup proposes `.claude/settings.json` through pending changes. It does not edit the file. Setup writes `protected-paths` last.
 
 ### Fixed
-- The secrets guard missed `env`, `export` and `set` when a newline followed them.
-- On a `..` path, the edit guard could reach a protected file through the pending folder.
+- The secrets guard did not find `env`, `export` or `set` when a new line came after them.
+- With a `..` path, the edit guard let an agent reach a protected file through the pending folder.
 
 ### Deprecated
-- The former name's folder, variables and commands, which still worked in this release with a
-  notice. Removed in 0.7.0.
+- The former name's folder, variables and commands. They still worked in this release, with a notice. 0.7.0 removed them.
 
 ## 0.5.0
 
 ### Changed (breaking)
-- Renamed the plugin to Shipinetics: the plugin and skill namespace (`shipinetics:`), the project
-  folder (`.shipinetics/`), the environment variables (`SHIPINETICS_*`) and the commands
-  (`shipinetics-config`, `shipinetics-verify`).
+- The plugin's new name is Shipinetics. This changed the skill prefix (`shipinetics:`), the project folder (`.shipinetics/`), the environment variables (`SHIPINETICS_*`) and the commands (`shipinetics-config`, `shipinetics-verify`).
 
 ## 0.4.0
 
 ### Added
-- Tests for the hooks and tools, run in CI on Linux and on macOS's bash 3.2.
+- Tests for the hooks and tools. CI runs them on Linux, and on macOS's bash 3.2.
 
 ### Fixed
-- Review findings in the verify tiers, the PR gate and the evidence check.
+- Problems that a review found in the verify tiers, the PR gate and the evidence check.
 
 ## 0.3.0
 
 ### Added
-- Verify tiers (quick, complete, full). A pass is reused while the code is unchanged.
-- The verification map, the design-system check (`design-check`, ui-reviewer) and the evidence
-  freshness check.
+- Verify tiers: quick, complete and full. A pass stays valid while the code does not change.
+- The verification map, the design-system check (`design-check`, the UI reviewer) and the check that evidence is newer than the code.
 
 ### Changed
-- Setup runs in one pass. The Stop hook also verifies work committed during the session.
+- Setup runs in one pass. The Stop hook also checks work that was committed during the session.
 
 ## 0.2.0
 
 ### Added
-- Project config (`config`), workspace mode, and commit hooks for the `Worksheet:` trailer and the
-  400-line limit.
+- The project config (`config`), workspace mode, and commit hooks for the `Worksheet:` trailer and the 400-line limit.
 
 ## 0.1.0
 
-- First release: the verify-gated Stop hook, read-only cross-model review, worksheets, night shift,
-  and the skills that tie them together.
+- The first release: the Stop hook that runs the checks, read-only reviews on other models, worksheets, the night shift, and the skills that connect them.
