@@ -6,7 +6,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
-## Unreleased
+## 0.8.1
 
 ### Added
 - Companions. `companions.tsv` lists the skills, plugins and tools that Shipinetics uses together with its own skills. They are Matt Pocock's `grilling`, `domain-modeling`, `wait-what`, `research`, `prototype`, `codebase-design` and `diagnosing-bugs`, Cloudflare's `security-audit`, Warp's `merge-risk`, Impeccable, Whiteboard, SkillSpector and Strix (optional). Each row gives why Shipinetics uses the companion, its install command and its SkillSpector result.
