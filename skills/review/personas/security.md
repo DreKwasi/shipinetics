@@ -7,7 +7,7 @@
 - Authentication or authorization checks missing on a new route, action or job. Checks done on the client only.
 - Access control by obscurity (guessable IDs, unlisted URLs) instead of ownership checks.
 - Secrets anywhere but the vault. Secrets live in a vault (such as Google Secret Manager) and reach the app as environment variables. Flag secrets in code, logs, error messages, URLs, test fixtures, committed config or `.env`-style files.
-- Environment variables read outside the config module. Only the config module (the files in `.shipinetics/env-allowed-paths`) reads the environment. New secrets must be declared there and in the secrets list.
+- New secrets that are not in the secrets list (`.shipinetics/secrets.list`).
 - New dependencies: are they maintained, pinned, and actually needed? Postinstall scripts?
 - Overly broad permissions, CORS, cookie flags, CSP changes, tokens without expiry.
 - Sensitive data stored or logged in plaintext. PII in analytics events.

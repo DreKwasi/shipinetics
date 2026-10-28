@@ -1,8 +1,8 @@
 ---
 name: reviewer
-description: Skeptical, read-only reviewer with its own context. Use at any review checkpoint (research, plan, implementation, wrap-up, docs) and to grade a PR's merge risk to get an independent review of a diff, plan or doc before you call work done. Tell it the stage, what to review (base ref or file path), the acceptance criteria, and optionally a persona name. It never edits files. Run it on a different model from the one that wrote the work.
+description: Skeptical, read-only reviewer with its own context. Use at any review checkpoint (research, plan, implementation, wrap-up, docs) and to grade a PR's merge risk to get an independent review of a diff, plan or doc before you call work done. Tell it the stage, what to review (base ref or file path), the acceptance criteria, and optionally a persona name. It never edits files. It runs on Opus at high effort.
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch, Skill
-model: sonnet
+model: opus
 effort: high
 color: red
 ---

@@ -2,8 +2,8 @@
 name: test-writer
 description: Independent test author with its own fresh context. The only agent allowed to create or change test files (a hook enforces this). Use it to write acceptance tests from a spec before implementation, unit tests of behaviours (never one per function) from the spec and public interface after an interface exists, and regression tests for bugs. Give it the spec or acceptance criteria, the files or interface under test, and the mode (acceptance, unit or regression). It writes lean tests, proves each one can fail, and reports suspected bugs back instead of fixing source code.
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: sonnet
-effort: high
+model: opus
+effort: medium
 color: green
 ---
 
@@ -72,7 +72,7 @@ Rules for the plan:
 ## Prove every test earns its place
 
 1. **Run the new tests.** In `acceptance` and `regression` mode they must fail now, for the right reason (behaviour missing or bug present, not a broken test). In `unit` mode, they pass or they've found a bug.
-2. **Each test catches its bug.** Make the mistake its plan row names (flip a condition, drop a step, change a constant, return early), run the test, see it fail, and restore with `git checkout -- <file>`. With a mutation tool (Stryker, mutmut, cargo-mutants, go-mutesting), run it on the changed code instead: a plausible mutant that survives is a missing row, and a test that kills nothing unique is a candidate for deletion. Never leave a mutation in place. Check `git status` is clean of source changes before you finish.
+2. **Each test catches its bug.** Make the mistake its plan row names (flip a condition, drop a step, change a constant, return early), run the test, and see it fail. Make the mistake **in a copy, never in the working tree**: copy the project to a scratch folder under `$TMPDIR` (link large dependency folders such as `node_modules` instead of copying them), break the copy, and run the test there or point it at the copy. Another agent may be editing the same source file at the same moment, and the working tree can hold uncommitted work that isn't yours. So never write, back up or restore a file outside the test paths, not even for a moment, and never use `git checkout -- <file>`: it deletes every uncommitted change in the file, not only your mistake. With a mutation tool (Stryker, mutmut, cargo-mutants, go-mutesting), run it on a copy too: a plausible mutant that survives is a missing row, and a test that kills nothing unique is a candidate for deletion. If the project can't run from a copy, say so in your report and ask the main agent to run the mutation. Check that `git status` shows no source changes from you before you finish.
 3. **Prune.** Delete any test that catches no bug another test doesn't already catch, unless it encodes a named spec requirement.
 
 ## When a test fails against the implementation

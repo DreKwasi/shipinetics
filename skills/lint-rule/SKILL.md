@@ -7,6 +7,8 @@ argument-hint: "<problem or convention ID>"
 # Encode it in a linter
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 Every problem a linter catches is one reviewers and agents never have to think about again. The goal isn't to flag problems, it's to end up with clean code automatically.
 
@@ -37,4 +39,4 @@ Go down this list and stop at the first that works:
 
 ## The LLM fallback
 
-`bin/llm-fix <file> "<lint output>"` runs a cheaper model (default: Sonnet through `claude -p`, or a Cursor model with `SHIPINETICS_FIX_CLI=cursor`) restricted to reading and editing that one file. If it touches anything else, the change is rolled back. `bin/lint-fix` re-checks afterwards, so a bad LLM fix still fails the commit. Turn it off for a commit with `SHIPINETICS_LLM_FIX=0`.
+`bin/llm-fix <file> "<lint output>"` runs a cheaper Claude model (Sonnet through `claude -p` by default; `SHIPINETICS_FIX_MODEL` sets another) restricted to reading and editing that one file. If it touches anything else, the change is rolled back. `bin/lint-fix` re-checks afterwards, so a bad LLM fix still fails the commit. Turn it off for a commit with `SHIPINETICS_LLM_FIX=0`.

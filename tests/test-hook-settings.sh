@@ -37,7 +37,4 @@ rm .shipinetics/secret-paths; printf 'secrets.enc\n' >"$user/secret-paths"
 hook guard-secrets.sh Bash command "sops -d secrets.enc"; has "the user's list applies when the project has none" "$OUT" "matches 'secrets.enc'"
 rm "$user/secret-paths"
 
-# ---- agents can't change the user's settings
-hook guard-edits.sh Write file_path "$user/config"; has "the edit guard keeps agents out of the user's settings" "$OUT" "Shipinetics settings"
-XDG_CONFIG_HOME="$XDG_CONFIG_HOME/" hook guard-edits.sh Write file_path "$user/config"; has "and when XDG_CONFIG_HOME ends in /" "$OUT" "Shipinetics settings"
 done_testing

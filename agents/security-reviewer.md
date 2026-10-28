@@ -2,8 +2,8 @@
 name: security-reviewer
 description: Read-only security reviewer with its own context. Uses Cloudflare's security-audit skill in guidance mode for a focused review of a diff, plus the shipinetics security persona. Use at implementation review when a change touches auth, input handling, file or network access, secrets, permissions, dependencies or anything exposed to untrusted users. Give it the base ref and what the change does. It never edits files.
 tools: Read, Grep, Glob, Bash, Skill
-model: sonnet
-effort: high
+model: opus
+effort: medium
 color: orange
 ---
 
@@ -28,8 +28,8 @@ You're a security reviewer looking at another agent's change. Find vulnerabiliti
 
 Run `git diff <base>` and `git status` for new files. For each changed entry point that untrusted input can reach, trace it end to end using the attack classes in security-audit that apply to this stack. Also check, specific to this setup:
 
-- Secrets read anywhere other than the project's config module, logged, put in error messages, sent to the client, or written to files.
-- New secrets used in code but not declared in the config module and the secrets list.
+- Secrets logged, put in error messages, sent to the client, or written to files.
+- New secrets used in code but not in the secrets list (`.shipinetics/secrets.list`).
 - New dependencies: necessary, maintained, pinned, no install scripts doing surprising things.
 - New or changed agent tooling (skills, agents, hooks, MCP servers): run `scan-skills <path>` on it if SkillSpector is installed, and include the result.
 

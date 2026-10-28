@@ -1,6 +1,6 @@
 # Getting started with Shipinetics
 
-This guide gives the steps to start with Shipinetics. Do some steps one time on each machine, and some one time in each project. Then follow the daily, nightly and weekly routine. Read the README first: it tells you what each part does.
+This guide gives the steps to start with Shipinetics. Do some steps one time on each machine, and some one time in each project. Then follow the daily and weekly routine. Read the README first: it tells you what each part does.
 
 ## 1. Install on each machine (one time)
 
@@ -19,26 +19,25 @@ This guide gives the steps to start with Shipinetics. Do some steps one time on 
 
    To scan a source: `skillspector scan <git URL> --no-llm`. The install gate also asks you before any agent installs or updates a skill, plugin or MCP server.
 
-3. Install the companions. Each one is optional. Shipinetics tells you when one is missing. Install skills with `-g`, so that `skills-outdated` can find their updates later.
+3. Install the companions. Shipinetics uses them together with its own skills. The README ("Companions") gives the reason for each one and its SkillSpector result. Install skills with `-g`, so that `skills-outdated` can find their updates later.
 
    ```bash
+   npx skills add mattpocock/skills --skill grilling --skill domain-modeling --skill wait-what --skill research --skill prototype --skill codebase-design --skill diagnosing-bugs -g -a claude-code
    npx skills add cloudflare/security-audit-skill -g -a claude-code
    npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code
+   claude plugin marketplace add pbakaus/impeccable
+   claude plugin install impeccable@impeccable
+   claude plugin marketplace add devdotfast/whiteboard
+   claude plugin install whiteboard@devfast
    ```
 
-4. Install Impeccable as a Claude Code plugin. In Claude Code, run `/plugin marketplace add pbakaus/impeccable`. Then open `/plugin` and install Impeccable from the list. Do not use `npx skills add` for Impeccable: that copy is for Codex.
+   Also install the dev.fast Whiteboard app. The Whiteboard plugin starts it.
 
-5. Optional: install Matt Pocock's skills. `grilling` asks you questions about a plan before the agent writes a spec. `domain-modeling` keeps the glossary. `/wait-what` makes the agent explain its last message again, more simply. `shipinetics:workflow` lists which of his skills to use and which not to use.
+4. Check the result. `shipinetics-companions` shows each companion as installed or missing. Until you install a companion, each new session starts with a notice about it. If you do not want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.
 
-   ```bash
-   npx skills add mattpocock/skills --skill grilling --skill grill-me --skill domain-modeling --skill wait-what -g -a claude-code
-   ```
-
-6. Install the other tools that you want:
-   - **Whiteboard:** the dev.fast Whiteboard plugin and desktop app.
-   - **Reviews from a different model family:** at least one of the Codex, Gemini or Cursor CLIs. Log in to it. In a project, `agent_review --list` shows which CLIs it found.
+5. Install the other tools that you want:
    - **Secrets:** run `gcloud auth login` and `gcloud auth application-default login`. Then `bin/with-secrets` can read Secret Manager.
-   - **Security tests of your app:** Strix (see its README). It needs Docker. Keep its provider key in your vault.
+   - **Security tests of your app (optional):** Strix: `curl -sSL https://strix.ai/install | bash`. It needs Docker (running). Keep its LLM provider key in your vault.
 
 ## 2. Set up a project (one time)
 
@@ -80,17 +79,18 @@ To do one phase again later, run `/shipinetics:setup <phase>`, for example `/shi
 Tell the agent what you want, as you do now. The agent follows `shipinetics:workflow`:
 
 1. It starts a worksheet.
-2. For medium tasks and larger, it asks you questions about the design first. Each question has its recommended answer. When the code can answer a question, it reads the code and does not ask you. Then it writes a spec with acceptance criteria. New domain terms go in `GLOSSARY.md`. You approve the criteria.
-3. `shipinetics:test-writer` writes the acceptance tests, then unit tests, in its own context. It writes one test for each behaviour, never one test for each function.
-4. The agent writes the code. After each step, it runs the quick checks on what changed (`shipinetics-verify quick`). The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
-5. It gets reviews: `shipinetics:reviewer` on a different model, the security or UI reviewer when the change needs them, and `agent_review` for a different model family. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, the final reviewer uses the change in the app itself.
-6. It records evidence from the running app, on the final code: a screenshot for each acceptance criterion that shows the result, a recording for UI changes, and terminal output for CLIs and APIs. If the code changes after that, the old evidence fails the check.
-7. For medium tasks and larger, it makes a Whiteboard of the change for you.
-8. It commits each step that works. Each commit has a `Worksheet:` trailer and fewer than 400 changed lines. The git hooks refuse other commits. At the end, it tags the worksheet, fills in its metrics, and writes feedback.
-9. For a PR, it writes the body with the Evidence section and an independent merge-risk grade. The PR cannot open without the evidence.
+2. For small tasks and larger, it gives you two or three routes for the task, and recommends one. Each route names the companion skills that it uses, for example `grilling` for decisions or `research` for external facts. You choose the route.
+3. For medium tasks and larger, it asks you questions about the design first. Each question has its recommended answer. When the code can answer a question, it reads the code and does not ask you. Then it writes a spec with acceptance criteria. New domain terms go in `GLOSSARY.md`. You approve the criteria.
+4. `shipinetics:test-writer` writes the acceptance tests, then unit tests, in its own context. It writes one test for each behaviour, never one test for each function.
+5. The agent writes the code. After each step, it runs the quick checks on what changed (`shipinetics-verify quick`). The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
+6. It gets reviews: `shipinetics:reviewer` (Opus, in its own context), and the security or UI reviewer when the change needs them. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, the final reviewer uses the change in the app itself.
+7. It records evidence from the running app, on the final code: a screenshot for each acceptance criterion that shows the result, a recording for UI changes, and terminal output for CLIs and APIs. If the code changes after that, the old evidence fails the check.
+8. For medium tasks and larger, it makes a Whiteboard of the change for you.
+9. It commits each step that works. Each commit has a `Worksheet:` trailer and fewer than 400 changed lines. The git hooks refuse other commits. At the end, it tags the worksheet, fills in its metrics, and writes feedback.
+10. For a PR, it writes the body with the Evidence section and an independent merge-risk grade. The PR cannot open without the evidence.
 
 **What you do:**
-1. Answer the questions about the design.
+1. Choose a route, and answer the questions about the design.
 2. Approve the acceptance criteria.
 3. Decide the design-system change requests.
 4. Review the PR as its merge-risk grade tells you:
@@ -124,6 +124,7 @@ For long tasks, paste the `/goal` line from the spec. Claude continues until a s
 | `/improve-codebase-architecture` | Optional (Matt Pocock's skills). When the sweep finds the same problem areas each week, it proposes better modules. You choose what goes in the queue |
 | `/shipinetics:test-audit` | Finds tests that do not test what they say. It removes tests that add nothing, and it changes tests for each function into tests for each behaviour |
 | `scan-skills` | Scans all installed skills, agents and plugins with SkillSpector. Act on each result marked DO_NOT_INSTALL |
+| `shipinetics-usage html` | A page with charts of the tokens that each session and each agent used. It reads Claude Code's transcripts, so it costs nothing. `shipinetics-usage` gives the same numbers in the terminal |
 
 **Full security audit.** Setup asks how often to run it: `security_audit_every` in `.shipinetics/config` (`off`, `weekly`, `monthly`, `quarterly` or a number of days, such as `14d`). `shipinetics-config due security-audit` tells you if an audit is due. The weekly sweep runs it when it is due. You can also ask for one at any time, for example before a release.
 
@@ -155,7 +156,7 @@ If the version does not change, `claude plugin update` does nothing.
 
 ## Effort
 
-All parts run at high effort by default. To use less effort for a session, start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium`. This setting overrides all others, also for agents. The README lists the settings for each part.
+The main session runs at high effort. The `reviewer` agent runs on Opus at high effort, and the other three agents run on Opus at medium effort. To use a different effort for a session, start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium`. This setting overrides all others, also for agents. The README lists the settings for each part.
 
 ## Problems and solutions
 
@@ -166,6 +167,6 @@ All parts run at high effort by default. To use less effort for a session, start
 | `evidence check` says the code changed after the evidence | A code fix came after the screenshots. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests do not cause this |
 | `design-check` says there is no design system | `DESIGN.md` is missing or has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
 | The agent says it cannot write a test | This is correct. It must use `shipinetics:test-writer`. For a large one-time change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |
+| A session starts with a list of missing companions | Install them (step 3 of section 1), or add the ones that you do not want to `companions_skip` in `~/.config/shipinetics/config` |
 | A guard blocks a safe command | Report the command, so the rule can be fixed. Until then, run the command yourself, or start the session with `SHIPINETICS_ALLOW_ENV_READ=1`. To keep agents away from more files, or fewer, write a `secret-paths` list |
 | `bin/with-secrets` fails | gcloud is not logged in, or a name in `.shipinetics/secrets.list` is not in Secret Manager |
-| `agent_review` says it uses Claude instead | No Codex, Gemini or Cursor CLI is installed and logged in |

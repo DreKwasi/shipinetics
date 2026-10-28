@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# shipinetics-verify: run the project's verify command for a tier, and record the pass so the Stop
-# hook, the pre-push hook and the PR gate don't run it again on the same code.
+# shipinetics-verify: run the project's verify command for a tier, and record the pass so the
+# pre-push hook and the PR gate don't run it again on the same code.
 #
 # Usage:
 #   shipinetics-verify [complete]     every fast check (verify_cmd, default bin/verify). The default
@@ -74,7 +74,7 @@ case "${1:-}" in
       if sy_verify_passed "$root" "$pkg" "$t"; then echo "$t: passed on the current code"
       else echo "$t: not passed on the current code"; fi
     done
-    sy_has_quick "$root" "$pkg" || echo "(no quick tier set, so every stop runs the complete tier)"
+    sy_has_quick "$root" "$pkg" || echo "(no quick tier set, so quick runs the complete tier)"
     exit 0 ;;
   --force) force=1; shift ;;
 esac

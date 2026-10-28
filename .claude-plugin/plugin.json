@@ -2,7 +2,7 @@
   "name": "shipinetics",
   "displayName": "Shipinetics",
   "version": "0.8.0",
-  "description": "A portable agentic coding setup: verify gates on push and PR, read-only cross-model review, worksheets, and the skills that tie them together.",
+  "description": "A portable agentic coding setup: verify gates on push and PR, read-only independent review, worksheets, and the skills and companions that tie them together.",
   "author": {
     "name": "Drekwasi"
   },

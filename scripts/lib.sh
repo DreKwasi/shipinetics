@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off security_audit_every"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every"
 
 sy_default() {
   case "$1" in
@@ -20,7 +20,6 @@ sy_default() {
     tools_index_file) echo "docs/tools.md" ;;
     queue_file) echo "TODOS.md" ;;
     evidence_dir) echo "docs/evidence" ;;
-    reviews_dir) echo "docs/reviews" ;;
     personas_dir) echo "docs/review/personas" ;;
     verify_cmd) echo "bin/verify" ;;
     tag_prefix) echo "ws/" ;;
@@ -161,13 +160,47 @@ sy_in_list() {
 sy_user_dir() { printf '%s/shipinetics\n' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
 
 # sy_hook_off <name> [root]: true if the hook is switched off. The names are edits,
-# secrets, pr and installs. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
+# secrets, pr, installs, companions and usage. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
 # project's config, or (when the project doesn't set hooks_off) in the user's config.
 sy_hook_off() {
   local off
   if [ -n "${2:-}" ] && sy_is_set "$2" hooks_off; then off="$(sy_cfg "$2" hooks_off)"
   else off="$(sy_cfg_file "$(sy_user_dir)/config" hooks_off)"; fi
   case " $(sy_env HOOKS_OFF) $off " in *" $1 "*) return 0 ;; esac
+  return 1
+}
+
+# sy_companions_file: the plugin's list of companions (see the header of companions.tsv)
+sy_companions_file() { printf '%s/companions.tsv\n' "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; }
+
+# sy_claude_dir: Claude Code's own settings folder
+sy_claude_dir() { printf '%s\n' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
+
+# sy_companion_installed <kind> <id> [project dir]: true if the companion is installed. A skill is
+# in Claude Code's skills, the skills CLI's global folder, or the project's .claude/skills. A plugin
+# is in Claude Code's installed_plugins.json. A cli is on the PATH.
+sy_companion_installed() {
+  local c; c="$(sy_claude_dir)"
+  case "$1" in
+    skill)  [ -f "$c/skills/$2/SKILL.md" ] || [ -f "$HOME/.agents/skills/$2/SKILL.md" ] ||
+              { [ -n "${3:-}" ] && [ -f "$3/.claude/skills/$2/SKILL.md" ]; } ;;
+    plugin) [ -f "$c/plugins/installed_plugins.json" ] && grep -qF "\"$2\"" "$c/plugins/installed_plugins.json" ;;
+    cli)    command -v "$2" >/dev/null 2>&1 ;;
+    *)      return 1 ;;
+  esac
+}
+
+# sy_companion_declined <name> <id> [root]: true if companions_skip names the companion (by name
+# or id, any case; names are separated by spaces or commas). The project's companions_skip wins, else the user's, like hooks_off.
+sy_companion_declined() {
+  local skip w
+  if [ -n "${3:-}" ] && sy_is_set "$3" companions_skip; then skip="$(sy_cfg "$3" companions_skip)"
+  else skip="$(sy_cfg_file "$(sy_user_dir)/config" companions_skip)"; fi
+  skip="${skip//,/ }"
+  for w in $skip; do
+    w="$(printf '%s' "$w" | tr '[:upper:]' '[:lower:]')"
+    case "$w" in "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"|"$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')") return 0 ;; esac
+  done
   return 1
 }
 
@@ -400,7 +433,7 @@ print $t;
 PL
 
 # sy_list_match <root> <list> <path relative to root>: true if the path matches a glob in one of
-# the project's lists (protected-paths, test-paths, env-allowed-paths, ui-paths)
+# the project's lists (protected-paths, test-paths, ui-paths)
 # the way the guards see it, and sets SY_MATCHED to the glob. A proposal in the pending folder is
 # checked as the file it would replace, but protected-paths never covers it.
 sy_list_match() {

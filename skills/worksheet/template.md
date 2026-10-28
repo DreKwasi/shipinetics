@@ -6,6 +6,8 @@
 > Tag: ws/{{NAME}} (applied at wrap-up) | Commits: git log --grep "Worksheet: {{NAME}}"
 > Next step: <the exact next action, always current, so anyone can pick this up>
 
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+
 ## Goal and acceptance criteria
 
 <What done means. Copy from the spec or task, or write them if it's a small task.>
@@ -71,16 +73,18 @@ each, with the evidence. Until a human approves, the change uses existing tokens
 
 ## Metrics
 
-<Fill in at wrap-up. Leave a cell blank rather than guess. The human can read cost from
+<Fill in at wrap-up. Leave a cell blank rather than guess. Tokens, API calls and the session span come
+from `shipinetics-usage session` (add up the sessions of the task). The human can read cost from
 /usage.>
 
 | Metric | Value |
 |---|---|
 | Model and effort | |
 | Plugin version | |
+| Tokens: input / cache write / cache read / output | |
+| API calls | |
 | Cost (USD) | |
-| Turns | |
-| Wall time | |
+| Session span (first to last message) | |
 | Merge risk (low, medium, high) | |
 | Review rounds | |
 | Findings: fixed / disagreed / deferred | |

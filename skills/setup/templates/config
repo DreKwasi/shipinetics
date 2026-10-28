@@ -13,7 +13,6 @@
 # test_index_file = docs/testing/test-index.md
 # tools_index_file = docs/tools.md
 # queue_file = TODOS.md
-# reviews_dir = docs/reviews
 # personas_dir = docs/review/personas
 # evidence_dir = docs/evidence
 
@@ -38,9 +37,14 @@
 # harness_repo = ../my-workspace-harness
 
 # ---- Hooks
-# Switch hooks off for this project: stop, edits, secrets, pr, installs. Without this key, the
+# Switch hooks off for this project: edits, secrets, pr, installs, companions, usage. Without this key, the
 # user's own ~/.config/shipinetics/config applies. SHIPINETICS_HOOKS_OFF does the same for a session.
 # hooks_off = installs
+
+# ---- Companions (companions.tsv in the plugin)
+# Companions that this team does not use. The session-start notice and shipinetics-companions
+# show them as declined, not missing. Without this key, the user's own ~/.config/shipinetics/config applies.
+# companions_skip = strix
 
 # ---- Full security audit (security-audit's full mode): off, weekly, monthly, quarterly or <days>d.
 # The weekly sweep runs it when it's due: shipinetics-config due security-audit

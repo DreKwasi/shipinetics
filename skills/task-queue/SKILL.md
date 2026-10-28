@@ -6,6 +6,8 @@ description: Rules for reading, claiming, updating and adding to the project's t
 # The task queue
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 The queue is where work waits. `TODOS.md` by default. If `AGENTS.md` says the source of truth is somewhere else (Linear, GitHub issues), use that system's CLI with the same rules and states.
 
@@ -55,4 +57,4 @@ An L task gets broken into S and M tasks that each leave the product working, ea
 
 ## Linear or another tracker
 
-If the project uses Linear: map Ready to the team's "Todo" (or a "Ready for agent" label), In progress to "In Progress", Blocked to "Blocked" or a label, Done to "Done". Claim by assigning and moving the issue. Put the worksheet name in a comment. Build a small `bin/tasks` wrapper (shipinetics:build-tool) so agents run `bin/tasks next`, `bin/tasks claim <id>` and `bin/tasks done <id>` without knowing the API.
+If the project uses Linear: map Ready to the team's "Todo" (or a "Ready for agent" label), In progress to "In Progress", Blocked to "Blocked" or a label, Done to "Done". Claim by assigning and moving the issue. Put the worksheet name in a comment. Build a small `bin/tasks` wrapper (shipinetics:workflow, step 9) so agents run `bin/tasks next`, `bin/tasks claim <id>` and `bin/tasks done <id>` without knowing the API.

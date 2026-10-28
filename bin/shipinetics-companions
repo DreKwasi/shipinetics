@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# shipinetics-companions: the skills, plugins and tools that Shipinetics uses with its own skills,
+# and which of them are installed on this machine.
+#
+# Usage:
+#   shipinetics-companions            each companion: its status, why Shipinetics uses it, its
+#                                     SkillSpector result, and the install command when it's missing
+#   shipinetics-companions missing    only the missing companions. Exit 1 if a required one is missing
+#   shipinetics-companions install    the install commands of the missing companions, one per line.
+#                                     It prints them and runs nothing. The install gate asks you
+#                                     before an agent runs one
+#
+# The list is companions.tsv in the plugin. A companion that you don't want goes in companions_skip
+# (in .shipinetics/config, or ~/.config/shipinetics/config for all projects). Then it shows as
+# declined, and it doesn't count as missing.
+# Exit codes: 0 success, 1 a required companion is missing (missing only), 2 bad usage.
+
+set -uo pipefail
+case "${1:-}" in -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
+
+mode="${1:-list}"
+case "$mode" in list|missing|install) ;; *) echo "shipinetics-companions: unknown command: $mode (missing or install)" >&2; exit 2 ;; esac
+file="$(sy_companions_file)"
+[ -f "$file" ] || { echo "shipinetics-companions: $file is missing. Reinstall the plugin." >&2; exit 2; }
+root="$(sy_root 2>/dev/null)" || root=""
+project="${CLAUDE_PROJECT_DIR:-$PWD}"
+
+rc=0
+while IFS=$'\t' read -r name kind id level why install scan; do
+  case "$name" in ''|'#'*) continue ;; esac
+  if sy_companion_installed "$kind" "$id" "$project"; then status=installed
+  elif sy_companion_declined "$name" "$id" "$root"; then status=declined
+  else status=missing; [ "$level" = required ] && [ "$mode" = missing ] && rc=1
+  fi
+  case "$mode" in
+    install)
+      [ "$status" = missing ] || continue
+      case "$install" in [Ss]ee\ *) printf '# %s: %s\n' "$name" "$install" ;; *) printf '%s\n' "$install" ;; esac ;;
+    missing|list)
+      [ "$mode" = missing ] && [ "$status" != missing ] && continue
+      printf '[%s] %s (%s, %s)\n' "$status" "$name" "$kind" "$level"
+      printf '  Why: %s\n' "$why"
+      printf '  SkillSpector: %s\n' "$scan"
+      [ "$status" = missing ] && printf '  Install: %s\n' "$install"
+      [ "$status" = declined ] && printf '  Declined in companions_skip.\n'
+      ;;
+  esac
+done <"$file"
+exit "$rc"

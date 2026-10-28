@@ -12,7 +12,7 @@ As agents do more of the work, the human's job moves up to oversight and underst
 
 Topic and format: `$ARGUMENTS`. If no format is given, pick one with the ladder below.
 
-**Language.** Everything Shipinetics writes for a person uses ASD-STE100, as "Prose" below describes: docs and READMEs, system docs, reports, worksheets, PR bodies, evidence notes, Whiteboards, HTML pages, video scripts and replies in chat. Other skills point here for the rules.
+**Language.** Everything Shipinetics writes for a person uses ASD-STE100, as "Prose" below describes: docs and READMEs, system docs, reports, worksheets, PR bodies, evidence notes, Whiteboards, HTML pages, video scripts and replies in chat. Where that text describes structure or flow, show it on a Whiteboard. A committed file also gets a Mermaid diagram of it. Without Whiteboard, use Mermaid only ("Diagrams" below). Other skills point here for the rules.
 
 ## The ladder
 
@@ -21,8 +21,8 @@ Each step up costs more to make and is usually faster to understand. Pick the lo
 | Format | Use it for |
 |---|---|
 | **Prose (ASD-STE100)** | Final messages, worksheet summaries, review findings, anything a few paragraphs long |
-| **Diagram** | Anything with structure or flow: call paths, data flow, state machines, architecture, before and after |
-| **Whiteboard** | Explaining a code change or how part of the codebase works, when the Whiteboard tools (dev.fast) are available |
+| **Whiteboard** | Anything with structure or flow (call paths, data flow, state machines, architecture, before and after), a code change, or how part of the codebase works. The default visual when the Whiteboard tools (dev.fast) are available |
+| **Mermaid diagram** | The same, in a committed file (with a link to the Whiteboard), and the only visual when Whiteboard is not installed |
 | **HTML page** | Big changes, comparisons, anything the human will explore or click through |
 | **Explainer video** | Concepts, onboarding to a system, algorithms. Only when the user asks or agrees |
 
@@ -46,7 +46,9 @@ When the user runs `/wait-what`, or says a message didn't land, re-pitch it with
 
 ## Diagrams
 
-- Mermaid inside Markdown is the default. It renders in GitHub and most viewers.
+- Show a diagram to the user on a Whiteboard when the Whiteboard tools are available ("Whiteboard" below).
+- In a committed file (a system doc, a worksheet, a spec, a PR body), also put the diagram in Mermaid, with a link to the Whiteboard. GitHub, CI and other people cannot open your Whiteboard, and Mermaid renders in GitHub and most viewers.
+- Without Whiteboard, Mermaid is the only diagram.
 - Sequence diagram when participants interact over time. Flowchart when the point is branches, retries or states. Entity diagram for data. Before and after pairs for changes.
 - Keep a diagram to what one screen can show. Split big ones.
 - Label nodes with real names from the code, and link to `file:line` beside the diagram.
@@ -86,8 +88,8 @@ Bespoke videos are starting to work well for concepts and systems. They cost tim
 
 | Output | Default format |
 |---|---|
-| Final message to the user | ASD-STE100 prose, plus a diagram if there's flow |
-| Worksheet summary and log | ASD-STE100 prose |
+| Final message to the user | ASD-STE100 prose, plus a Whiteboard if there's flow (Mermaid without Whiteboard) |
+| Worksheet summary and log | ASD-STE100 prose. Where there's flow, a Mermaid diagram and a link to the Whiteboard |
 | Review of a change (M and up) | Whiteboard, else HTML page |
-| "How does X work?" | Whiteboard scratchpad, else diagram plus prose, else HTML page |
+| "How does X work?" | Whiteboard scratchpad, else a Mermaid diagram plus prose, else HTML page |
 | Onboarding to a system, or a hard concept | Offer an explainer video |

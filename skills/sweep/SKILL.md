@@ -7,6 +7,8 @@ argument-hint: "[since: date, ref or 'last-sweep']"
 # Commit sweep
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 Per-task reviews look at one diff. Problems that span diffs slip through: two agents writing the same helper on different days, a pattern that drifts a bit with each change, a migration started and never finished. A sweep reads across commits to catch those.
 
@@ -37,6 +39,7 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Guardrails not in force:** rerun rows S and V of the setup audit (shipinetics:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
 - **Verification map drift:** run shipinetics:verification-map `maintain` (weekly sweeps). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
 - **Full security audit:** run `shipinetics-config due security-audit`. If it says due, run the full audit as shipinetics:review describes ("Full security audit"), record it in `docs/security/audits.md`, and put the counts by severity in the sweep report. The user agreed to this when they chose the cadence.
+- **Companions missing:** run `shipinetics-companions missing` and list each missing companion in the report, with why Shipinetics uses it.
 - **Companions out of date:** run `skills-outdated` for the skills (read-only; never `npx skills check`, which can update and remove skills), and compare `claude plugin list` with each companion plugin's marketplace. If the sandbox blocks the network, give the user the command instead. Report what has an update. Don't update anything yourself: updates change what runs with the user's permissions, so the install gate asks the user. For each update the user wants, scan the new version first (shipinetics:security-scans). After the user updates, read the companion's new SKILL.md and check what Shipinetics relies on still holds (README, "What Shipinetics needs from each companion"). If it doesn't, queue a task to update Shipinetics.
 - **Verify time:** `shipinetics-verify times 7`. If the quick tier regularly takes more than a minute, find which step is slow and scope it better. If the complete tier keeps failing at the done gate on things the quick tier could have caught, move a scoped version of that check into `--quick`.
 

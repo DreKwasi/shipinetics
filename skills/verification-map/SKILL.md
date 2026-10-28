@@ -7,8 +7,10 @@ argument-hint: "[create|maintain|light <feature ids>]"
 # The verification map
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
-"The build passed" says little about whether a feature works. Proof means using the real app the way a user does, through every way a user can reach the feature, and showing the result and the state it leaves behind. The map makes that repeatable: any agent, on any model, can launch the app, drive a feature and capture proof without rediscovering how. It lives in `docs/verification/` and is committed, so Codex, Cursor and CI agents can read it too. The approach comes from pstack's verification skills.
+"The build passed" says little about whether a feature works. Proof means using the real app the way a user does, through every way a user can reach the feature, and showing the result and the state it leaves behind. The map makes that repeatable: any agent, on any model, can launch the app, drive a feature and capture proof without rediscovering how. It lives in `docs/verification/` and is committed, so every agent and CI can read it. The approach comes from pstack's verification skills.
 
 Argument: `$ARGUMENTS`. `create` builds the map. `maintain` checks the whole map against the code and drives every feature. `light <ids>` maintains only the features named. No argument: `create` if `docs/verification/README.md` doesn't exist, else `maintain`.
 
@@ -64,7 +66,7 @@ Write these rules into the README's Launch, Doctor, Isolation and Cleanup sectio
 ## Create
 
 1. **Interview the repo, not the user.** Check `shipinetics-config get launch` first: with `user`, write the map for user-run servers (above). Find how the app starts, seeds, logs in and logs, from `AGENTS.md`, `package.json` or the stack's equivalent, the e2e config, CI and the dev scripts. Ask the user only for what you can't find. If the checkout doesn't build or start, fix that first or report it.
-2. **Write the README sections** above with the real commands. Prefer existing harnesses (the e2e setup, a seed script) over new ones. If a step needs a helper script, make it a `bin/` script (shipinetics:build-tool), not a paragraph of commands.
+2. **Write the README sections** above with the real commands. Prefer existing harnesses (the e2e setup, a seed script) over new ones. If a step needs a helper script, make it a `bin/` script (shipinetics:workflow, step 9), not a paragraph of commands.
 3. **Write the first feature files.** For each one, actually drive every entry point while you write it, and put the selectors you used in the file.
 4. **Prove it end to end** before handing off: launch from empty data (with `launch = user`, ask the user to start it), run the doctor, drive one feature through every entry point, capture its proof, clean up, then confirm the evidence survived cleanup and nothing you started is still running. If you proved it in a stand-in environment, list which launch steps are still unproven.
 5. **Point to it.** In `AGENTS.md`, make "Run the app yourself" point at `docs/verification/README.md`. If the harness supports project skills, add a short `.claude/skills/drive-app/SKILL.md` whose description says it launches and drives this app, and whose body points at the README. Claude Code's built-in `run` skill looks for a project skill like that.

@@ -6,6 +6,8 @@ description: Keep a session worksheet that records what the agent is doing so an
 # Worksheets
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 A worksheet is the trace of one task: goal, plan, what happened, what was decided, what's verified, what's next. It's committed with the work and tagged, so months later you can find out why the code is the way it is. If an agent dies halfway through, another agent picks up the worksheet and finishes.
 
@@ -46,7 +48,8 @@ At every point, the worksheet should pass this test: **could a different agent, 
 The Metrics block is how the user finds out whether a change to the setup (a new skill, a different effort level, another reviewer) actually helps. A cheap run that needed an hour of human fixes isn't cheap. So the numbers that matter are per accepted task, including review rounds and human corrections.
 
 - Fill in what you know: model and effort (from the session), plugin version (from `.claude-plugin/plugin.json` in the plugin, or "unknown"), review rounds, finding dispositions, test-writer's suspected bugs.
-- Cost, turns and wall time: leave them blank. The user can fill them in from `/usage`.
+- Tokens, API calls and session span: run `shipinetics-usage session <id>` for each session of the task (no id: the newest session of this project) and copy its Metrics rows. Add them up when the task had several sessions. It reads Claude Code's transcripts, so it costs nothing.
+- Cost: leave it blank. The user can fill it in from `/usage`.
 - Leave "Corrections needed after human review", "Human review minutes" and "Accepted" for the human. Never fill those in yourself.
 
 ## Linking to git

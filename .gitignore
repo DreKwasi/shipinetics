@@ -1,3 +1,4 @@
 # Local session and editor files
 .claude/
 .DS_Store
+__pycache__/

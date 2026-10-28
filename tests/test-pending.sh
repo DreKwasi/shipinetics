@@ -44,6 +44,19 @@ eq "test-writer can revise its proposal" "$OUT" ""
 edit_hook .shipinetics/pending/e2e/acceptance/a.spec.ts
 has "a proposal for a test file is still test-writer's" "$OUT" "is a test file"
 
+edit_hook e2e/acceptance/new.spec.ts shipinetics:test-writer
+eq "a new file in a protected path is allowed" "$OUT" ""
+edit_hook e2e/unit.spec.ts
+has "only test-writer edits a test file" "$OUT" "is a test file"
+edit_hook e2e/unit.spec.ts shipinetics:test-writer
+eq "test-writer edits a test file" "$OUT" ""
+edit_hook src/app.ts shipinetics:test-writer
+has "test-writer can't edit source" "$OUT" "test-writer only edits test files"
+edit_hook src/app.ts
+eq "any other agent edits source" "$OUT" ""
+edit_hook docs/testing/test-index.md shipinetics:test-writer
+eq "test-writer edits the testing docs" "$OUT" ""
+
 edit_hook .shipinetics/pending/../../e2e/acceptance/a.spec.ts shipinetics:test-writer
 has "a .. path can't use the pending folder to reach a protected file" "$OUT" "is protected"
 OUT="$(printf '{"tool_name":"Write","agent_type":"shipinetics:test-writer","tool_input":{"file_path":"%s","content":"x"}}' "$p/e2e/acceptance/a.spec.ts" |

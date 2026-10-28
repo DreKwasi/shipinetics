@@ -57,7 +57,7 @@ Every doc in `docs/systems/` starts with exactly these 7 lines (template: `docs/
 Docs that state external facts (an API's rate limit, a library's behavior in a version, a provider's quota) go stale without anyone touching the code. For each such fact:
 
 - Cite an official primary source inline, with the date you checked it: `(source: <URL>, checked 2026-10-26)`.
-- When you change a doc's factual content, get a docs review: `shipinetics:reviewer` with stage `docs`, or `agent_review --stage docs --file <doc>`. It returns a claims table with a verdict for every claim (verified, incorrect, unresolved).
+- When you change a doc's factual content, get a docs review: `shipinetics:reviewer` with stage `docs`. It returns a claims table with a verdict for every claim (verified, incorrect, unresolved).
 - Fix incorrect claims. Keep unresolved claims visibly marked in the doc (`UNVERIFIED: <what's missing>`) until someone resolves them.
 
 ## Where decisions and terms go
@@ -79,7 +79,7 @@ The `Owner persona` field says which review persona (shipinetics:review) checks 
 
 ## Language
 
-Write system docs, ADRs and the glossary in ASD-STE100 (shipinetics:explain): short sentences, active voice, one word for one thing. A doc that's hard to read gets skipped, and then it stops being true.
+Write system docs, ADRs and the glossary in ASD-STE100 (shipinetics:explain): short sentences, active voice, one word for one thing. A doc that's hard to read gets skipped, and then it stops being true. When a system has a flow (a request path, a pipeline, a state machine), draw it on a Whiteboard and put a Mermaid diagram of it below the header, with node names from the code and a link to the Whiteboard. Without Whiteboard, the Mermaid diagram is enough.
 
 ## Don'ts
 

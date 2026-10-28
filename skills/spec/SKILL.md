@@ -7,6 +7,8 @@ argument-hint: "<issue URL, task ID or description>"
 # Spec: intent to acceptance criteria
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 Input: `$ARGUMENTS`. Fetch it if it's an issue URL (`gh issue view`) or a task ID (`TODOS.md`).
 

@@ -1,14 +1,16 @@
 ---
 name: review
-description: Cross-agent review at a checkpoint (research, plan, implementation, wrap-up), using a different model from the author plus persona lenses. Use when you finish research, a plan or an implementation, before calling a task done, or when the user asks for a review.
+description: Cross-agent review at a checkpoint (research, plan, implementation, wrap-up), with a fresh-context Opus reviewer, specialist reviewers and persona lenses. Use when you finish research, a plan or an implementation, before calling a task done, or when the user asks for a review.
 argument-hint: "[research|plan|impl|wrapup|docs] [persona...]"
 ---
 
 # Cross-agent review
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
-The author never reviews its own work, and the reviewer is never the same model. Fresh context plus a different model catches what self-review misses.
+The author never reviews its own work. A reviewer in a fresh context, with no stake in the work, catches what self-review misses.
 
 Stage and personas from the arguments: `$ARGUMENTS`. If no stage is given, infer it from where you are in the workflow.
 
@@ -28,12 +30,11 @@ Research and docs reviews return a **claims table** instead of findings: every c
 ## How to run one
 
 1. **Write down what's being reviewed** in the worksheet: stage, base ref or file, acceptance criteria.
-2. **Claude reviewer on a different model.** Spawn the `shipinetics:reviewer` subagent and pass a model different from yours (you're Opus, use `sonnet`; you're Sonnet, use `opus`). Give it the stage, the base ref or file, the acceptance criteria, and a persona if one applies.
-3. **Cross-family reviewer.** Run `agent_review --stage <stage> [--persona <name>]` (add `--file <path>` for research and plans). It picks an installed CLI from a different model family (Codex, Gemini, Cursor) and saves the review under `docs/reviews/`. Run `agent_review --list` if you're unsure what's installed. If it warns that no other family is available, note that in the worksheet: the review is weaker.
-4. **Pick personas and specialist reviewers** (below). Run each through step 2 or 3, or the specialist agent named in the table. Don't run every one every time. Run them in parallel where you can.
-5. **Merge, then filter.** When several reviewers ran, put their findings in one table and mark where they agree: a finding two reviewers raised independently goes first. Before acting, filter each finding the way a lead would. A finding must name a concrete input or state that goes wrong: "this could fail if" without one is hypothetical, and you note it rather than fix it. "I'd do it differently" isn't a finding unless the other way removes a defect. Minor findings never block. Record filtered findings as **disagree** with the reason.
-6. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option.
-7. **Re-review** only if your fixes were substantial or a reviewer said `blocked`. Stop after two rounds and flag the disagreement for a human.
+2. **Claude reviewer.** Spawn the `shipinetics:reviewer` subagent. It runs on Opus at high effort (its frontmatter). Don't pass a model or an effort. Give it the stage, the base ref or file, the acceptance criteria, and a persona if one applies.
+3. **Pick personas and specialist reviewers** (below). Run each through the reviewer in step 2, or the specialist agent named in the table. Don't run every one every time. Run them in parallel where you can.
+4. **Merge, then filter.** When several reviewers ran, put their findings in one table and mark where they agree: a finding two reviewers raised independently goes first. Before acting, filter each finding the way a lead would. A finding must name a concrete input or state that goes wrong: "this could fail if" without one is hypothetical, and you note it rather than fix it. "I'd do it differently" isn't a finding unless the other way removes a defect. Minor findings never block. Record filtered findings as **disagree** with the reason.
+5. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option.
+6. **Re-review** only if your fixes were substantial or a reviewer said `blocked`. Stop after two rounds and flag the disagreement for a human.
 
 ### Independent re-check at wrap-up
 
@@ -46,12 +47,12 @@ Persona files live in `${CLAUDE_SKILL_DIR}/personas/`. A project can add its own
 | Persona or reviewer | Run it when | How |
 |---|---|---|
 | `test-integrity` | Any test file changed. Always at impl stage | `shipinetics:reviewer` with this persona |
-| `ai-smells` | Every impl review | `shipinetics:reviewer` or `agent_review --persona ai-smells` |
-| **security** | Auth, input handling, file or network access, secrets or config, permissions, dependencies, anything reachable by untrusted users | `shipinetics:security-reviewer`, which uses Cloudflare's `security-audit` skill in guidance mode plus the security persona. Add `agent_review --persona security` for a second family on high-risk changes |
+| `ai-smells` | Every impl review | `shipinetics:reviewer` with this persona |
+| **security** | Auth, input handling, file or network access, secrets or config, permissions, dependencies, anything reachable by untrusted users | `shipinetics:security-reviewer`, which uses Cloudflare's `security-audit` skill in guidance mode plus the security persona. |
 | **frontend** | Any change to UI: components, styles, routes, copy, layout | `shipinetics:ui-reviewer`, which checks conformance to DESIGN.md (`design-check` plus a manual pass), then runs impeccable's `critique` and `audit` against real screenshots. Its "Design-system gaps" go to the worksheet's design-system change requests |
 | `performance` | Hot paths, loops over data, queries, rendering, startup, bundle size | `shipinetics:reviewer` with this persona |
 | `maintainability` | New modules, new abstractions, large diffs, changes to shared code | `shipinetics:reviewer` with this persona |
-| `code-quality` | Medium and larger diffs | `agent_review --persona code-quality` |
+| `code-quality` | Medium and larger diffs | `shipinetics:reviewer` with this persona |
 | domain persona (e.g. `domain-finance`) | Anything touching that domain's rules. The project defines these from `domain-expert-template.md` | `shipinetics:reviewer` with this persona |
 
 The security and frontend reviewers depend on skills you install separately: `security-audit` (from `cloudflare/security-audit-skill`) and `impeccable` (the plugin from the `pbakaus/impeccable` marketplace). If one is missing, its reviewer says so and falls back to the persona file. `/shipinetics:setup` checks for both.

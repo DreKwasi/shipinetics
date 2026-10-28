@@ -7,6 +7,8 @@ disable-model-invocation: true
 
 # Shipinetics setup
 
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
+
 You're installing a working agentic setup into this project. The plugin carries the generic parts (skills, reviewer, hooks, scripts). This skill puts the project-specific parts into the repo so they're committed, visible to every agent and to CI, and work without the plugin.
 
 Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in one message, then run every phase in order in this one run. If `docs/shipinetics-setup.md` shows phases already done, start at the first one that isn't. A number runs just that phase, to redo or repair it. `audit` means audit only.
@@ -72,7 +74,7 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 | 3 | Run the app | `AGENTS.md` says exactly how to start the app, seed data and log in. `docs/verification/` holds the verification map: launch, doctor, drive, cleanup, and a file per main feature with every entry point |
 | 4 | Tests | e2e suite, `docs/testing/how-to-write-tests.md`, `docs/testing/test-index.md` |
 | 5 | Lint and fix | pre-commit hook that auto-fixes, with LLM fallback, and a commit size limit. commit-msg hook that requires the `Worksheet:` trailer |
-| 6 | Review | `agent_review` works and finds a non-Claude CLI, project personas if any |
+| 6 | Review | The reviewer agents load, project personas if any |
 | 7 | Worksheets | `docs/worksheets/`, tagging convention |
 | 8 | Feedback | `docs/agent-feedback.md` |
 | 9 | Tools | `bin/` or `tools/` with `docs/tools.md` index |
@@ -83,27 +85,21 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 | 15 | Visual regression | screenshot tests with baselines (LFS or PR artifacts), plus `shipinetics:ui-reviewer` for agent visual review |
 | 16 | Perf benchmarks | benchmarks with baselines and a regression threshold |
 | 17 | Profiling | documented profiling commands per stack |
-| S | Secrets | No `.env` files or committed secrets. A config module is the only reader of the environment. `.shipinetics/secrets.list`, `bin/with-secrets`, `.shipinetics/env-allowed-paths`. `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` in `.claude/settings.json`. Its deny rules match the vault the project actually uses (`vault` in `.shipinetics/config`, confirmed in live config): rules for a vault the project doesn't use are stale and the real vault is unprotected, so that's **partial** |
+| S | Secrets | No `.env` files or committed secrets. `.shipinetics/secrets.list`, `bin/with-secrets`. `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` in `.claude/settings.json`. Its deny rules match the vault the project actually uses (`vault` in `.shipinetics/config`, confirmed in live config): rules for a vault the project doesn't use are stale and the real vault is unprotected, so that's **partial** |
 | T | Independent tests | `.shipinetics/test-paths` matches the project's test layout, so only `shipinetics:test-writer` writes tests |
 | D | Design system (UI projects) | DESIGN.md with token frontmatter, matching the tokens in code (CSS variables, Tailwind theme, CSS-in-JS theme, token files) and the component library (`components.json`, Storybook). PRODUCT.md. The Impeccable block in `.gitignore`. `design-check --all` runs |
-| R | Specialist reviewers | `security-audit` skill installed (for `shipinetics:security-reviewer`), `impeccable` skill installed (for `shipinetics:ui-reviewer`), `merge-risk` skill installed (for merge-risk grades), Whiteboard MCP available (`session_capabilities` answers) |
+| R | Companions | `shipinetics-companions` shows each companion as installed or declined: `security-audit` (for `shipinetics:security-reviewer`), Impeccable (for `shipinetics:ui-reviewer`), `merge-risk` (for merge-risk grades), Matt Pocock's skills (for the routes in shipinetics:workflow), Whiteboard (`session_capabilities` answers) |
 | V | Evidence on every PR | `.shipinetics/ui-paths`, `docs/evidence/` tracked with git LFS, the CI evidence job in every repo that opens PRs (each package repo in workspace mode), a `no-evidence` label in the GitHub repo |
 | X | Security tools | SkillSpector installed (`scan-skills` runs), Strix installed with its provider key in the vault, Docker available |
 | E | Explainers | `.shipinetics/explainers/` gitignored. Optional: Manim or Remotion, a local TTS, an ElevenLabs key in Secret Manager |
 
-For row R, check with the tools you have: try loading each skill, and call the Whiteboard `session_capabilities` tool. If one is missing, give the user the install command:
+For row R, run `shipinetics-companions`. It reads the plugin's `companions.tsv`. In one message, show the user each missing companion: why Shipinetics uses it, its SkillSpector result and its install command. The user decides what to install, and the install gate asks before each install. Put the installs that the user wants on the For you list. For a companion that the user does not want, ask where to record it in `companions_skip`: in `.shipinetics/config` for the whole team, or in their own `~/.config/shipinetics/config`. Then the session-start notice stops listing it. Also call the Whiteboard `session_capabilities` tool, to check that the Whiteboard app answers.
 
-Install skills globally with the `skills` CLI (`-g`), so its lock file records them and `skills-outdated` can find their updates later (README, "Keeping companions up to date").
-
-- security-audit: `npx skills add cloudflare/security-audit-skill -g -a claude-code`
-- Impeccable: the Claude Code plugin (`/plugin marketplace add pbakaus/impeccable`, then install it from `/plugin`), or `npx impeccable install --providers=claude`. Avoid `npx skills add pbakaus/impeccable` for Claude Code: it installs the copy in the repo's `.agents/skills/` folder, written for Codex (`$impeccable` commands, Codex's question tool). If both are installed, `shipinetics:ui-reviewer` uses the plugin.
-- merge-risk: `npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code`
-- Matt Pocock's skills (optional, interactive sessions): `npx skills add mattpocock/skills --skill grilling --skill grill-me --skill domain-modeling --skill wait-what -g -a claude-code`
-- Whiteboard: the dev.fast Whiteboard plugin from its marketplace.
+Skills go in with the `skills` CLI and `-g`, so its lock file records them and `skills-outdated` can find their updates later (README, "Keep the companions up to date").
 
 ## Phase 1: core loop (points 0, 3, and the verify gate)
 
-The goal is one loop that works end to end: the agent can't stop while checks fail, and a reviewer checks the work.
+The goal is one loop that works end to end: the agent runs the checks itself, a push or a PR can't leave without a complete pass, and a reviewer checks the work.
 
 1. **Find the commands.** Typecheck, lint, unit tests, e2e, how to start the app, which port, how to seed data, how to log in with a test user. Find out who runs the servers. If the user starts them (they need the user's credentials or devices, or the agent's sandbox can't run them), set `launch = user` in `.shipinetics/config`, and agree a test account for agents' writes. Run each one to confirm it works today. Note any that fail on a clean checkout: that's the first thing to tell the user.
 2. **`bin/verify`** from `templates/bin/verify`, with its three tiers. Each check runs at the moment its result is needed, and none is skipped:
@@ -114,9 +110,7 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
    Fill in the step functions with the project's real commands. Steps in `parallel` run at once, so only put independent checks there. Local caches (`eslint --cache`, `tsc --incremental`, the build tool's cache) are fine, because CI runs without them. If the project's tools can't scope a check to files, run the whole check in `--quick` too, as long as it's fast. Leave anything slow (a build, e2e) to the complete tier. `chmod +x` it. Run all three tiers and record each one's time in `docs/shipinetics-setup.md`. Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`. If the suite already fails on a clean checkout and the user can't fix it now, quarantine the failures instead of skipping tests (shipinetics:testing, "A suite that already fails"): the user runs `known-failing init`, and `bin/verify` gates on `known-failing check`.
 3. **`.shipinetics/`**: decide the contents of `.shipinetics/protected-paths` from `templates/protected-paths` now, and write the file in Finish (see Rules). Create `.shipinetics/test-paths` from `templates/test-paths`, adjusted to where this project's tests actually live (check with `git ls-files`). Create `.shipinetics/ui-paths` from `templates/ui-paths`, adjusted to where this project's UI code lives (it decides which changes need a screen recording as evidence). Append `templates/gitignore-additions` to `.gitignore`.
 4. **Secrets.** Find how the project reads configuration today (`rg -l 'process\.env|os\.environ|getenv'`).
-   - If there's no single config module, propose one to the user (`src/config/` or the stack's equivalent) that reads, validates and exports every variable. Moving existing reads into it is its own task: add it to the queue rather than doing it during setup.
-   - Create `.shipinetics/env-allowed-paths` from the template with the config module's path. If existing code reads the environment elsewhere, the hook only blocks new reads, so nothing breaks.
-   - Create `.shipinetics/secrets.list` with the names (never values) of the secrets the config module needs and their Secret Manager names. Ask the user for the Secret Manager names and project if you can't find them in deploy config.
+   - Create `.shipinetics/secrets.list` with the names (never values) of the secrets the app needs and their Secret Manager names. Ask the user for the Secret Manager names and project if you can't find them in deploy config.
    - Ask the user which files in this project hold secrets (a service-account JSON, `*.pem` keys, `.env` files). If any, create `.shipinetics/secret-paths` from `templates/secret-paths` and add them. The list replaces the built-in one, so keep its default lines.
    - Copy `templates/bin/with-secrets` to `bin/with-secrets` and `chmod +x` it. Check it works with a harmless command: `bin/with-secrets true` (it fails clearly if gcloud isn't logged in, which is fine to report).
    - If any `.env` file is tracked in git, stop and tell the user. Don't read it.
@@ -127,7 +121,7 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 
    Then build the **verification map** (shipinetics:verification-map `create`): `docs/verification/` with how to launch the app from empty data, a read-only doctor check, how to drive it, how to clean up, and the first 3 to 5 features with every entry point. Its end-to-end self-proof (launch, doctor, drive one feature, evidence survives cleanup) is this step's proof. Point "Run the app yourself" in `AGENTS.md` at it.
 8. **Prove the gate.** Run `shipinetics-verify` and `shipinetics-verify quick`, then `shipinetics-verify status`, to show both tiers pass and are recorded. Tell the user how to see the gate: make a small change that breaks a test, ask the agent to open a PR, and watch the PR gate refuse it. After a week of use, `shipinetics-verify times` shows where verify time goes.
-9. **Prove the reviewers.** Run `agent_review --list` and report which CLIs are installed. If none is from a different family than Claude, tell the user cross-family review needs one of Codex, Gemini or Cursor's CLI. Check row R of the audit (security-audit, impeccable, Whiteboard) and report what's missing, with install commands.
+9. **Prove the reviewers.** Run `shipinetics-companions missing` (exit 1 only means that a required companion is missing) and report each missing companion (row R) with why Shipinetics uses it, its SkillSpector result and its install command.
 10. Commit with a message explaining the setup. Update `docs/shipinetics-setup.md`.
 
 ## Phase 2: context (points 1, 2, 11, D)

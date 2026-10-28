@@ -1,11 +1,13 @@
 ---
 name: workflow
-description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting through spec, tests, implementation, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (those start with a failing regression test from test-writer), and whenever you're unsure what step comes next.
+description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting and choosing a route (with the companion skills each route uses) through spec, tests, implementation, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (those start with a failing regression test from test-writer), and whenever you're unsure what step comes next.
 ---
 
 # The task loop
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 This is how every task runs, interactive or autonomous. Skip steps only where the size table says you can. If the project has its own `AGENT_WORKFLOW.md`, it overrides anything here that conflicts.
 
@@ -23,6 +25,7 @@ This is how every task runs, interactive or autonomous. Skip steps only where th
 - Read the task. If it came from `TODOS.md`, claim it (shipinetics:task-queue).
 - Start or resume a worksheet: `worksheet new <slug> "<title>"` or `worksheet use <name>`. If you're resuming, read the whole worksheet and `git log --grep "Worksheet: <name>"` before touching anything.
 - Find the relevant systems: `head -n 7 docs/systems/*.md`, then read the full doc for each system you'll touch.
+- For tasks S and up, offer the user routes for the task, with the companion skills that each route uses, and recommend one ("Choose a route" below).
 - Run `shipinetics-verify` once before changing anything. If it already fails, note that in the worksheet. You're not responsible for pre-existing failures, but you need to know about them.
 
 ## 2. Research (M and up)
@@ -55,7 +58,7 @@ Read its report. "Suspected bugs" are yours to fix. "Gaps" usually mean the spec
 
 - Small steps. After each one, run the targeted tests for what you touched, not the whole suite.
 - Commit each step once it works, with the `Worksheet:` trailer. A reviewer reads a few hundred lines closely and skims anything bigger, so the pre-commit hook refuses commits over the size limit (400 changed lines by default). If a step comes out bigger, split it into commits that each leave the code working.
-- Read config and secrets through the project's config module only. Never read environment variables directly in code, and never try to see a secret's value. To run something that needs secrets, use `bin/with-secrets <command>` (shipinetics:secrets).
+- Never try to see a secret's value. To run something that needs secrets, use `bin/with-secrets <command>` (shipinetics:secrets).
 - Follow `docs/conventions.md`. Look for an existing helper before writing a new one.
 - Update the worksheet log as you go: what you did, what happened, what you decided and why. Write it so another agent could take over mid-step.
 - If you're going in circles (same error three times, or 20 minutes with no progress), stop. Write down what you've tried in the worksheet, then step back: reread the error, check your assumptions, search the codebase for how similar things are done. If you're autonomous and still stuck, mark the task blocked and move on.
@@ -97,7 +100,7 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 - Update the system docs you changed, especially their 7-line headers (shipinetics:system-docs).
 - Add new tests to `docs/testing/test-index.md`.
 - If you made a mistake a linter could have caught, or a reviewer flagged the same issue twice, add a lint rule (shipinetics:lint-rule) or at least a convention.
-- If you repeated a multi-step command sequence, turn it into a script (shipinetics:build-tool).
+- If you repeated a multi-step command sequence, turn it into a script in `bin/`. Give it a usage comment and `--help`. Make it non-interactive, quiet on success, and clear on failure: say how to fix the error. Use exit code 0 for success, 1 for failure and 2 for bad usage. Add a line to `docs/tools.md` in the same commit, so the next agent finds it.
 
 ## 10. Wrap up
 
@@ -109,23 +112,32 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 6. Append feedback to `docs/agent-feedback.md` (shipinetics:feedback).
 7. Tell the user, in ASD-STE100 (shipinetics:explain), what changed, what you verified and how, and anything not done or not verified. No hedging on what's verified, no claiming what isn't. Pick the format that makes it fastest to understand (shipinetics:explain): plain controlled English for short reports, a diagram when there's structure or flow, a Whiteboard or an HTML page for anything bigger.
 
-## Optional skills that fit this loop
+## Choose a route
 
-If they're installed, use these at the matching step. Shipinetics's rules win where they differ.
+A route is the order of steps for a task, and the companion skills that each step uses. For tasks S and up, offer the user two or three routes before you start research. Put the route that you recommend first, and give the reason in one sentence. Then wait for the user's choice. For an XS task, or in an autonomous session, take the route that you recommend and write it in the worksheet.
 
-| Skill | Step | How it fits here |
-|---|---|---|
-| `grilling` with `domain-modeling` | 3, interactive only | Before the spec for M and up, when splitting an L task (shipinetics:spec), and before any decision that's hard to reverse, whatever the task's size: a rename, removing a feature, a breaking change, a new public interface. Terms go in `GLOSSARY.md`, hard-to-reverse decisions in `docs/adr/` |
-| `wait-what` | any, run by the user | The user types `/wait-what` when your last message didn't land. Re-pitch it: a little context, ASD-STE100 (shipinetics:explain), and the terms in `GLOSSARY.md` |
-| `codebase-design` | 3 | When a change needs a new module or seam. Its vocabulary (depth, seam, adapter) is what reviewers use too. Its advice to delete old tests goes to test-writer, not you |
-| `prototype` | 3, interactive only | When a question needs a runnable answer. Write the answer in the spec or the worksheet's Decisions, and delete the prototype before the PR |
-| `research` | 2 | For external facts. Its findings go into the claims table with URL and date |
-| `diagnosing-bugs` | bug fixes | Phases 1-4 and 6 as written. Put its feedback-loop scripts in `$TMPDIR` or `bin/`, not in test paths. Its regression test (Phase 5) comes from test-writer in `regression` mode, from your minimised repro |
-| Impeccable | 3, 5, 8 | `shape` for a UI task's brief, `polish` before review, `detect` and `audit` in review (shipinetics:review) |
+Offer only routes that are really different. If one route is clearly correct, offer it with one other route, and say why the other route is weaker.
 
-Don't run these next to shipinetics, because they bypass its rules:
+Example: the user asks for an authentication feature.
 
-- Any `tdd` skill (Matt Pocock's, pstack's). The implementer writes its own tests there, and here the hook only lets test-writer touch test files. Test-writer already follows the same rules: test behavior at the highest seam, no tautological tests, mock only at boundaries.
-- `implement` and `implement-spec`, Matt Pocock's `code-review` and `pr`, and the `code-review` plugin. Use shipinetics:review, which uses a different model and records every response.
-- `to-spec`, `to-tickets` and `triage` (`to-prd` and `to-issues` in older installs), unless the project's queue really is GitHub issues. They write a second spec format and a second queue. An issue they write can still be the input to shipinetics:spec.
-- `setup-matt-pocock-skills` (it writes into `CLAUDE.md`; shipinetics keeps content in `AGENTS.md`), pstack's `poteto-mode` router, and its `autopilot` and `shipping` playbooks (they merge and force-push).
+> **Route A (recommended):** `grilling` with `domain-modeling` to settle the decisions (sessions or tokens, which provider, what happens to current users), then a spec. Reason: these decisions are hard to reverse.
+> **Route B:** `research` first (the provider's docs, rate limits, token lifetimes), then `grilling`, then a spec. Use it when the provider is new to the project.
+> **Route C:** a `prototype` of the login flow, then a spec. Use it when you cannot decide without seeing the flow.
+
+Use the companion skills at these steps. Where a companion's rules and Shipinetics's rules are different, Shipinetics's rules apply:
+
+| Companion | Use it when | Step | Rules here |
+|---|---|---|---|
+| `grilling` with `domain-modeling` | M and up, before the spec. When you split an L task. Before each decision that is hard to reverse (a rename, a removal, a breaking change, a new public interface), whatever the task's size | 3, interactive | Terms go in `GLOSSARY.md`. Decisions that are hard to reverse go in `docs/adr/` |
+| `research` | The task depends on external facts: an API, a limit, a version | 2 | Its findings go in the claims table, with the URL and the date |
+| `prototype` | A question needs a runnable answer: a state model, a screen | 3, interactive | Write the answer in the spec or in the worksheet's Decisions. Delete the prototype before the PR |
+| `codebase-design` | A change needs a new module or seam | 3 | Reviewers use the same words (depth, seam, adapter). Its advice to delete old tests goes to test-writer |
+| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Test-writer writes the regression test (phase 5) in `regression` mode, from your smallest repro |
+| `wait-what` | The user types `/wait-what` | any | Explain again: a little context first, ASD-STE100 (shipinetics:explain), and the terms in `GLOSSARY.md` |
+| Impeccable | UI work | 3, 5, 8 | `shape` for the brief, `polish` before review, `detect` and `audit` in review (shipinetics:review) |
+| `security-audit` | The change touches security | 8 | Through `shipinetics:security-reviewer` |
+| `merge-risk` | A PR opens | 10 | Through shipinetics:review |
+
+If a route needs a companion that is not installed (`shipinetics-companions missing`), say so in the route. Give the companion's install command and its SkillSpector result, and also offer a route without it. Never install a companion without the user's yes.
+
+You can use other skills too. Only test-writer writes tests (the edit guard makes sure of this), so give the test step of any skill to test-writer.

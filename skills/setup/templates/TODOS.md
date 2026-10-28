@@ -1,4 +1,5 @@
 # Task queue
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
 
 Agents pick from **Ready**, top first. See the shipinetics:task-queue skill for the rules.
 

@@ -6,6 +6,40 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Added
+- Companions. `companions.tsv` lists the skills, plugins and tools that Shipinetics uses together with its own skills: Matt Pocock's `grilling`, `domain-modeling`, `wait-what`, `research`, `prototype`, `codebase-design` and `diagnosing-bugs`, Cloudflare's `security-audit`, Warp's `merge-risk`, Impeccable, Whiteboard, SkillSpector and Strix (optional). Each row gives why Shipinetics uses the companion, its install command and its SkillSpector result.
+  - The SkillSpector results come from SkillSpector 2.12.0 in static mode, on 2026-10-28. Impeccable and `security-audit` get DO_NOT_INSTALL in static mode. Each of their HIGH findings was checked by hand, and all of them are false positives. The README gives the details and the versions that were scanned.
+  - A session-start notice (`scripts/companions-notice.sh`) lists each missing companion, with the reason, the SkillSpector result and the install command. It installs nothing.
+  - `shipinetics-companions` shows the status of each companion. `shipinetics-companions install` prints the install commands of the missing ones.
+  - `companions_skip` (project or user config) declines a companion. Then the notice does not list it. `hooks_off = companions` switches off the notice.
+  - The README and GETTING-STARTED install steps include the companions. Setup checks them with `shipinetics-companions`.
+- Token usage. `shipinetics-usage` shows the tokens that each Claude Code session used: new input, cache write, cache read and output, for each agent and model, subagents included. It reads Claude Code's own transcripts, so no model runs and it costs nothing. Each API call counts once (Claude Code writes one response several times).
+  - A SessionEnd hook (`scripts/usage-record.sh`) records each session in `~/.local/share/shipinetics/usage.tsv` when it ends. The log keeps the numbers after Claude Code deletes old transcripts. `hooks_off = usage` switches it off.
+  - `shipinetics-usage html` makes a page with charts of the tokens for each session and each agent, with a table view for each chart.
+  - The worksheet Metrics block has rows for tokens and API calls, from `shipinetics-usage session`. The Turns row is gone. The feedback ingest compares tokens across tasks.
+- Routes. For tasks S and up, the agent offers two or three routes for the task, recommends one, and names the companion skills that each route uses (`shipinetics:workflow`, "Choose a route").
+
+### Changed
+- The agents run on Opus. `reviewer` uses high effort. `test-writer`, `security-reviewer` and `ui-reviewer` use medium effort. Before, all four ran on Sonnet at high effort. The `review` and `testing` skills no longer tell the main agent to start these agents on a different model.
+- Text for people is in ASD-STE100 in every skill that writes it, and in the doc and worksheet templates. Structure and flow go on a Whiteboard. A committed file also gets a Mermaid diagram and a link to the Whiteboard. Without Whiteboard, Mermaid is the only diagram.
+- The `feedback` skill gives a format for the ingest report, and its examples are in ASD-STE100.
+
+### Removed (breaking)
+- `agent_review`, and with it every use of the Codex, Gemini and Cursor CLIs. Shipinetics is a Claude Code plugin, so it uses Claude only. `shipinetics:reviewer` gives the review at each checkpoint. Also removed: the `reviews_dir` config key, the variables `SHIPINETICS_AUTHOR`, `SHIPINETICS_REVIEW_ORDER`, `SHIPINETICS_CODEX_*`, `SHIPINETICS_GEMINI_MODEL`, `SHIPINETICS_CURSOR_*`, `SHIPINETICS_CLAUDE_REVIEW_*` and `SHIPINETICS_FIX_CLI`, and the Cursor option of `bin/llm-fix`.
+  - **Steps for each project:** remove the `agent_review` lines from `AGENTS.md` and `docs/tools.md`. Remove `reviews_dir` from `.shipinetics/config`. If `bin/llm-fix` has a `cursor` branch, remove it.
+- Rule 3 of the edit guard: new reads of the environment only in the files of `env-allowed-paths`. The rule that only the config module reads the environment is gone with it. The secrets guard is not changed.
+  - **Steps for each project:** delete `.shipinetics/env-allowed-paths`. In `AGENTS.md`, remove the sentences about the config module. In `docs/conventions.md`, remove the convention "Only the config module reads the environment".
+- The edit guard no longer blocks edits to `~/.config/shipinetics/`.
+- The `build-tool` skill. Its main rules are now in step 9 of `shipinetics:workflow`: a `--help` usage block, no prompts, clear errors, fixed exit codes, and a line in `docs/tools.md`.
+  - **Steps for each project:** in `AGENTS.md`, replace `shipinetics:build-tool` with `shipinetics:workflow, step 9`.
+- The lists of skills not to use with Shipinetics, in the workflow skill and the README. You can use other skills. The edit guard still lets only test-writer write tests.
+
+### Fixed
+- Test-writer and the test audit proved that a test can fail by breaking the source file in the working tree, and then restored it with `git checkout -- <file>`. That deletes every uncommitted change in the file, and it changes files that another agent may be editing at the same time. Now they break a scratch copy of the project under `$TMPDIR`, and never write a file outside the test paths.
+- `shipinetics-verify`, the README, the config template and the setup skill still described the Stop hook, which 0.8.0 removed. GETTING-STARTED still named a nightly routine.
+
 ## 0.8.0
 
 ### Removed (breaking)

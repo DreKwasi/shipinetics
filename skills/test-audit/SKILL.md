@@ -7,6 +7,8 @@ argument-hint: "[path or system to focus on]"
 # False-confidence test audit
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 A passing suite only means something if the tests would fail when the product breaks. This audit checks that, test by test, and fixes the ones that wouldn't.
 
@@ -41,11 +43,12 @@ Aim for 10 to 20 test files per run.
 **Then prove it** with a mutation check. This is the part that matters:
 
 1. Find the production line or branch the test claims to cover.
-2. Break it on purpose in a scratch change: flip the condition, return early, delete the call, change the constant.
-3. Run just that test. It should fail.
-4. Restore the code (`git checkout -- <file>`). Confirm the tree is clean.
+2. Copy the project to a scratch folder under `$TMPDIR` (link large dependency folders such as `node_modules` instead of copying them). Do the next steps in the copy, never in the working tree: another agent may be editing the same file, and `git checkout -- <file>` would delete uncommitted work.
+3. In the copy, break the line on purpose: flip the condition, return early, delete the call, change the constant.
+4. Run just that test in the copy. It should fail.
+5. Delete the copy. Confirm that `git status` in the working tree shows no change from you.
 
-If the stack has a mutation testing tool (Stryker, mutmut, cargo-mutants, go-mutesting), run it on the selected files instead of doing this by hand. It's faster and more thorough.
+If the stack has a mutation testing tool (Stryker, mutmut, cargo-mutants, go-mutesting), run it on the selected files in the copy instead of doing this by hand. It's faster and more thorough.
 
 ## Fix what you find
 

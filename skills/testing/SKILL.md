@@ -6,6 +6,8 @@ description: How tests get written here. The implementing agent never writes its
 # Testing: independent and lean
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 **The agent that writes the code doesn't write the tests.** Tests written by the author share the author's blind spots: the same misreading of the spec shows up in both the code and the test, and the test passes. So tests come from `shipinetics:test-writer`, a subagent with its own fresh context that works from the spec and the public interface. A hook enforces it: in a set-up project, only test-writer can create or edit files matching `.shipinetics/test-paths`, and test-writer can't edit source.
 
@@ -24,7 +26,7 @@ The project's own commands, layout and fixtures are in `docs/testing/how-to-writ
 
 Run test-writer in the foreground and wait for its report before you implement against its tests or report to the user. Its suspected bugs are input to your next step.
 
-Choose a different model for test-writer than the one implementing when you can (Opus implementing, Sonnet writing tests, or the reverse). Pass the model when you spawn it.
+Test-writer runs on Opus at medium effort (its frontmatter). Don't pass a model or an effort when you spawn it. Its independence comes from its fresh context and the spec, not from a different model.
 
 ## What to give test-writer
 

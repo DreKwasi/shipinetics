@@ -6,6 +6,8 @@
 > Gotchas: {{e.g. "e2e needs the dev server and seeded DB; run the seed first"}}
 > Owner persona: test-integrity | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+
 ## Which test to write
 
 | Change | Write |
@@ -29,7 +31,7 @@
 
 - **Test behaviours, not functions.** One test per behaviour a user or caller can observe, through the public entry point, at one layer. Never one test per function, and never on private functions or call counts.
 - **One home per behaviour.** Tests live in the module's test file, grouped by behaviour. Extend the existing test before adding one.
-- **Every test must be able to fail.** Before committing a new test, break the code it covers and watch it fail.
+- **Every test must be able to fail.** Before committing a new test, break the code it covers in a scratch copy of the project (never in the working tree) and watch the test fail.
 - **E2E selectors** use roles and accessible names (`getByRole('button', { name: 'Save' })`), then `data-testid`. Never CSS classes or DOM structure.
 - **No fixed sleeps.** Wait for a condition (`expect(...).toBeVisible()`), not for time.
 - **Deterministic.** Control time, randomness and network. A flaky test is a bug: fix the cause or quarantine it with a task in `TODOS.md`, never add retries to hide it.

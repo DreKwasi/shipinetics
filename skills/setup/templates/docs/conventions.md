@@ -6,6 +6,8 @@
 > Gotchas: a rule marked "enforced: review" is a candidate for a lint rule. Move it when you can (shipinetics:lint-rule).
 > Owner persona: code-quality, ai-smells | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+
 Each convention has an ID so reviews can cite it. Keep entries short. If a rule needs a paragraph of explanation, it probably belongs in a system doc.
 
 Format:
@@ -20,17 +22,11 @@ Enforced: lint <rule-name> | review
 
 ## Conventions
 
-### C-001: Only the config module reads the environment
-Why: secrets come from Secret Manager as environment variables. One module validates them, fails fast when one is missing, and keeps values out of logs.
-Do: `import { config } from '{{CONFIG_MODULE_IMPORT}}'; config.stripeKey`
-Don't: `process.env.STRIPE_KEY` anywhere else
-Enforced: hook (guard-edits) and lint {{e.g. n/no-process-env with an override for the config module}}
-
-### C-002: Tests are written by shipinetics:test-writer, not the implementer
+### C-001: Tests are written by shipinetics:test-writer, not the implementer
 Why: tests written by the author share the author's blind spots.
 Enforced: hook (guard-edits)
 
-### C-003: {{rule}}
+### C-002: {{rule}}
 Why: {{reason}}
 Do: `{{good}}`
 Don't: `{{bad}}`

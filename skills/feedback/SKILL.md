@@ -7,6 +7,8 @@ argument-hint: "[ingest]"
 # Agent feedback
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
+>
+> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 Mode: `$ARGUMENTS` (empty means write an entry, `ingest` means process the backlog).
 
@@ -16,12 +18,12 @@ Agents hit the same friction over and over: a missing doc, a confusing instructi
 
 Append to `docs/agent-feedback.md`, at the bottom, in the format the file shows. Commit it with the work.
 
-Be specific and actionable. Name files, commands and minutes lost.
+Be specific and actionable. Name files, commands and minutes lost. Write the entry in ASD-STE100: one problem in each bullet, sentences of 25 words or fewer, active voice, and the same word for the same thing every time.
 
 - Bad: "The docs could be clearer."
-- Good: "docs/systems/auth.md doesn't mention that session tokens are refreshed by middleware in src/server/session.ts. I spent about 20 minutes assuming the client refreshed them."
+- Good: "docs/systems/auth.md does not say that the middleware in src/server/session.ts refreshes the session tokens. I lost about 20 minutes because I thought that the client refreshed them."
 - Bad: "Tests are slow."
-- Good: "bin/verify takes 6 minutes because the e2e smoke set includes the full checkout flow. Moving checkout out of @smoke would cut it to about 90 seconds."
+- Good: "bin/verify takes 6 minutes because the e2e smoke set has the full checkout flow. If we move checkout out of @smoke, bin/verify takes about 90 seconds."
 
 Include instruction problems too: rules that contradicted each other, rules that didn't fit the situation, steps you skipped and why. If nothing slowed you down, write one line saying so. That's useful signal too.
 
@@ -39,8 +41,8 @@ Run this with the user every week or two, or when the backlog gets long.
    4. A doc or skill change (it explains)
    5. An `AGENTS.md` routing line (it points)
    Keep a proposed fix only if it passes three tests: it's **durable** (it will still matter next month, not just for one task), the problem happened while the relevant skill or doc was **actually in use** (a fix to a skill nobody loaded won't help), and it's **not already covered** somewhere else. Also ask what would have let the agent do this without asking or guessing: a missing script or a missing doc line is often the real fix. For a new lint rule or hook, prove it fails on a real past mistake from git history before you add it, and say which commit.
-5. Show the user the ranked list. Apply the ones they approve. Changes to the plugin itself (skills, reviewer, hooks) go in the plugin repo, not the project: note them as a list the user can take there.
-6. **Look at the numbers.** Read the Metrics blocks of worksheets since the last ingest. Summarize per accepted task: cost, turns, review rounds, corrections after human review, human review minutes, and the share of tasks accepted. Show the user any trend, and which feedback cluster it might explain. Also compare merge-risk grades with what actually happened: if low-risk tasks keep needing corrections, the grading (or the evidence behind it) can't be trusted yet, and that's worth fixing before anyone reviews less.
+5. Show the user the ranked list as a table: cluster, how often, minutes lost, proposed fix and file. Write it in ASD-STE100. When one root cause makes several clusters, or one fix closes several clusters, show the clusters and their fixes on a Whiteboard. Without Whiteboard, use a Mermaid flowchart from the clusters to the fixes. Apply the fixes that the user approves. Changes to the plugin itself (skills, reviewer, hooks) go in the plugin repo, not the project: note them as a list the user can take there.
+6. **Look at the numbers.** Read the Metrics blocks of worksheets since the last ingest. Summarize per accepted task: tokens (output tokens and the total), API calls, cost when the user filled it in, review rounds, corrections after human review, human review minutes, and the share of tasks accepted. Show the numbers as a table, with one row for each batch. `shipinetics-usage html --days 90` shows the token trend for each session and each agent. Tell the user about each trend in one ASD-STE100 sentence, and name the feedback cluster that it can explain. Also compare merge-risk grades with what actually happened: if low-risk tasks keep needing corrections, the grading (or the evidence behind it) can't be trusted yet, and that's worth fixing before anyone reviews less.
 7. **Change one thing at a time.** When a fix changes the setup itself (effort level, a skill, a reviewer, a model), say so in the commit and note the date. Compare the next batch of accepted tasks against the previous one on the same metrics before changing anything else. Two changes at once make the numbers unreadable.
 8. Move the marker to today's date: `<!-- ingested through: YYYY-MM-DD -->`. Leave old entries in place above it.
 9. Commit each approved fix separately, with a message saying what changed and which feedback it addresses. These fixes belong to no task's worksheet, so commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`.

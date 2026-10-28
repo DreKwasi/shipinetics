@@ -26,7 +26,7 @@ Always run the app and use the feature you changed before you say it works. Test
 | How we work (the task loop) | {{WORKFLOW_POINTER: "@AGENT_WORKFLOW.md" or "the shipinetics:workflow skill"}} |
 | Code conventions | `docs/conventions.md` |
 | How to write tests, and what each test covers | `docs/testing/how-to-write-tests.md`, `docs/testing/test-index.md` |
-| Project scripts | `bin/` and `docs/tools.md`. Build a new script when you repeat a multi-step task (shipinetics:build-tool) |
+| Project scripts | `bin/` and `docs/tools.md`. Build a new script when you repeat a multi-step task (shipinetics:workflow, step 9) |
 | What to work on | `TODOS.md` {{OR_LINEAR}} |
 | What happened in past sessions | `docs/worksheets/`. Find by tag with `git tag -l 'ws/*'` or by commit trailer with `git log --grep "Worksheet:"` |
 | Review personas for this domain | `docs/review/personas/` |
@@ -39,16 +39,17 @@ Every doc in `docs/systems/` starts with a 7-line header (title, summary, owns, 
 ## Every session
 
 1. Start or resume a worksheet: `worksheet new <slug>` or `worksheet use <name>`. Keep it current as you go. Another agent should be able to finish your task from it alone.
-2. Commit each working step as you go, not one big commit at the end. Every commit carries a trailer line, `Worksheet: <worksheet-name>`, and changes at most 400 lines. The git hooks refuse commits that break either rule.
-3. At the end: tag with `worksheet tag`, and append an entry to `docs/agent-feedback.md` about what slowed you down.
+2. For tasks S and up, offer the user two or three routes for the task before you start. Name the companion skills that each route uses (for example `grilling`, `research`, `prototype`), and recommend one. Details: shipinetics:workflow, "Choose a route".
+3. Commit each working step as you go, not one big commit at the end. Every commit carries a trailer line, `Worksheet: <worksheet-name>`, and changes at most 400 lines. The git hooks refuse commits that break either rule.
+4. At the end: tag with `worksheet tag`, and append an entry to `docs/agent-feedback.md` about what slowed you down.
 
 ## Review
 
-Get a review from a different model at each checkpoint: research, plan, implementation and wrap-up (shipinetics:review). Use the `shipinetics:reviewer` subagent on a different Claude model, and `agent_review` for a different model family. Respond to every finding in the worksheet.
+Get a review at each checkpoint: research, plan, implementation and wrap-up (shipinetics:review). Use the `shipinetics:reviewer` subagent (Opus, high effort), which works in its own context. Respond to every finding in the worksheet.
 
 ## Secrets
 
-Secrets live in Google Secret Manager and reach the app as environment variables. There are no `.env` files. Only the config module (`{{CONFIG_MODULE_PATH}}`) reads the environment. Everything else imports from it. Never try to see a secret's value: run commands that need secrets as `bin/with-secrets <command>`. Secret names (not values) are in `.shipinetics/secrets.list`. Hooks block environment dumps, direct vault reads and new environment reads outside the config module. Details: shipinetics:secrets.
+Secrets live in Google Secret Manager and reach the app as environment variables. There are no `.env` files. Never try to see a secret's value: run commands that need secrets as `bin/with-secrets <command>`. Secret names (not values) are in `.shipinetics/secrets.list`. Hooks block environment dumps and direct vault reads. Details: shipinetics:secrets.
 
 ## Tests come from an independent agent
 
@@ -64,7 +65,7 @@ Scan any skill, plugin or MCP server with SkillSpector before installing it, and
 
 ## Explaining your work
 
-Write everything for people in ASD-STE100 (Simplified Technical English): docs, reports, worksheets, PR bodies, Whiteboards, HTML pages and replies. Short sentences, active voice, one word for one thing. Use a diagram when there's structure or flow, a Whiteboard for code changes, and an HTML page for anything big. Details: shipinetics:explain.
+Write everything for people in ASD-STE100 (Simplified Technical English): docs, reports, worksheets, PR bodies, Whiteboards, HTML pages and replies. Short sentences, active voice, one word for one thing. Where there's structure or flow, or a code change, show it on a Whiteboard. In committed files, also add a Mermaid diagram and a link to the Whiteboard. Without Whiteboard, use Mermaid only. Use an HTML page for anything big. Details: shipinetics:explain.
 
 ## Protected files
 

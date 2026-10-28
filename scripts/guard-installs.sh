@@ -29,7 +29,7 @@ if command -v skillspector >/dev/null 2>&1; then
 else
   advice="SkillSpector isn't installed, so this hasn't been scanned. Install it (uv tool install git+https://github.com/NVIDIA/skillspector.git) and scan the source first, or approve only if you trust it."
 fi
-reason="shipinetics: this installs or updates agent tooling that will run with your permissions. $advice See shipinetics:security-scans."
+reason="shipinetics: this installs or updates agent tooling that will run with your permissions. $advice For a Shipinetics companion, shipinetics-companions shows the result recorded for the scanned version. Two companions (security-audit, Impeccable) score DO_NOT_INSTALL in static mode, and their findings were checked by hand as false positives. See shipinetics:security-scans."
 
 if command -v jq >/dev/null 2>&1; then
   jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $r}}'
