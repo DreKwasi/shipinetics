@@ -81,8 +81,8 @@ Tell the agent what you want, as you do now. The agent follows `shipinetics:work
 1. It starts a worksheet.
 2. For small tasks and larger, it gives you two or three routes for the task, and recommends one. Each route names the companion skills that it uses, for example `grilling` for decisions or `research` for external facts. You choose the route.
 3. For medium tasks and larger, it asks you questions about the design first. Each question has its recommended answer. When the code can answer a question, it reads the code and does not ask you. Then it writes a spec with acceptance criteria. New domain terms go in `GLOSSARY.md`. You approve the criteria.
-4. `shipinetics:test-writer` writes the acceptance tests, then unit tests, in its own context. It writes one test for each behaviour, never one test for each function. When the task changes or removes behaviour, it first changes or deletes the old tests. It reports the net change in tests, and it runs the full suite.
-5. The agent writes the code. After each step, it runs the quick checks on what changed (`shipinetics-verify quick`). The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
+4. The agent writes the code and commits it. After each step, it runs the quick checks on what changed (`shipinetics-verify quick`).
+5. `shipinetics:test-writer` writes the acceptance tests and unit tests for that commit, in its own context. It writes one test for each behaviour, never one test for each function. When the task changed or removed behaviour, it changes or deletes the old tests. It reports the net change in tests and the bugs it found. The agent fixes the bugs. The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
 6. It gets reviews: `shipinetics:reviewer` (Opus, in its own context), and the security or UI reviewer when the change needs them. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, the final reviewer uses the change in the app itself.
 7. It records evidence from the running app, on the final code:
    - a screenshot of the result for each acceptance criterion;
@@ -112,7 +112,7 @@ For long tasks, paste the `/goal` line from the spec. Claude continues until a s
 
 | Command | When |
 |---|---|
-| `/shipinetics:spec <issue or idea>` | To make acceptance criteria and failing tests first |
+| `/shipinetics:spec <issue or idea>` | To make testable acceptance criteria before the code |
 | `/shipinetics:review impl` | To get a review now |
 | `/shipinetics:explain <topic> html` | To get an interactive page that explains something |
 | `/shipinetics:explain <topic> video` | To get a video with narration (it asks first) |
@@ -180,4 +180,4 @@ The main session runs at high effort. The `reviewer` agent runs on Opus at high 
 | A guard blocks a safe command | Report the command, so the rule can be fixed. Until then, run the command yourself, or start the session with `SHIPINETICS_ALLOW_ENV_READ=1`. To keep agents away from more files, or fewer, write a `secret-paths` list |
 | `bin/with-secrets` fails | gcloud is not logged in, or a name in `.shipinetics/secrets.list` is not in Secret Manager |
 | The agents still use the old model or rules after a change to the plugin | A session loads the plugin when it starts. Run `/reload-plugins`, or start a new session. For an install from GitHub, update the plugin first (section 6) |
-| The number of tests grows on each task | Tell the agent to use test-writer `change` mode before it changes the code. Read the net change in test-writer's report. Run `/shipinetics:test-audit` to delete orphan tests |
+| The number of tests grows on each task | Tell the agent to use test-writer `change` mode after it commits the change. Read the net change in test-writer's report. Run `/shipinetics:test-audit` to delete orphan tests |

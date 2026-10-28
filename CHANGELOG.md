@@ -6,6 +6,27 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Changed
+- Tests come after the code. The agent implements the change and commits it. Then `shipinetics:test-writer` writes the tests for that commit, in one request with every mode the task needs. Before, test-writer wrote acceptance tests before the code, and they failed by design. Test-writer still works from the spec and the public interface, and it still proves that each test catches its bug.
+  - New tests must pass on the code. A failure is a suspected bug.
+  - New and changed tests must also fail on the code before the change. Test-writer runs them once against the base commit, in a git worktree. This keeps the old fail-first proof.
+  - `change` mode runs after the code changes. Until then, the old tests of changed behaviour can fail.
+  - The `spec` skill no longer starts test-writer. It checks that each criterion is testable. The `/goal` line says that test-writer wrote the tests after the implementation.
+- Test-writer is faster. In 7 measured runs, most of the time went to test runs and waits, not to writing (57, 36 and 16 minutes for the three longest). Now:
+  - One script runs all the mutants, in a git worktree under `$TMPDIR` with a unique path (not a full copy of the repo). Each mutant runs only the new and changed tests, not the suite. Mutants run in parallel, one worktree per worker, when `how-to-write-tests.md` says that copies can run at the same time. A sanity mutant first shows that the worktree runs its own code.
+  - Test-writer waits for a done file with a short poll, never with a fixed long `sleep`.
+  - Test-writer runs only targeted tests. It no longer runs the full suite: the complete `shipinetics-verify`, before the work is done, runs it.
+  - Slow tests are reported to the user. Test-writer measures the fixed cost of one targeted run. If it is over 10 seconds, or the proof runs take over 5 minutes, its report has a "Slow test runs" section: the numbers, the likely cause and the usual fix. The agent tells the user, once per project, and doesn't change the test setup without the user's yes. In an autonomous session, it adds a queue task.
+  - Test-writer starts only after the change is committed, and nobody edits source while it runs. So it never waits for edits to stop.
+  - The `how-to-write-tests.md` template has the fastest targeted command, its fixed cost per run, and whether copies can run at the same time. A high fixed cost (for example, a test database built again from all migrations on each run) makes each proof run slow.
+- **Steps for each project.** Test-writer reads the project's own copies of these files, so the old order stays until you change them:
+  - `AGENTS.md`: change "Give it the spec and the interface" to "Implement and commit first. Then give it the spec and the commit range".
+  - `docs/testing/how-to-write-tests.md`, "Which test to write": the new behaviour row says the e2e test is written "after the code", not "before the code". The bug fix row says the case "passes on the fix and fails on the code before the fix (test-writer runs it against the base commit)", not "failing without the fix. Watch it fail first". The changed behaviour row says "in the same task", not "before the code".
+  - `docs/testing/how-to-write-tests.md`, "Rules": "changes its tests in the same task", not "changes its tests first". "a scratch worktree", not "a scratch copy".
+  - `docs/testing/how-to-write-tests.md`, "Layout and commands": add the fastest targeted command, its fixed cost per run, and whether copies can run at the same time. `/shipinetics:setup audit` shows these differences.
+
 ## 0.8.1
 
 ### Added

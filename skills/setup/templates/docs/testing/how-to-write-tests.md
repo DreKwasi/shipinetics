@@ -12,12 +12,12 @@
 
 | Change | Write |
 |---|---|
-| New user-facing behaviour | An e2e test for the main path, written from the acceptance criteria before the code. Unit tests for the domain logic's behaviours |
-| Bug fix | A regression case in the test of the behaviour it broke, failing without the fix. Watch it fail first. Not a new file named after the fix |
+| New user-facing behaviour | An e2e test for the main path, written from the acceptance criteria after the code. Unit tests for the domain logic's behaviours |
+| Bug fix | A regression case in the test of the behaviour it broke. It passes on the fix and fails on the code before the fix (test-writer runs it against the base commit). Not a new file named after the fix |
 | Pure logic (parsing, calculation, state machines) | Tests of its behaviours through its public interface, with edge cases and invalid input as rows in a table |
 | Glue (routes, controllers, wiring) or trivial code | No unit tests. A behaviour test at the entry point covers it |
 | Refactor | No new tests. The existing tests must pass with no change. If a test had to change, the change was not a pure refactor |
-| Changed behaviour | Change the test of that behaviour, before the code (test-writer `change` mode). Never add a second test beside the old one |
+| Changed behaviour | Change the test of that behaviour in the same task (test-writer `change` mode). Never add a second test beside the old one |
 | Removed behaviour or deleted code | Delete its tests, or the cases that cover it, in the same change. Remove its lines from the test index |
 | UI appearance | A screenshot test (shipinetics:visual-regression) |
 | Performance-sensitive path | A benchmark (shipinetics:perf) |
@@ -25,6 +25,8 @@
 ## Layout and commands
 
 - Unit tests: {{where they live, naming}}. Run one file: `{{single file cmd}}`.
+- Fastest targeted run: `{{e.g. pytest --reuse-db -n0 path::test, or vitest run path -t name}}`. Fixed cost of one run: {{e.g. 2s}}. Test-writer uses it for every proof run, so keep the fixed cost low (reuse the test database, skip slow setup the test doesn't need).
+- Copies can run at the same time: {{yes, or no and why, e.g. one shared test database}}. Test-writer runs its mutants in parallel only on yes.
 - E2E: {{e2e folder}}. Run one: `{{single e2e cmd}}`. Smoke tests are tagged `@smoke` and run in `bin/verify`.
 - Acceptance tests from specs live in `e2e/acceptance/` and are protected once written.
 - Test data: {{fixtures, factories, seed}}.
@@ -34,8 +36,8 @@
 - **Test behaviours, not functions.** One test per behaviour a user or caller can observe, through the public entry point, at one layer. Never one test per function, and never on private functions or call counts.
 - **One home per behaviour.** Tests live in the module's test file, grouped by behaviour. Extend the existing test before adding one.
 - **One test per behaviour, with every assertion it needs.** Several assertions about one behaviour belong in one test. Never split one behaviour into a test for each assertion, and never cover two behaviours in one test. Name the test after its behaviour.
-- **Changed or removed behaviour changes its tests first.** When you delete code, delete its tests in the same change. When a behaviour changes, change its test. The suite grows only with new behaviour.
-- **Every test must be able to fail.** Before you commit a new test, break the code that it covers and see the test fail. Do this in a scratch copy of the project, never in the working tree.
+- **Changed or removed behaviour changes its tests in the same task.** When you delete code, delete its tests in the same change. When a behaviour changes, change its test. The suite grows only with new behaviour.
+- **Every test must be able to fail.** Before you commit a new test, break the code that it covers and see the test fail. Do this in a scratch worktree of the project, never in the working tree.
 - **E2E selectors** use roles and accessible names (`getByRole('button', { name: 'Save' })`), then `data-testid`. Never CSS classes or DOM structure.
 - **No fixed sleeps.** Wait for a condition (`expect(...).toBeVisible()`), not for time.
 - **Deterministic.** Control time, randomness and network. A flaky test is a bug: fix the cause or quarantine it with a task in `TODOS.md`, never add retries to hide it.

@@ -3,7 +3,7 @@
 Shipinetics is a plugin for Claude Code. It gives every project the same workflow, reviews and guardrails. You install it one time. Then each project gets these parts:
 
 - **Verify gates.** Checks run in tiers. The agent runs quick checks while it works, and all fast checks before the work is done. CI runs the full suite. The agent runs verify itself. A push or a PR is blocked until the complete checks pass on exactly that code. A pass stays valid until the code changes.
-- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function. When code changes or is deleted, test-writer first changes or deletes its tests. So the suite grows only with new behaviour.
+- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function. When code changes or is deleted, test-writer changes or deletes its tests in the same task, after the change is committed. So the suite grows only with new behaviour.
 - **A verification map.** It tells any agent how to start the real app, check it, and use each feature the way a user does. A reviewer uses the feature again by itself. It does not trust the author's screenshots.
 - **Evidence on every PR.** Each PR shows the change in the running app. The evidence is screenshots, a recording, or terminal output. An independent reviewer gives each PR a merge-risk grade.
 - **Design checks.** UI changes are compared with the project's design system (`DESIGN.md`). Setup writes `DESIGN.md` from the tokens that the code already uses.
@@ -282,21 +282,22 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
 
 ## Tests
 
-`shipinetics:test-writer` writes all the tests. It works in its own context, from the spec, and it does not trust the code. It has four modes:
+`shipinetics:test-writer` writes all the tests, after the agent implements and commits the change. It works in its own context, from the spec and the public interface, and it does not trust the code. One request can use several modes:
 
 | Mode | When | What it does |
 |---|---|---|
-| `acceptance` | Before the code, for medium tasks and larger | Writes the acceptance tests from the spec. They must fail first |
-| `unit` | When the public interface exists | Writes tests of the module's behaviours |
-| `regression` | Before a bug fix | Writes a test that shows the bug |
-| `change` | Before code changes or is deleted | Changes the tests of changed behaviour. Deletes the tests of removed behaviour, and names each one |
+| `acceptance` | Medium tasks and larger | Writes the acceptance tests from the spec. They must pass on the code |
+| `unit` | Domain logic | Writes tests of the module's behaviours |
+| `regression` | A bug fix | Writes a test that passes on the fix and fails on the code before the fix |
+| `change` | The task changed or removed behaviour | Changes the tests of changed behaviour. Deletes the tests of removed behaviour, and names each one |
 
 These rules keep the suite small:
 
 - **One test for each behaviour, with every assertion that it needs.** A test has one reason to fail. Test-writer never splits one behaviour into a test for each assertion. One test never covers two behaviours.
 - **The suite grows only with new behaviour.** Test-writer reports the net change in tests. Each new test names its new behaviour.
-- **Each test must catch a bug.** Test-writer breaks the code on purpose and sees the test fail. It does this in a copy of the project under `$TMPDIR`, never in your working tree.
-- **Test-writer runs the full suite** before it reports.
+- **Each test must catch a bug.** Each new test fails on the code before the change. Test-writer also breaks the code on purpose and sees the test fail. It does this in git worktrees under `$TMPDIR`, never in your working tree. One script runs all the mutants, and each mutant runs only the new and changed tests.
+- **Test-writer runs only targeted tests.** The complete `shipinetics-verify`, before the work is done, runs the suite.
+- **Slow tests are reported to you.** Test-writer measures the fixed cost of one targeted run. If it is over 10 seconds, or the proof runs take over 5 minutes, the agent tells you the numbers, the likely cause and the usual fix. It doesn't change your test setup without your yes. Set the fastest targeted command in `docs/testing/how-to-write-tests.md`: a high fixed cost per run (for example, a test database built again from all migrations) makes each proof run slow.
 
 The test-integrity reviewer checks each change for tests that stay after their code was deleted. `/shipinetics:test-audit` finds tests that test nothing, and it deletes orphan tests first.
 

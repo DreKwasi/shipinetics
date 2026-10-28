@@ -60,7 +60,7 @@ A hook asks the user to confirm every `npx skills add`, `claude plugin install`,
 **Acting on findings:**
 
 1. Each confirmed finding becomes a queue task (shipinetics:task-queue) with its severity. Critical and high go to the top as P0 or P1.
-2. Fix through the normal workflow. `shipinetics:test-writer` writes a regression test that fails while the issue exists.
+2. Fix through the normal workflow. After the fix, `shipinetics:test-writer` writes a regression test. It passes on the fix and fails on the code before the fix.
 3. `shipinetics:security-reviewer` reviews the fix.
 4. Re-run the same Strix check against the fix to confirm it's closed, with the user's approval again.
 

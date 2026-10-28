@@ -3,7 +3,7 @@
 # list exists in .shipinetics/ (so the hook does nothing in projects that aren't set up):
 #
 #   protected-paths     Existing files matching these globs can't be modified. New files are fine,
-#                       so acceptance tests can be written first and then stay fixed. To change one,
+#                       so test-writer can add acceptance tests, which then stay fixed. To change one,
 #                       an agent writes the full new version to .shipinetics/pending/<path>, and a
 #                       human reviews and applies it with shipinetics-config apply.
 #   test-paths          Only the shipinetics:test-writer subagent may create or edit test files, and

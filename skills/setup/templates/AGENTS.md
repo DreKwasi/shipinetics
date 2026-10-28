@@ -53,7 +53,7 @@ Secrets live in Google Secret Manager and reach the app as environment variables
 
 ## Tests come from an independent agent
 
-You don't write tests for code you wrote. The `shipinetics:test-writer` subagent writes them in its own context, from the spec and the public interface, and a hook only lets it touch test files (`.shipinetics/test-paths`). Give it the spec and the interface, then fix the bugs it reports. Details: shipinetics:testing.
+You don't write tests for code you wrote. The `shipinetics:test-writer` subagent writes them in its own context, from the spec and the public interface, and a hook only lets it touch test files (`.shipinetics/test-paths`). Implement and commit first. Then give it the spec and the commit range, and fix the bugs it reports. Details: shipinetics:testing.
 
 ## Every PR carries evidence
 

@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting and choosing a route (with the companion skills each route uses) through spec, tests, implementation, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (those start with a failing regression test from test-writer), and whenever you're unsure what step comes next.
+description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting and choosing a route (with the companion skills each route uses) through spec, implementation, tests, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (the fix comes first, then a regression test from test-writer), and whenever you're unsure what step comes next.
 ---
 
 # The task loop
@@ -44,27 +44,29 @@ If the system doc was wrong or thin, fix it now. For unfamiliar or risky systems
 - M and up, interactive: the spec ends with a ready-to-paste `/goal` line (shipinetics:spec). Offer it to the user so the implementation runs until its deliverables are shown, not until you feel done.
 - If the plan is ambiguous on something only the user can decide, ask now (interactive) or mark the task blocked with the question (autonomous). Don't guess on product decisions.
 
-## 4. Tests first, by someone else
+## 4. Implement
 
-You don't write tests for your own code (shipinetics:testing). Spawn `shipinetics:test-writer`:
-
-- `acceptance` mode with the spec, before any implementation. It writes the acceptance tests and confirms they fail for the right reason.
-- `unit` mode once the public interface exists (signatures and types, stubs are fine).
-- `regression` mode for a bug, before you fix it.
-- `change` mode when the task changes or removes behaviour that has tests, before you change the code. Give it the spec change or the planned diff. It updates or deletes the old tests first, so the suite doesn't pile up tests for code that no longer exists.
-
-Test-writer runs the full suite before it reports. Read its net change: the number of tests grows only with new behaviour.
-
-Read its report. "Suspected bugs" are yours to fix. "Gaps" usually mean the spec needs work.
-
-## 5. Implement
-
-- Small steps. After each one, run the targeted tests for what you touched, not the whole suite.
+- Small steps. After each one, run the targeted tests for what you touched, not the whole suite. Old tests of behaviour that you changed or removed can fail. Leave them for test-writer (step 5).
 - Commit each step once it works, with the `Worksheet:` trailer. A reviewer reads a few hundred lines closely and skims anything bigger, so the pre-commit hook refuses commits over the size limit (400 changed lines by default). If a step comes out bigger, split it into commits that each leave the code working.
 - Never try to see a secret's value. To run something that needs secrets, use `bin/with-secrets <command>` (shipinetics:secrets).
 - Follow `docs/conventions.md`. Look for an existing helper before writing a new one.
 - Update the worksheet log as you go: what you did, what happened, what you decided and why. Write it so another agent could take over mid-step.
 - If you're going in circles (same error three times, or 20 minutes with no progress), stop. Write down what you've tried in the worksheet, then step back: reread the error, check your assumptions, search the codebase for how similar things are done. If you're autonomous and still stuck, mark the task blocked and move on.
+
+## 5. Tests, by someone else
+
+You don't write tests for your own code (shipinetics:testing). When the implementation is committed, spawn `shipinetics:test-writer` once, with every mode the task needs:
+
+- `acceptance` for M and up: the acceptance criteria, at the entry point.
+- `unit` for domain logic: its behaviours, through the public interface.
+- `regression` for a bug that you fixed. The test passes on the fix and fails on the code before it.
+- `change` when the task changed or removed behaviour that has tests. It changes or deletes those tests, so the suite doesn't pile up tests for code that no longer exists.
+
+Give it the spec and the commit range (`<base>..HEAD`; in workspace mode, the package repo's range). Don't edit source while it runs. Test-writer runs only targeted tests. Run `shipinetics-verify quick` after its report. The complete verify (step 7) runs the suite. Read its net change: the number of tests grows only with new behaviour.
+
+Read its report. "Suspected bugs" are yours to fix: fix them, commit, and send test-writer the new commit if a test needs a second look. "Gaps" usually mean the spec needs work.
+
+If the report has "Slow test runs", the project's tests cost more time than they need to. Tell the user now, in two or three lines: the command, the time of one run of one test, how much of the task's time that cost, the likely cause and the suggested fix. Don't change the project's test setup unless the user says yes: it is their code, and a fix such as reusing the test database must not weaken CI. Write it in the worksheet. In an autonomous session, add a queue task with the numbers instead. Tell the user only once per project. If they keep the setup, write the measured cost and their choice on the fixed-cost line of `docs/testing/how-to-write-tests.md` ("Fixed cost of one run: 36 s, kept by the user on <date>"). When that line records their choice, don't tell them again.
 
 ## 6. Run the app yourself
 
@@ -83,7 +85,7 @@ Once it works, commit, then **record the evidence** (shipinetics:evidence) and s
 
 You run verify yourself. No hook runs it when you stop.
 
-- After a step that changes behaviour, run `shipinetics-verify quick`. It checks only the changed files.
+- After a step that changes behaviour, run `shipinetics-verify quick`. It checks only the changed files. Until test-writer finishes step 5, old tests of behaviour that you changed or removed can fail there. That is expected. Any other failure is yours.
 - Before you mark the task done, run `shipinetics-verify`. It runs the complete verify (`bin/verify`) and must pass. It records the pass for exactly this code, so the pre-push hook and the PR gate reuse it and do not run it again. Committing the code, or editing only the worksheet, evidence or feedback log, keeps the pass. Any other change needs a new run.
 - Don't run verify while a subagent is still editing or running tests. Wait for it to finish.
 - Don't answer a question with a verify run. Run it only when the code changed.
@@ -113,7 +115,7 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 4. Mark the worksheet done with a summary and exact next steps, if any. Fill in its Metrics block (shipinetics:worksheet). `worksheet tag`.
 5. Update the task queue: done, or follow-ups added.
 6. Append feedback to `docs/agent-feedback.md` (shipinetics:feedback).
-7. Tell the user, in ASD-STE100 (shipinetics:explain), what changed, what you verified and how, and anything not done or not verified. No hedging on what's verified, no claiming what isn't. Pick the format that makes it fastest to understand (shipinetics:explain): plain controlled English for short reports, a diagram when there's structure or flow, a Whiteboard or an HTML page for anything bigger.
+7. Tell the user, in ASD-STE100 (shipinetics:explain), what changed, what you verified and how, and anything not done or not verified. If test-writer reported slow test runs, say it again in one line with the time it cost this task. No hedging on what's verified, no claiming what isn't. Pick the format that makes it fastest to understand (shipinetics:explain): plain controlled English for short reports, a diagram when there's structure or flow, a Whiteboard or an HTML page for anything bigger.
 
 ## Choose a route
 
@@ -135,9 +137,9 @@ Use the companion skills at these steps. Where a companion's rules and Shipineti
 | `research` | The task depends on external facts: an API, a limit, a version | 2 | Its findings go in the claims table, with the URL and the date |
 | `prototype` | A question needs a runnable answer: a state model, a screen | 3, interactive | Write the answer in the spec or in the worksheet's Decisions. Delete the prototype before the PR |
 | `codebase-design` | A change needs a new module or seam | 3 | Reviewers use the same words (depth, seam, adapter). Its advice to delete old tests goes to test-writer |
-| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Test-writer writes the regression test (phase 5) in `regression` mode, from your smallest repro |
+| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Fix the bug first. Then test-writer writes the regression test (phase 5) in `regression` mode, from your smallest repro and the fix commit |
 | `wait-what` | The user types `/wait-what` | any | Explain again: a little context first, ASD-STE100 (shipinetics:explain), and the terms in `GLOSSARY.md` |
-| Impeccable | UI work | 3, 5, 8 | `shape` for the brief, `polish` before review, `detect` and `audit` in review (shipinetics:review) |
+| Impeccable | UI work | 3, 4, 8 | `shape` for the brief, `polish` before review, `detect` and `audit` in review (shipinetics:review) |
 | `security-audit` | The change touches security | 8 | Through `shipinetics:security-reviewer` |
 | `merge-risk` | A PR opens | 10 | Through shipinetics:review |
 
