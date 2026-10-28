@@ -22,6 +22,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Routes. For tasks S and up, the agent offers two or three routes for the task, recommends one, and names the companion skills that each route uses (`shipinetics:workflow`, "Choose a route").
 
 ### Changed
+- Tests grow only with new behaviour. Test-writer has a `change` mode: before code changes or is deleted, it changes or deletes the tests that cover it, and it names each deleted test. One test covers one behaviour, with every check that behaviour needs. Test-writer reports the net change in tests and runs the full suite. The test-integrity reviewer flags tests left behind for removed code, and the test audit deletes orphans first.
 - The agents run on Opus. `reviewer` uses high effort. `test-writer`, `security-reviewer` and `ui-reviewer` use medium effort. Before, all four ran on Sonnet at high effort. The `review` and `testing` skills no longer tell the main agent to start these agents on a different model.
 - Text for people is in ASD-STE100 in every skill that writes it, and in the doc and worksheet templates. Structure and flow go on a Whiteboard. A committed file also gets a Mermaid diagram and a link to the Whiteboard. Without Whiteboard, Mermaid is the only diagram.
 - The `feedback` skill gives a format for the ingest report, and its examples are in ASD-STE100.

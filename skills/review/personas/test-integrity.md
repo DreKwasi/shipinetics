@@ -4,7 +4,10 @@
 
 **Look for**
 - Assertions removed, loosened or commented out. Exact matches turned into "contains" or "truthy".
-- Tests skipped, deleted, marked `.only`, `xfail`, `skip`, or wrapped in try/catch that swallows failures.
+- Tests skipped, marked `.only`, `xfail`, `skip`, or wrapped in try/catch that swallows failures. Tests deleted while the behaviour they cover still exists. (Deleting the tests of behaviour that the task removed is correct: check that the diff or spec really removes it.)
+- The opposite: code or behaviour removed in the diff while its tests stay, or a changed behaviour that got a second test beside the old one.
+- One behaviour split into a test for each assertion, or two behaviours in one test.
+- More tests added than new behaviours, with no reason given.
 - Expected values changed in the same diff as the code, with no spec change explaining it.
 - Snapshot or screenshot baselines regenerated alongside the code they cover.
 - The unit under test mocked, or mocks that return exactly what the assertion checks.

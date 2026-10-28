@@ -65,12 +65,14 @@ Run `bin/verify` after the fixes.
 
 A suite that's too big is slow, noisy, and hides the tests that matter. For each audited file:
 
+0. **Find orphans.** Tests whose code or behaviour no longer exists: they import a deleted module, call a removed option, or pass even when you delete the code they name. Delete them (through test-writer). They are the first cut, before any reshaping.
+
 1. **Find redundancy.** With a mutation tool, look at which mutants each test kills. Without one, group tests by the behavior they exercise. Any test that kills nothing another test doesn't already kill, and doesn't encode a named requirement, is redundant.
 2. **Find tests that test the wrong thing:** framework or library behavior, getters and setters, private functions, call counts on internal collaborators, what the type checker already guarantees.
 3. **Reshape per-function suites into per-behaviour ones.** A file with one test per exported function becomes tests of the module's behaviours through its public entry point, grouped by behaviour. Files named after fixes or tickets merge into the module's test file. A behaviour tested at two layers keeps the lower one.
 4. **Merge same-shaped cases** into one table-driven test.
 5. Have `shipinetics:test-writer` make the reshapes, cuts and merges, then re-run the mutation check to confirm the suite still catches everything it caught before.
-6. Record in the report: tests and files before and after, and mutations caught before and after. Fewer tests catching the same mutations is a win.
+6. Record in the report: tests and files before and after, orphans deleted, and mutations caught before and after. Fewer tests catching the same mutations is a win.
 
 ## Report
 

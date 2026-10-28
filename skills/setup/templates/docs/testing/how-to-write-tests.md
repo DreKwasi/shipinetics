@@ -31,6 +31,8 @@
 
 - **Test behaviours, not functions.** One test per behaviour a user or caller can observe, through the public entry point, at one layer. Never one test per function, and never on private functions or call counts.
 - **One home per behaviour.** Tests live in the module's test file, grouped by behaviour. Extend the existing test before adding one.
+- **One test per behaviour, with every check it needs.** Several assertions about one behaviour belong in one test. One behaviour is never split into a test for each assertion, and one test never covers two behaviours.
+- **Changed or removed behaviour changes its tests first.** When code is deleted, its tests are deleted in the same change. When behaviour changes, its test changes. The suite grows only with new behaviour.
 - **Every test must be able to fail.** Before committing a new test, break the code it covers in a scratch copy of the project (never in the working tree) and watch the test fail.
 - **E2E selectors** use roles and accessible names (`getByRole('button', { name: 'Save' })`), then `data-testid`. Never CSS classes or DOM structure.
 - **No fixed sleeps.** Wait for a condition (`expect(...).toBeVisible()`), not for time.

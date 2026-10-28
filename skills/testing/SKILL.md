@@ -48,6 +48,8 @@ Don't give it your implementation reasoning, your worry list or your expected ou
 - Mock only at system boundaries. Assert outputs and effects, never call counts on internal collaborators.
 - Expected values come from the spec, worked out by hand.
 - Tests that catch nothing unique are deleted.
+- **One test per behaviour, with every check that behaviour needs.** A test has one reason to fail: its behaviour is broken. So it can assert several things about that behaviour (the returned value, the stored state, the message), and its name says the behaviour. Don't split one behaviour into a test for each assertion: that repeats the setup and multiplies the count without catching more bugs. Don't put two behaviours in one test either: the first failure hides the second, and the name can't say what broke.
+- When behaviour changes or is removed, its tests change or go first (test-writer `change` mode). A deleted feature leaves no tests behind, and a changed one never gets a second test beside the old one. The suite grows only with new behaviour.
 
 The detail is in the test-writer agent, and the test-integrity persona reviews it. A suite is good when it fails if the product breaks and passes when it doesn't. More tests isn't better, and coverage numbers don't measure what matters. The periodic audit (shipinetics:test-audit) reshapes suites that drifted.
 

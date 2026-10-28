@@ -51,6 +51,9 @@ You don't write tests for your own code (shipinetics:testing). Spawn `shipinetic
 - `acceptance` mode with the spec, before any implementation. It writes the acceptance tests and confirms they fail for the right reason.
 - `unit` mode once the public interface exists (signatures and types, stubs are fine).
 - `regression` mode for a bug, before you fix it.
+- `change` mode when the task changes or removes behaviour that has tests, before you change the code. Give it the spec change or the planned diff. It updates or deletes the old tests first, so the suite doesn't pile up tests for code that no longer exists.
+
+Test-writer runs the full suite before it reports. Read its net change: the number of tests grows only with new behaviour.
 
 Read its report. "Suspected bugs" are yours to fix. "Gaps" usually mean the spec needs work.
 
@@ -85,7 +88,7 @@ You run verify yourself. No hook runs it when you stop.
 - Don't run verify while a subagent is still editing or running tests. Wait for it to finish.
 - Don't answer a question with a verify run. Run it only when the code changed.
 
-"Done" always means the complete verify passed on the final code. A PR can't open without it. Never edit, skip or delete a test to get a pass. If a test seems wrong, take it to test-writer with the spec (or, for protected tests, write it up under "Test change requests" in the worksheet).
+"Done" always means the complete verify passed on the final code. A PR can't open without it. Never edit, skip or delete a test to get a pass. Removing the tests of behaviour that the task removes is different: test-writer does it in `change` mode and names each one. If a test seems wrong, take it to test-writer with the spec (or, for protected tests, write it up under "Test change requests" in the worksheet).
 
 ## 8. Review
 
