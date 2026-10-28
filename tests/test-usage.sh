@@ -175,6 +175,7 @@ eq "and replaces the rows that it has" "$(col "$S1" main $O api_calls)/$(nrows "
 reset; build_s1
 rec "$S1_FILE"
 before="$(cat "$log")"
+rm -rf "${S1_FILE%.jsonl}"      # no subagents, and a main transcript with no API call
 printf '{"type":"user","timestamp":"%s","cwd":"%s","message":{"role":"user","content":"hi"}}\n' "$(ts 0 0)" "$proj" >"$S1_FILE"
 rec "$S1_FILE"
 eq "a record with no rows exits 0" "$RC" 0
@@ -198,7 +199,7 @@ quick "$proj" "$S2" "Other session" "$(ts 1 0)" 11 12 13 14
 rec "$(tpath "$proj" "$S2")"
 eq "malformed log lines stay after the valid rows when the log is rewritten" "$(tail -n 2 "$log")" "$bad1
 $bad2"
-eq "and the valid rows are all there" "$(nrows "$S1")/$(nrows "$S2")" "4/1"
+eq "and the valid rows are all there" "$(grep -v "	x	" "$log" | grep -c "^$S1	")/$(nrows "$S2")" "4/1"
 
 # ---- backfill and a session that is in the log
 reset
