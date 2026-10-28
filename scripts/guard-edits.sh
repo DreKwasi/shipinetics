@@ -12,8 +12,6 @@
 #                       in files matching these globs, normally the config module.
 #
 # Globs are bash patterns relative to the Shipinetics root, and * also matches /.
-# It also records which files the agent edits this session, so the Stop hook knows which
-# packages to verify in workspace mode.
 # It also keeps agents out of the user's own Shipinetics settings (~/.config/shipinetics/), which
 # can switch hooks off. Switch this hook off with "hooks_off = edits" in the project or user config.
 # Per-session overrides, set when starting Claude Code:
@@ -60,7 +58,6 @@ dir="$(sy_dir "$root")"
 dn="$SY_DIR_NAME"
 rel="$(sy_rel "$root" "$path")"
 agent="$(jget agent_type)"
-session="$(jget session_id)"
 is_test_writer=0
 case "$agent" in *test-writer) is_test_writer=1 ;; esac
 # A proposal in the pending folder is never protected itself, and the other rules check it as the
@@ -110,15 +107,6 @@ if [ "$is_doc" = 0 ] && ! sy_flag ALLOW_ENV_READ && [ -f "$dir/env-allowed-paths
   if [ "${after:-0}" -gt "${before:-0}" ]; then
     deny "$rel would read environment variables directly. In this project only the config module reads the environment (files in $dn/env-allowed-paths). Secrets come from the vault as environment variables, and the config module validates and exposes them. Import the value from the config module instead. If the variable isn't there yet, add it to the config module and note the new secret in your worksheet so a human can create it in the vault."
   fi
-fi
-
-# ---- allowed: remember the edit for the Stop hook ----
-if [ -n "$session" ]; then
-  cache="$dir/.cache"
-  mkdir -p "$cache" 2>/dev/null && {
-    [ -e "$cache/session-$session" ] || touch "$cache/session-$session"
-    printf '%s\n' "$rel" >>"$cache/touched-$session"
-  }
 fi
 
 exit 0

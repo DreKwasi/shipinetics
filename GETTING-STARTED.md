@@ -62,15 +62,14 @@ Start with one test project. Choose a project that has tests and some small task
    | 4 | Commit hooks: lint with automatic fixes, a 400-line limit, the `Worksheet:` trailer, and a pre-push hook that runs the complete checks | A commit with a lint error that can be fixed, a commit without a trailer, a commit that is too big, and a run of the pre-push hook |
    | 5 | CI that runs `bin/verify --full` | A check of the workflow file |
    | 6 | One visual test and one benchmark (optional) | Both run in `bin/verify --full` |
-   | 7 | Night shift (optional) | `night-shift --dry-run` |
-   | 8 | Security tools (optional) | `scan-skills` finds nothing marked DO_NOT_INSTALL |
+   | 7 | Security tools (optional) | `scan-skills` finds nothing marked DO_NOT_INSTALL |
 
 5. Read the report. It ends with a "For you" list: the things only you can do, for example an install, a login or a new GitHub label. Items about secrets and evidence are at the top. Until you do them, those guardrails are only partly active.
    Some changes need a person. Setup puts them in `.shipinetics/pending/`, for example `.claude/settings.json`. Apply them with `shipinetics-config apply`.
    If setup stopped early, run `/shipinetics:setup` again. It starts at the first phase that is not done.
 6. **Check the guardrails yourself:**
    - Run `shipinetics-verify quick`, then `shipinetics-verify`. The quick tier must take seconds. The complete tier must take a few minutes at most. Then `shipinetics-verify status` shows that both passed.
-   - Ask the agent to make a small change that breaks a test, and then to finish. The Stop hook must send it back with the failure.
+   - Ask the agent to make a small change that breaks a test, and then to open a PR. The PR gate must refuse it until `shipinetics-verify` passes.
    - Ask the agent to write a test itself. The edit guard must refuse and tell it to use `shipinetics:test-writer`.
    - Ask the agent to run `env`. The secrets guard must refuse.
 
@@ -83,7 +82,7 @@ Tell the agent what you want, as you do now. The agent follows `shipinetics:work
 1. It starts a worksheet.
 2. For medium tasks and larger, it asks you questions about the design first. Each question has its recommended answer. When the code can answer a question, it reads the code and does not ask you. Then it writes a spec with acceptance criteria. New domain terms go in `GLOSSARY.md`. You approve the criteria.
 3. `shipinetics:test-writer` writes the acceptance tests, then unit tests, in its own context. It writes one test for each behaviour, never one test for each function.
-4. The agent writes the code. At each stop, only the quick checks run, on what changed. The agent uses the feature in the real app, from the verification map, through each entry point. Then it runs `shipinetics-verify`. When it marks the worksheet done, the next stop runs the complete checks. A push or a PR needs the complete checks to pass on the final code.
+4. The agent writes the code. After each step, it runs the quick checks on what changed (`shipinetics-verify quick`). The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
 5. It gets reviews: `shipinetics:reviewer` on a different model, the security or UI reviewer when the change needs them, and `agent_review` for a different model family. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, the final reviewer uses the change in the app itself.
 6. It records evidence from the running app, on the final code: a screenshot for each acceptance criterion that shows the result, a recording for UI changes, and terminal output for CLIs and APIs. If the code changes after that, the old evidence fails the check.
 7. For medium tasks and larger, it makes a Whiteboard of the change for you.
@@ -116,21 +115,7 @@ For long tasks, paste the `/goal` line from the spec. Claude continues until a s
 | `/shipinetics:security-scans app` | To test your own app with Strix (it asks you to approve the targets first) |
 | `/wait-what` | When the last message was not clear |
 
-## 4. Nightly: the night shift
-
-1. Put small, clear tasks in the Ready section of `TODOS.md`. Give each task acceptance criteria.
-2. Start the night shift from a terminal in the project:
-
-   ```bash
-   caffeinate -i night-shift --hours 6 --budget 30 --task-budget 6
-   ```
-
-3. In the morning, open `docs/shifts/<date>.html` (or the `.md` file) in the night worktree. Start with "Needs you": questions about blocked tasks, failed checks, and requests to change tests.
-4. Read the Whiteboards for the tasks that you care about. Then review the branch `night/<date>` and merge what you want.
-
-For the first nights, use a small budget and two or three tasks. When the reports are correct, increase the limits.
-
-## 5. Weekly: keep the setup good
+## 4. Weekly: keep the setup good
 
 | Command | What it does |
 |---|---|
@@ -142,11 +127,11 @@ For the first nights, use a small budget and two or three tasks. When the report
 
 **Full security audit.** Setup asks how often to run it: `security_audit_every` in `.shipinetics/config` (`off`, `weekly`, `monthly`, `quarterly` or a number of days, such as `14d`). `shipinetics-config due security-audit` tells you if an audit is due. The weekly sweep runs it when it is due. You can also ask for one at any time, for example before a release.
 
-## 6. Use it in more projects
+## 5. Use it in more projects
 
-When the test project has run for two weeks and some night shifts without problems, run `/shipinetics:setup` in the next project. Each project keeps its own `AGENTS.md`, docs and lists. All projects share the plugin. So an improvement from one project's feedback goes to all projects at the next plugin update.
+When the test project has run for two weeks without problems, run `/shipinetics:setup` in the next project. Each project keeps its own `AGENTS.md`, docs and lists. All projects share the plugin. So an improvement from one project's feedback goes to all projects at the next plugin update.
 
-## 7. Update to a new version
+## 6. Update to a new version
 
 1. Update the plugin, then restart Claude Code:
 
@@ -176,9 +161,7 @@ All parts run at high effort by default. To use less effort for a session, start
 
 | Problem | Cause and solution |
 |---|---|
-| The Stop hook never runs | The project has no `.shipinetics/` folder, `bin/verify` is not executable, or `hooks_off` includes `stop`. Look for errors in `/plugin` |
-| The Stop hook makes every turn slow | Stops during the work run the complete tier. Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows which tier and step is slow. Put slow suites behind `--full` |
-| A stop during the work runs the complete checks | A path in `.shipinetics/complete-paths` changed (build config, a manifest, a lock file), or the worksheet already says `Status: done`. This is correct |
+| `shipinetics-verify quick` is slow | Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows which tier and step is slow. Put slow suites behind `--full` |
 | `gh pr create` is refused | This is correct. The complete checks did not pass on this exact code (run `shipinetics-verify`), the branch has no complete evidence, or the body has no Evidence section. `evidence check --branch` shows what is missing |
 | `evidence check` says the code changed after the evidence | A code fix came after the screenshots. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests do not cause this |
 | `design-check` says there is no design system | `DESIGN.md` is missing or has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
@@ -186,5 +169,3 @@ All parts run at high effort by default. To use less effort for a session, start
 | A guard blocks a safe command | Report the command, so the rule can be fixed. Until then, run the command yourself, or start the session with `SHIPINETICS_ALLOW_ENV_READ=1`. To keep agents away from more files, or fewer, write a `secret-paths` list |
 | `bin/with-secrets` fails | gcloud is not logged in, or a name in `.shipinetics/secrets.list` is not in Secret Manager |
 | `agent_review` says it uses Claude instead | No Codex, Gemini or Cursor CLI is installed and logged in |
-| The night shift stops at once with a sandbox error | Claude Code's sandbox is not available on this machine. Run `/sandbox` in Claude Code to check |
-| In a run without a person, each Bash command fails with `EPERM ... srt-mux-*.sock` | You started `night-shift` or `claude -p` from inside another Claude Code session. A sandbox cannot start inside another sandbox. Start it from a normal terminal |

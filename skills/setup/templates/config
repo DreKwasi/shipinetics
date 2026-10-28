@@ -19,24 +19,21 @@
 
 # ---- Verify (single repo)
 # Checks run in tiers, each at the moment its result is needed. Nothing is skipped:
-#   verify_quick_cmd  mid-task stops, scoped to the changed files ($SHIPINETICS_CHANGED_FILES)
-#   verify_cmd        the complete fast checks: the "done" stop (worksheet Status: done), any stop
-#                     that changes a path in .shipinetics/complete-paths, pre-push and the PR gate
-#   bin/verify --full CI and end of shift
-# Leave verify_quick_cmd unset and every stop runs verify_cmd. Timings: shipinetics-verify times
+#   verify_quick_cmd  shipinetics-verify quick, after each step, scoped to the changed files
+#                     ($SHIPINETICS_CHANGED_FILES)
+#   verify_cmd        the complete fast checks: before work is done, pre-push and the PR gate
+#   bin/verify --full CI
+# Leave verify_quick_cmd unset and the quick tier runs verify_cmd. Timings: shipinetics-verify times
 # verify_cmd = bin/verify
 # verify_quick_cmd = bin/verify --quick
 
 # ---- Workspace mode: the root holds several package repos and isn't a repo itself.
 # Setting packages turns it on. {package} is replaced with the package folder.
-# verify_scope = touched verifies only packages the agent edited this session; changed verifies
-# every package with uncommitted changes.
 # packages = api web
 # package_verify_cmd = scripts/validate.sh {package}
 # package_verify_quick_cmd = scripts/validate.sh {package} --quick
-# verify_scope = touched
 # The root's own files (.shipinetics/, the queue, worksheets, docs) need a git repo too, or they
-# aren't versioned and night-shift can't run. Either make the root a repo that ignores the package
+# aren't versioned. Either make the root a repo that ignores the package
 # folders, or keep them in another repo whose top level mirrors them and link the root to it:
 # harness_repo = ../my-workspace-harness
 

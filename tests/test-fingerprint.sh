@@ -26,7 +26,7 @@ seen=0
 for i in 1 2 3; do
   echo a >f.txt; git add f.txt; git commit -qm "c$i" --allow-empty
   echo b >f.txt
-  sleep 1   # the fingerprint runs a second later, as the Stop hook does
+  sleep 1   # the fingerprint runs a second later, as a later verify does
   fp="$(sy_fingerprint "$r2")"
   [ "$(git rev-parse "$fp:f.txt")" = "$(git hash-object f.txt)" ] && seen=$((seen + 1))
   git checkout -q f.txt

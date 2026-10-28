@@ -39,14 +39,14 @@ At every point, the worksheet should pass this test: **could a different agent, 
 - **When you verify something:** what and how, in Verified.
 - **After each review:** the verdict and your response to every finding.
 - **During research:** every factual claim the plan relies on goes in the Claims table with its evidence and verdict. See shipinetics:workflow, step 2.
-- **Wrap-up:** fill in Summary, set Status to done (or handed off), make sure Next step says either "none" or exactly what's left, and fill in Metrics. Setting Status to done is also the signal for the Stop hook to run the complete verify instead of the quick tier, so set it only when the work really is finished.
+- **Wrap-up:** fill in Summary, set Status to done (or handed off), make sure Next step says either "none" or exactly what's left, and fill in Metrics. Run `shipinetics-verify` before you set Status to done, and set it only when the work really is finished.
 
 ## Metrics: measure on accepted work
 
 The Metrics block is how the user finds out whether a change to the setup (a new skill, a different effort level, another reviewer) actually helps. A cheap run that needed an hour of human fixes isn't cheap. So the numbers that matter are per accepted task, including review rounds and human corrections.
 
 - Fill in what you know: model and effort (from the session), plugin version (from `.claude-plugin/plugin.json` in the plugin, or "unknown"), review rounds, finding dispositions, test-writer's suspected bugs.
-- Cost, turns and wall time: in a night shift, copy them from the run's row in the metrics CSV. Interactive: leave them blank, the user can fill them in from `/usage`.
+- Cost, turns and wall time: leave them blank. The user can fill them in from `/usage`.
 - Leave "Corrections needed after human review", "Human review minutes" and "Accepted" for the human. Never fill those in yourself.
 
 ## Linking to git

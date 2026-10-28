@@ -51,7 +51,7 @@ Capture it (shipinetics:evidence): screenshots per acceptance criterion, a scree
 fi
 case "$out" in *docs-only*) exit 0 ;; esac
 
-# The complete verify must have passed on exactly this code. Mid-task stops may only have run the
+# The complete verify must have passed on exactly this code. The agent may only have run the
 # quick tier, so this is where the complete tier is guaranteed. A recorded pass is reused, so
 # this costs nothing when the agent already ran it.
 # A repo under the root that isn't one of the workspace's packages has no verify command of its

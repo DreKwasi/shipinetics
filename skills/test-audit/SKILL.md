@@ -1,6 +1,6 @@
 ---
 name: test-audit
-description: Periodic false-confidence audit that finds tests which don't test what they claim, proves it by breaking the code they cover, and fixes them. Use on a schedule (weekly, or at end of shift on a sample), when the user runs /shipinetics:test-audit, or when a bug ships that tests should have caught.
+description: Periodic false-confidence audit that finds tests which don't test what they claim, proves it by breaking the code they cover, and fixes them. Use on a schedule (weekly), when the user runs /shipinetics:test-audit, or when a bug ships that tests should have caught.
 argument-hint: "[path or system to focus on]"
 ---
 

@@ -52,7 +52,7 @@ These apply wherever the map is used, including shipinetics:evidence:
 
 Some projects can't have agents start the app: the servers need the user's own credentials or devices, the dev stack is heavy, or the agent's sandbox can't run it. Setting `launch = user` in `.shipinetics/config` says the user starts and stops the servers. The map still describes how to launch, for humans. Agents work like this:
 
-- **Doctor, never launch.** Run the doctor before driving. If the app isn't up, isn't running this checkout's code, or the test login fails, stop and ask the user to start or restart it, with the exact command from Launch. Don't start, restart or kill any server yourself. In a night shift, nobody can answer, so a failed doctor ends the shift (`SHIFT_STOP: app not running`).
+- **Doctor, never launch.** Run the doctor before driving. If the app isn't up, isn't running this checkout's code, or the test login fails, stop and ask the user to start or restart it, with the exact command from Launch. Don't start, restart or kill any server yourself.
 - **No seeding, migrations or resets.** Work with the data that's there. If a feature needs data that isn't there, create it through the app, as the test account.
 - **Writes only as the test account.** The map's Launch section names a test account (its credentials come through the project's secrets runner, never pasted). Every write happens as that account. Never change other users' data or shared settings.
 - **Clean up what you wrote.** Record each thing you create (IDs, names) as you go, and delete it through the app or its API when you're done, then read it back to confirm it's gone. Say in the report what you couldn't remove. Evidence still survives cleanup.
@@ -90,6 +90,4 @@ Edit only `docs/verification/` and its helper scripts, never product code.
 | A task touches a feature the map lacks | Add its file in the same task |
 | Evidence | The standards above, and the feature ID and entry point in each EVIDENCE.md row |
 | Independent re-check | The wrap-up reviewer re-drives the main touched feature at the final code (shipinetics:review) |
-| Night shift | The doctor after `shipinetics-verify` at preflight. The re-check at wrap-up is required |
-| End of shift | `light` for the features the shift touched |
 | Weekly sweep | `maintain` |

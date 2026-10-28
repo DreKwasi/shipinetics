@@ -4,7 +4,7 @@
 # Install as .githooks/commit-msg next to pre-commit. Enable with: git config core.hooksPath .githooks
 #
 # Merges, reverts and fixup!/squash!/amend! commits pass: their history lives in other commits.
-# For a commit that belongs to no task (a shift report, an approved feedback fix), set
+# For a commit that belongs to no task (an approved feedback fix), set
 # SHIPINETICS_ALLOW_NO_WORKSHEET=1 for that one commit.
 
 set -uo pipefail

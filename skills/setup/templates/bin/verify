@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# verify: the single definition of "done" for this repo. Agents, the Stop hook, pre-push and CI all call it.
+# verify: the single definition of "done" for this repo. Agents, pre-push and CI all call it.
 #
 # Usage:
-#   bin/verify --quick  checks scoped to the changed files. The Stop hook runs this at mid-task stops
+#   bin/verify --quick  checks scoped to the changed files. Agents run this after each step
 #   bin/verify          every fast check (complete tier). The "done" gate, push and PR need this to pass
-#   bin/verify --full   everything, including slow suites. CI and end of shift
+#   bin/verify --full   everything, including slow suites. CI
 #
 # Every check still runs before work counts as done: --quick only moves the expensive ones to
-# the moment their result is needed. The Stop hook sets SHIPINETICS_CHANGED_FILES to a file listing
+# the moment their result is needed. shipinetics-verify sets SHIPINETICS_CHANGED_FILES to a file listing
 # the changed paths, one per line, relative to this repo. If it's unset (a human, CI), --quick
 # checks everything.
 # Independent steps run in parallel. Caches are fine here (eslint --cache, tsc --incremental,

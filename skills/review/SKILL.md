@@ -19,7 +19,7 @@ Stage and personas from the arguments: `$ARGUMENTS`. If no stage is given, infer
 | **research** | The worksheet's Research section and claims table | The task touches a system you haven't read before, or the research drives a risky plan |
 | **plan** | The spec or plan with acceptance criteria | Anything bigger than a small change (see shipinetics:workflow for sizes) |
 | **impl** | The diff against the base | Always, before the task is done |
-| **wrapup** | The whole task: diff, docs, worksheet, queue | End of a task over size S, and end of every night shift task |
+| **wrapup** | The whole task: diff, docs, worksheet, queue | End of a task over size S |
 | **docs** | A system doc, spec or explainer whose factual content changed | Whenever factual claims in docs change, especially external facts |
 | **merge-risk** | The whole PR, after its evidence is recorded | Every PR, just before it opens or is marked ready |
 
@@ -37,7 +37,7 @@ Research and docs reviews return a **claims table** instead of findings: every c
 
 ### Independent re-check at wrap-up
 
-The author's screenshots show what the author saw. For tasks M and up, any change that touches UI, and every night shift task, the wrap-up reviewer also drives the change itself. Tell `shipinetics:reviewer` to re-check: it launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes; with `launch = user` it always reuses the user's instance), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
+The author's screenshots show what the author saw. For tasks M and up, and any change that touches UI, the wrap-up reviewer also drives the change itself. Tell `shipinetics:reviewer` to re-check: it launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes; with `launch = user` it always reuses the user's instance), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
 
 ## Choosing personas
 
@@ -86,7 +86,7 @@ The grade informs the human's decision, it never replaces it. Nothing merges aut
 
 ## Whiteboard for the human
 
-Agent reviewers check the work. The human still has to understand it. For tasks M and up, and for every night shift task, author a Whiteboard of the change if the Whiteboard MCP tools (from dev.fast) are available:
+Agent reviewers check the work. The human still has to understand it. For tasks M and up, author a Whiteboard of the change if the Whiteboard MCP tools (from dev.fast) are available:
 
 1. Call `session_capabilities`, then `session_get_instructions` (default topic), and follow those instructions exactly. They change between versions, so don't work from memory.
 2. Target the task's change: the worktree against the base branch for uncommitted work, or the commit range for committed work.

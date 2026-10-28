@@ -50,15 +50,6 @@ V
   chmod +x "$1"
 }
 
-# stop_hook <project root> [stop_hook_active]: run the Stop hook as Claude Code would; sets OUT and RC
-stop_hook() {
-  OUT="$(printf '{"session_id":"s1","stop_hook_active":%s}' "${2:-false}" | CLAUDE_PROJECT_DIR="$1" bash "$SY/scripts/stop-verify.sh" 2>&1)"
-  RC=$?
-}
-
-# last_timing <project root>: "<tier> <result>" from the newest timing row
-last_timing() { tail -n 1 "$1/.shipinetics/.cache/verify-times.tsv" | cut -f4,6 | tr '\t' ' '; }
-
 # replace <file> <old> <new>: in-place literal replacement, portable across macOS and Linux
 replace() { python3 - "$@" <<'PY'
 import sys

@@ -1,6 +1,6 @@
 ---
 name: sweep
-description: Periodic sweep across recent commits looking for problems no single review sees, like duplication between tasks, drifting patterns, half-finished migrations and stale docs. Use weekly, at end of shift for that day's commits, or when the user runs /shipinetics:sweep.
+description: Periodic sweep across recent commits looking for problems no single review sees, like duplication between tasks, drifting patterns, half-finished migrations and stale docs. Use weekly, or when the user runs /shipinetics:sweep.
 argument-hint: "[since: date, ref or 'last-sweep']"
 ---
 
@@ -35,8 +35,8 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Worksheet follow-ups** that never made it into the queue.
 - **Review dispositions** marked "deferred" whose queue task doesn't exist.
 - **Guardrails not in force:** rerun rows S and V of the setup audit (shipinetics:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
-- **Verification map drift:** run shipinetics:verification-map `maintain` (weekly sweeps; at end of shift, `light` instead). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
-- **Full security audit:** run `shipinetics-config due security-audit`. If it says due, run the full audit as shipinetics:review describes ("Full security audit"), record it in `docs/security/audits.md`, and put the counts by severity in the sweep report. The user agreed to this when they chose the cadence. In a night shift, don't run it: report "security audit due" under Needs you.
+- **Verification map drift:** run shipinetics:verification-map `maintain` (weekly sweeps). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
+- **Full security audit:** run `shipinetics-config due security-audit`. If it says due, run the full audit as shipinetics:review describes ("Full security audit"), record it in `docs/security/audits.md`, and put the counts by severity in the sweep report. The user agreed to this when they chose the cadence.
 - **Companions out of date:** run `skills-outdated` for the skills (read-only; never `npx skills check`, which can update and remove skills), and compare `claude plugin list` with each companion plugin's marketplace. If the sandbox blocks the network, give the user the command instead. Report what has an update. Don't update anything yourself: updates change what runs with the user's permissions, so the install gate asks the user. For each update the user wants, scan the new version first (shipinetics:security-scans). After the user updates, read the companion's new SKILL.md and check what Shipinetics relies on still holds (README, "What Shipinetics needs from each companion"). If it doesn't, queue a task to update Shipinetics.
 - **Verify time:** `shipinetics-verify times 7`. If the quick tier regularly takes more than a minute, find which step is slow and scope it better. If the complete tier keeps failing at the done gate on things the quick tier could have caught, move a scoped version of that check into `--quick`.
 

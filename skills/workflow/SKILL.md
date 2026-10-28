@@ -75,9 +75,14 @@ Once it works, commit, then **record the evidence** (shipinetics:evidence) and s
 
 ## 7. Verify
 
-Run `shipinetics-verify`. It runs the complete verify (`bin/verify`) and must pass. It records the pass for exactly this code, so the Stop hook, the pre-push hook and the PR gate reuse it instead of running it again. Committing the code, or editing only the worksheet, evidence or feedback log, keeps the pass. Any other change needs a new run.
+You run verify yourself. No hook runs it when you stop.
 
-At mid-task stops the Stop hook runs only the quick tier, scoped to your changes. When you set the worksheet's Status to done, the next stop runs the complete tier, and a PR can't open without it. So "done" always means the complete verify passed on the final code. Never edit, skip or delete a test to get a pass. If a test seems wrong, take it to test-writer with the spec (or, for protected tests, write it up under "Test change requests" in the worksheet).
+- After a step that changes behaviour, run `shipinetics-verify quick`. It checks only the changed files.
+- Before you mark the task done, run `shipinetics-verify`. It runs the complete verify (`bin/verify`) and must pass. It records the pass for exactly this code, so the pre-push hook and the PR gate reuse it and do not run it again. Committing the code, or editing only the worksheet, evidence or feedback log, keeps the pass. Any other change needs a new run.
+- Don't run verify while a subagent is still editing or running tests. Wait for it to finish.
+- Don't answer a question with a verify run. Run it only when the code changed.
+
+"Done" always means the complete verify passed on the final code. A PR can't open without it. Never edit, skip or delete a test to get a pass. If a test seems wrong, take it to test-writer with the spec (or, for protected tests, write it up under "Test change requests" in the worksheet).
 
 ## 8. Review
 

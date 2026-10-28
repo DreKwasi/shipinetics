@@ -6,6 +6,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## 0.8.0
+
+### Removed (breaking)
+- The Stop hook. It ran verify each time the agent stopped. Then a failing or flaky test sent the agent back again and again, and a short question cost minutes of checks. Now the agent runs verify itself: `shipinetics-verify quick` after each step, and `shipinetics-verify` before the work is done. The pre-push hook and the PR gate still refuse code without a complete pass.
+  - The once-a-session reminders (worksheet, feedback log, a regression test first for a bug) are gone with it. The workflow skill already gives these steps.
+  - `.shipinetics/complete-paths`, `verify_scope` and the `stop` name in `hooks_off` are gone. They were only for the Stop hook.
+  - **Steps for each project:** delete `.shipinetics/complete-paths`. Remove `verify_scope` and `stop` from `.shipinetics/config` (old values do nothing now). In `AGENTS.md`, replace the sentences about mid-task stops with the new text from `skills/setup/templates/AGENTS.md`.
+- The night shift: the `night-shift` launcher and the `night-shift` and `end-of-shift` skills.
+  - **Steps for each project:** remove the `night-shift` line from `docs/tools.md`. Delete `docs/shifts/` if you do not need the old reports.
+
 ## 0.7.3
 
 ### Fixed

@@ -1,8 +1,8 @@
 {
   "name": "shipinetics",
   "displayName": "Shipinetics",
-  "version": "0.7.3",
-  "description": "A portable agentic coding setup: verify-gated Stop hook, read-only cross-model review, worksheets, night shift, and the skills that tie them together.",
+  "version": "0.8.0",
+  "description": "A portable agentic coding setup: verify gates on push and PR, read-only cross-model review, worksheets, and the skills that tie them together.",
   "author": {
     "name": "Drekwasi"
   },

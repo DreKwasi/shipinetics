@@ -24,9 +24,6 @@ hook guard-secrets.sh Bash command env; has "a project's hooks_off replaces the 
 : >.shipinetics/config; rm "$user/config"
 OUT="$(printf '{"tool_name":"Bash","tool_input":{"command":"env"}}' | SHIPINETICS_HOOKS_OFF=secrets CLAUDE_PROJECT_DIR="$p" bash "$SY/scripts/guard-secrets.sh" 2>/dev/null)"
 eq "SHIPINETICS_HOOKS_OFF switches it off for a session" "$OUT" ""
-touch .shipinetics/.cache/session-s1; echo b >a.txt; printf 'hooks_off = stop\n' >.shipinetics/config
-stop_hook "$p"; eq "hooks_off = stop: no checks run" "$([ -f .shipinetics/.cache/verify.log ] && echo ran || echo skipped)" skipped
-: >.shipinetics/config; git checkout -q a.txt
 
 # ---- choosing the secret files
 hook guard-secrets.sh Read file_path "$HOME/.aws/credentials"; has "defaults guard ~/.aws/credentials" "$OUT" "secret file"

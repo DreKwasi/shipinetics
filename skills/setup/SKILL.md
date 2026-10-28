@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Audit a project against the shipinetics setup (19 points plus secrets, independent tests, specialist reviewers and explainers) and scaffold what's missing, one phase at a time. Use when the user runs /shipinetics:setup, asks to set up the agentic workflow in a repo, or asks what's missing from their setup.
+description: Audit a project against the shipinetics setup (17 points plus secrets, independent tests, specialist reviewers and explainers) and scaffold what's missing, one phase at a time. Use when the user runs /shipinetics:setup, asks to set up the agentic workflow in a repo, or asks what's missing from their setup.
 argument-hint: "[audit|1|2|3|4|5|6|7|8]"
 disable-model-invocation: true
 ---
@@ -17,7 +17,7 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in 
 - **Detect, don't ask, where you can.** Read `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, CI config, lockfiles and existing scripts to find the real commands. Ask only for what you can't find out.
 - **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
-- **Ask once, then run straight through.** After the audit, put every question the phases need in one message: the Unconfirmed list, secret names you couldn't find, git LFS for evidence, the `no-evidence` label, which optional phases to run (6 visual and perf, 7 night shift, 8 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), and for Phase 8 which instance Strix may test. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
+- **Ask once, then run straight through.** After the audit, put every question the phases need in one message: the Unconfirmed list, secret names you couldn't find, git LFS for evidence, the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), and for Phase 7 which instance Strix may test. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
 - **What only the user can do goes on a list, not a pause.** Installing a CLI, logging in, creating a GitHub label they didn't approve: add it to a "For you" list in `docs/shipinetics-setup.md` and carry on.
 - **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. Log each phase's result and proof in `docs/shipinetics-setup.md` as you finish it, so a stopped run can resume. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
@@ -51,16 +51,14 @@ Many projects already have their own versions of these pieces under other names:
 
 If the project root isn't a git repo but holds several package repos, use workspace mode:
 
-- Put `.shipinetics/` at the workspace root. Set `packages` to the package folders and `package_verify_cmd` to the per-package check, with `{package}` where the folder name goes. If the package check can scope itself to changed files, set `package_verify_quick_cmd` for mid-task stops too (`$SHIPINETICS_CHANGED_FILES` lists paths relative to the package repo).
-- Keep `verify_scope = touched` (the default). The Stop hook then verifies only the packages the agent edited in that session, so the user's own unrelated work in progress never blocks an agent.
+- Put `.shipinetics/` at the workspace root. Set `packages` to the package folders and `package_verify_cmd` to the per-package check, with `{package}` where the folder name goes. If the package check can scope itself to changed files, set `package_verify_quick_cmd` too, for `shipinetics-verify quick` (`$SHIPINETICS_CHANGED_FILES` lists paths relative to the package repo).
 - If packages keep committed copies of worksheets, set `package_worksheets_dir` so the evidence tool can find them on a branch.
 - Lists in `.shipinetics/` use paths relative to the workspace root, such as `api/src/config/*`.
 - **Don't write into package repos that have uncommitted work.** Per-package pieces (the commit hooks, the CI evidence job, git LFS, the `no-evidence` label) go on a list for the user to do one package at a time. Leave out the commit-msg hook in packages that record worksheets through `package_worksheets_dir` instead of trailers.
-- **Version the harness files.** A root that isn't a git repo leaves `.shipinetics/`, the queue, the worksheets and the root's docs unversioned: one bad edit loses them, nobody reviews changes to the policy lists, and `night-shift` can't run. `shipinetics-config` warns about it. Flag it in the audit, and offer the user one of these:
+- **Version the harness files.** A root that isn't a git repo leaves `.shipinetics/`, the queue, the worksheets and the root's docs unversioned: one bad edit loses them and nobody reviews changes to the policy lists. `shipinetics-config` warns about it. Flag it in the audit, and offer the user one of these:
   - **The root becomes the harness repo** (simplest): `git init` at the root, with a `.gitignore` that ignores each package folder (`api/`, `web/`) and `.claude/worktrees/`. Commit the harness files.
   - **A separate harness repo**, when the root must stay plain (a shared folder, or a repo already exists for this): a git repo whose top level holds `.shipinetics/`, `AGENTS.md`, `CLAUDE.md`, the queue and `docs/`, with the root's copies replaced by symlinks into it, and the package folder names in its `.gitignore`. Set `harness_repo` in `.shipinetics/config` to its path, relative to the root.
   Changing the root's layout is the user's call, so put the commands on the For you list unless they said yes during the audit.
-- `night-shift` runs in workspace mode once the harness files are versioned: it makes a worktree of the harness repo with a worktree of each package inside it (or of `--packages`), all on `night/<date>`, and the Stop hook verifies each package with `package_verify_cmd`.
 
 ## Audit
 
@@ -80,13 +78,11 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 | 9 | Tools | `bin/` or `tools/` with `docs/tools.md` index |
 | 10 | Sweeps | sweep reports in `docs/sweeps/` or a schedule for them |
 | 11 | Conventions | `docs/conventions.md` with enforcement markers |
-| 12 | Night shift | `night-shift` runs, guardrail settings in place |
 | 13 | Task queue | `TODOS.md` in the shipinetics format, or a Linear CLI |
 | 14 | Test audit | audit reports or a schedule |
 | 15 | Visual regression | screenshot tests with baselines (LFS or PR artifacts), plus `shipinetics:ui-reviewer` for agent visual review |
 | 16 | Perf benchmarks | benchmarks with baselines and a regression threshold |
 | 17 | Profiling | documented profiling commands per stack |
-| 18 | End of shift | `bin/verify --full` covers everything |
 | S | Secrets | No `.env` files or committed secrets. A config module is the only reader of the environment. `.shipinetics/secrets.list`, `bin/with-secrets`, `.shipinetics/env-allowed-paths`. `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` in `.claude/settings.json`. Its deny rules match the vault the project actually uses (`vault` in `.shipinetics/config`, confirmed in live config): rules for a vault the project doesn't use are stale and the real vault is unprotected, so that's **partial** |
 | T | Independent tests | `.shipinetics/test-paths` matches the project's test layout, so only `shipinetics:test-writer` writes tests |
 | D | Design system (UI projects) | DESIGN.md with token frontmatter, matching the tokens in code (CSS variables, Tailwind theme, CSS-in-JS theme, token files) and the component library (`components.json`, Storybook). PRODUCT.md. The Impeccable block in `.gitignore`. `design-check --all` runs |
@@ -111,12 +107,12 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 
 1. **Find the commands.** Typecheck, lint, unit tests, e2e, how to start the app, which port, how to seed data, how to log in with a test user. Find out who runs the servers. If the user starts them (they need the user's credentials or devices, or the agent's sandbox can't run them), set `launch = user` in `.shipinetics/config`, and agree a test account for agents' writes. Run each one to confirm it works today. Note any that fail on a clean checkout: that's the first thing to tell the user.
 2. **`bin/verify`** from `templates/bin/verify`, with its three tiers. Each check runs at the moment its result is needed, and none is skipped:
-   - `--quick` runs at mid-task stops. Scope each check to the files in `$SHIPINETICS_CHANGED_FILES` (lint the changed files, type-check incrementally, run the tests related to the changes). Keep it to seconds.
-   - The default (complete) tier is every fast check, including the build and the e2e smoke test. It runs at the stop after the worksheet is marked done, at any stop that changes a path in `.shipinetics/complete-paths`, before a push and before a PR. Keep it to a few minutes.
-   - `--full` runs everything, in CI and at end of shift.
+   - `--quick` is what the agent runs after each step (`shipinetics-verify quick`). Scope each check to the files in `$SHIPINETICS_CHANGED_FILES` (lint the changed files, type-check incrementally, run the tests related to the changes). Keep it to seconds.
+   - The default (complete) tier is every fast check, including the build and the e2e smoke test. The agent runs it before it marks the work done, and the pre-push hook and the PR gate require its pass. Keep it to a few minutes.
+   - `--full` runs everything, in CI.
 
    Fill in the step functions with the project's real commands. Steps in `parallel` run at once, so only put independent checks there. Local caches (`eslint --cache`, `tsc --incremental`, the build tool's cache) are fine, because CI runs without them. If the project's tools can't scope a check to files, run the whole check in `--quick` too, as long as it's fast. Leave anything slow (a build, e2e) to the complete tier. `chmod +x` it. Run all three tiers and record each one's time in `docs/shipinetics-setup.md`. Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`. If the suite already fails on a clean checkout and the user can't fix it now, quarantine the failures instead of skipping tests (shipinetics:testing, "A suite that already fails"): the user runs `known-failing init`, and `bin/verify` gates on `known-failing check`.
-3. **`.shipinetics/`**: decide the contents of `.shipinetics/protected-paths` from `templates/protected-paths` now, and write the file in Finish (see Rules). Create `.shipinetics/test-paths` from `templates/test-paths`, adjusted to where this project's tests actually live (check with `git ls-files`). Create `.shipinetics/ui-paths` from `templates/ui-paths`, adjusted to where this project's UI code lives (it decides which changes need a screen recording as evidence). Create `.shipinetics/complete-paths` from `templates/complete-paths`: the build config, manifests and lockfiles whose changes need the complete tier at every stop, because a check scoped to changed files can't see their effect. Append `templates/gitignore-additions` to `.gitignore`.
+3. **`.shipinetics/`**: decide the contents of `.shipinetics/protected-paths` from `templates/protected-paths` now, and write the file in Finish (see Rules). Create `.shipinetics/test-paths` from `templates/test-paths`, adjusted to where this project's tests actually live (check with `git ls-files`). Create `.shipinetics/ui-paths` from `templates/ui-paths`, adjusted to where this project's UI code lives (it decides which changes need a screen recording as evidence). Append `templates/gitignore-additions` to `.gitignore`.
 4. **Secrets.** Find how the project reads configuration today (`rg -l 'process\.env|os\.environ|getenv'`).
    - If there's no single config module, propose one to the user (`src/config/` or the stack's equivalent) that reads, validates and exports every variable. Moving existing reads into it is its own task: add it to the queue rather than doing it during setup.
    - Create `.shipinetics/env-allowed-paths` from the template with the config module's path. If existing code reads the environment elsewhere, the hook only blocks new reads, so nothing breaks.
@@ -130,7 +126,7 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 7. **Playwright smoke test** (web projects): if there's no e2e setup, install Playwright and add `templates/e2e/playwright.config.ts` at the repo root, adapted to the app's real start command (through `bin/with-secrets` if it needs secrets) and port. The smoke test itself is a test file, so you don't write it: spawn `shipinetics:test-writer` with `templates/e2e/smoke.spec.ts` as the starting point, the app's main screen, and the instruction to make it a single `@smoke` test that fails on console errors. It runs the test, watches it pass, breaks it on purpose (wrong heading text), watches it fail, and restores it. If the project already has an e2e setup, ask test-writer for just the one `@smoke` test in it. For non-web projects, ask test-writer for the equivalent: one end-to-end test through the real entry point (CLI, API, worker).
 
    Then build the **verification map** (shipinetics:verification-map `create`): `docs/verification/` with how to launch the app from empty data, a read-only doctor check, how to drive it, how to clean up, and the first 3 to 5 features with every entry point. Its end-to-end self-proof (launch, doctor, drive one feature, evidence survives cleanup) is this step's proof. Point "Run the app yourself" in `AGENTS.md` at it.
-8. **Prove the gate.** Run `shipinetics-verify` and `shipinetics-verify quick`, then `shipinetics-verify status`, to show both tiers pass and are recorded. Tell the user how to see the hook: make a small change that breaks a test, ask the agent to finish, and watch the Stop hook send it back. You can't trigger your own Stop hook in a way the user sees, so describe it and leave the test to them. After a week of use, `shipinetics-verify times` shows where verify time goes.
+8. **Prove the gate.** Run `shipinetics-verify` and `shipinetics-verify quick`, then `shipinetics-verify status`, to show both tiers pass and are recorded. Tell the user how to see the gate: make a small change that breaks a test, ask the agent to open a PR, and watch the PR gate refuse it. After a week of use, `shipinetics-verify times` shows where verify time goes.
 9. **Prove the reviewers.** Run `agent_review --list` and report which CLIs are installed. If none is from a different family than Claude, tell the user cross-family review needs one of Codex, Gemini or Cursor's CLI. Check row R of the audit (security-audit, impeccable, Whiteboard) and report what's missing, with install commands.
 10. Commit with a message explaining the setup. Update `docs/shipinetics-setup.md`.
 
@@ -176,13 +172,7 @@ The goal is one loop that works end to end: the agent can't stop while checks fa
 
 Follow `shipinetics:visual-regression` and `shipinetics:perf` to add one visual test and one benchmark with baselines. Add both to `bin/verify --full`. Use git LFS for the baselines only if the user said yes to it.
 
-## Phase 7: night shift (points 12, 18)
-
-1. Make sure `TODOS.md` has at least one task marked ready, with acceptance criteria.
-2. Check `.claude/settings.json` has the template's settings from Phase 1 (env scrub and deny list), or that the proposal in `.shipinetics/pending/.claude/settings.json` is still waiting on the For you list. If secrets are needed by tasks, make sure `bin/with-secrets` works inside the sandbox: gcloud needs network access to `secretmanager.googleapis.com` and `oauth2.googleapis.com`. Tell the user to add those to their sandbox network allowlist if it fails.
-3. Check: `night-shift --dry-run` creates the worktree and exits cleanly. Explain the real command and its limits to the user. Don't start a real shift without the user saying so.
-
-## Phase 8: security tools (shipinetics:security-scans)
+## Phase 7: security tools (shipinetics:security-scans)
 
 1. Check for SkillSpector. If it's missing, give the user the install command. Once installed, run `scan-skills` and show the user the summary. Anything `DO_NOT_INSTALL` is the first thing to deal with.
 2. Check for Strix and Docker. If the user wants app security testing and they're missing, put the install on the For you list: install Strix, store its provider key in Secret Manager and add it to `.shipinetics/secrets.list`.

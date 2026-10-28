@@ -71,9 +71,8 @@ each, with the evidence. Until a human approves, the change uses existing tokens
 
 ## Metrics
 
-<Fill in at wrap-up. Leave a cell blank rather than guess. The night shift launcher records cost,
-turns and duration in .shipinetics/.cache/night/<date>/metrics.csv. In an interactive session the human
-can read cost from /usage.>
+<Fill in at wrap-up. Leave a cell blank rather than guess. The human can read cost from
+/usage.>
 
 | Metric | Value |
 |---|---|

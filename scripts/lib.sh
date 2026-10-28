@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd verify_scope worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off security_audit_every"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir reviews_dir personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off security_audit_every"
 
 sy_default() {
   case "$1" in
@@ -23,7 +23,6 @@ sy_default() {
     reviews_dir) echo "docs/reviews" ;;
     personas_dir) echo "docs/review/personas" ;;
     verify_cmd) echo "bin/verify" ;;
-    verify_scope) echo "touched" ;;
     tag_prefix) echo "ws/" ;;
     secrets_runner) echo "bin/with-secrets" ;;
     vault) echo "gsm" ;;
@@ -161,7 +160,7 @@ sy_in_list() {
 # sy_user_dir: the user's settings folder (config and secret-paths), for every project
 sy_user_dir() { printf '%s/shipinetics\n' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
 
-# sy_hook_off <name> [root]: true if the hook is switched off. The names are stop, edits,
+# sy_hook_off <name> [root]: true if the hook is switched off. The names are edits,
 # secrets, pr and installs. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
 # project's config, or (when the project doesn't set hooks_off) in the user's config.
 sy_hook_off() {
@@ -401,7 +400,7 @@ print $t;
 PL
 
 # sy_list_match <root> <list> <path relative to root>: true if the path matches a glob in one of
-# the project's lists (protected-paths, test-paths, env-allowed-paths, ui-paths, complete-paths)
+# the project's lists (protected-paths, test-paths, env-allowed-paths, ui-paths)
 # the way the guards see it, and sets SY_MATCHED to the glob. A proposal in the pending folder is
 # checked as the file it would replace, but protected-paths never covers it.
 sy_list_match() {
@@ -428,10 +427,10 @@ sys.stdout.write("" if v is None else str(v))' "$2"
 
 # ---------------------------------------------------------------- verify tiers
 # A project's checks run in tiers, each at the moment its result is needed (see shipinetics-verify):
-#   quick     mid-task stops: checks scoped to the changed files (verify_quick_cmd)
+#   quick     after each step: checks scoped to the changed files (verify_quick_cmd)
 #   complete  the "done" gate, push and PR: every fast check (verify_cmd, default bin/verify)
 # Nothing is skipped. A tier's command just runs later or earlier. Without verify_quick_cmd,
-# every stop runs the complete tier, as before. A pass is recorded against a fingerprint of the
+# the quick tier runs the complete command. A pass is recorded against a fingerprint of the
 # code's contents, so committing verified code, or editing only worksheets, evidence and the
 # feedback log, doesn't re-run anything. A complete pass also counts as a quick pass.
 
@@ -597,18 +596,4 @@ sy_verify_run() {
     sy_verify_log "$root" "$src" "$pkg" "$tier" "$(( $(date +%s) - t0 ))" fail
   fi
   return "$rc"
-}
-
-# sy_task_done <root> [worksheet paths...]: true if the current worksheet, or one of the given
-# ones, has its Status line set to done or handed off. That's the signal for the complete tier.
-sy_task_done() {
-  local root="$1" f p
-  shift
-  f="$(sy_dir "$root")/.cache/current-worksheet"
-  if [ -f "$f" ]; then set -- "$(cat "$f")" "$@"; fi
-  for p in "$@"; do
-    case "$p" in /*) ;; *) p="$root/$p" ;; esac
-    [ -f "$p" ] && grep -qiE '^>[[:space:]]*Status:[[:space:]]*(done|handed[[:space:]-]off)' "$p" && return 0
-  done
-  return 1
 }

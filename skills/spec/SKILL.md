@@ -29,7 +29,7 @@ The human's job is intent and acceptance criteria. Your job is to make those cri
 
 ## The goal line
 
-`/goal` makes Claude keep working until a separate evaluator model judges the condition met. The evaluator only sees the conversation, not the files, so every part of the condition must be something Claude's own output can show. It complements the Stop hook: the hook proves `bin/verify` passes, the goal proves this task's deliverables exist.
+`/goal` makes Claude keep working until a separate evaluator model judges the condition met. The evaluator only sees the conversation, not the files, so every part of the condition must be something Claude's own output can show. It complements `shipinetics-verify`: verify proves the checks pass, the goal proves this task's deliverables exist.
 
 Build it from the acceptance criteria:
 

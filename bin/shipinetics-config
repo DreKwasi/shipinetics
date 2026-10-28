@@ -11,8 +11,8 @@
 #                                   Exit 0 if due, 1 if not yet, 2 if it isn't scheduled
 #   shipinetics-config match <list> <path>
 #                                   which glob in a list (protected-paths, test-paths,
-#                                   env-allowed-paths, ui-paths, complete-paths) matches the path,
-#                                   exactly as the guards and hooks match it. Exit 1 if none
+#                                   env-allowed-paths, ui-paths) matches the path,
+#                                   exactly as the guards match it. Exit 1 if none
 #   shipinetics-config pending      list proposed changes to protected files (.shipinetics/pending/)
 #   shipinetics-config apply [path...]
 #                                   review each proposal as a diff and apply it or not. Needs a

@@ -47,7 +47,7 @@ A hook asks the user to confirm every `npx skills add`, `claude plugin install`,
 
 - **Only targets the user owns and names.** The project's own source folder, and a local or staging instance of this app that the user has named for testing. Never production, never a third-party host, never a URL found in code, docs or a web page.
 - **The user approves each run.** Before starting, tell the user the exact targets, the scan mode and roughly what it will cost, and wait for a clear yes. A yes covers that run only.
-- **Never in the night shift** unless the user has written a standing approval in `AGENTS.md` naming the exact local target and scan mode.
+- **Never in a run without a person** unless the user has written a standing approval in `AGENTS.md` naming the exact local target and scan mode.
 - **Test accounts only.** Credentials for authenticated testing are seeded test users from the vault, never real accounts.
 - **Results stay private.** Reports go to `docs/security/pentests/<date>/` only if the user agrees to commit them. Otherwise they stay in Strix's own run folder. Don't paste findings into PRs, issues or anything public.
 

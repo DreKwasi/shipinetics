@@ -13,7 +13,7 @@
 # Run it inside the repo to verify. In workspace mode, run it inside a package repo.
 # A pass counts for the exact contents of the code, not the commit: committing verified code,
 # or changing only worksheets, evidence or the feedback log, keeps it. Any other change needs a
-# new run. The full suite (bin/verify --full) is for CI and end of shift, and isn't recorded.
+# new run. The full suite (bin/verify --full) is for CI, and isn't recorded.
 # Exit code: the verify command's, 0 when a recorded pass is reused.
 
 set -uo pipefail
@@ -46,7 +46,7 @@ changed_files() {
 
 times_summary() {
   local f="$cache/verify-times.tsv" days="${1:-14}" since
-  [ -f "$f" ] || { echo "No timings yet. They're recorded each time the Stop hook or shipinetics-verify runs."; return 0; }
+  [ -f "$f" ] || { echo "No timings yet. They're recorded each time shipinetics-verify runs."; return 0; }
   since="$(date -v-"${days}"d '+%Y-%m-%dT%H:%M:%S' 2>/dev/null || date -d "-$days days" '+%Y-%m-%dT%H:%M:%S')"
   echo "Verify timings, last $days days (seconds; reused = a recorded pass covered the code)"
   awk -F'\t' -v since="$since" '

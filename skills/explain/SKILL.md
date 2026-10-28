@@ -1,6 +1,6 @@
 ---
 name: explain
-description: Present work, findings and systems to the human in the form that's fastest to understand, in ASD-STE100 (the default language for all text for people), from prose through diagrams, Whiteboards and interactive HTML pages to narrated explainer videos. Use when reporting what you did, summarizing a review or shift, explaining how code or a change works, or when the user asks to understand something.
+description: Present work, findings and systems to the human in the form that's fastest to understand, in ASD-STE100 (the default language for all text for people), from prose through diagrams, Whiteboards and interactive HTML pages to narrated explainer videos. Use when reporting what you did, summarizing a review, explaining how code or a change works, or when the user asks to understand something.
 argument-hint: "[topic] [prose|diagram|whiteboard|html|video]"
 ---
 
@@ -23,7 +23,7 @@ Each step up costs more to make and is usually faster to understand. Pick the lo
 | **Prose (ASD-STE100)** | Final messages, worksheet summaries, review findings, anything a few paragraphs long |
 | **Diagram** | Anything with structure or flow: call paths, data flow, state machines, architecture, before and after |
 | **Whiteboard** | Explaining a code change or how part of the codebase works, when the Whiteboard tools (dev.fast) are available |
-| **HTML page** | Shift reports, big changes, comparisons, anything the human will explore or click through |
+| **HTML page** | Big changes, comparisons, anything the human will explore or click through |
 | **Explainer video** | Concepts, onboarding to a system, algorithms. Only when the user asks or agrees |
 
 ## Prose: ASD-STE100
@@ -60,7 +60,7 @@ For a change or a system, if the Whiteboard MCP tools are available: call `sessi
 
 A single self-contained `.html` file: inline CSS and JS, no external requests, no build step. It must open straight from disk.
 
-- Put it in `.shipinetics/explainers/YYYY-MM-DD-<slug>.html`. That folder is gitignored because these are throwaway. Commit one only if the user asks. Shift reports are the exception: put them beside the Markdown report as `docs/shifts/YYYY-MM-DD.html`.
+- Put it in `.shipinetics/explainers/YYYY-MM-DD-<slug>.html`. That folder is gitignored because these are throwaway. Commit one only if the user asks.
 - Structure: the one-line answer at the top, then a diagram, then detail the reader can expand. Make it interactive where that helps understanding: toggles between before and after, collapsible sections, step-through animations of a flow, sortable tables, a filter on findings.
 - Draw diagrams with inline SVG, or an inline Mermaid render if you embed the library source. Don't link a CDN.
 - Link to code with relative paths and line numbers. Use real data from the repo, not placeholders.
@@ -89,6 +89,5 @@ Bespoke videos are starting to work well for concepts and systems. They cost tim
 | Final message to the user | ASD-STE100 prose, plus a diagram if there's flow |
 | Worksheet summary and log | ASD-STE100 prose |
 | Review of a change (M and up) | Whiteboard, else HTML page |
-| Shift report | Markdown report plus `docs/shifts/YYYY-MM-DD.html` |
 | "How does X work?" | Whiteboard scratchpad, else diagram plus prose, else HTML page |
 | Onboarding to a system, or a hard concept | Offer an explainer video |
