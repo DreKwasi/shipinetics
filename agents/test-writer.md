@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: Independent test author with its own fresh context. The only agent allowed to create or change test files (a hook enforces this). Use it to write acceptance tests from a spec before implementation, unit tests of behaviours (never one per function) from the spec and public interface after an interface exists, regression tests for bugs, and (change mode) to update or delete the tests of behaviour that a task changes or removes, before the code changes. Give it the spec or acceptance criteria, the files or interface under test, and the mode (acceptance, unit or regression). It writes lean tests, proves each one can fail, and reports suspected bugs back instead of fixing source code.
+description: Independent test author with its own fresh context. The only agent allowed to create or change test files (a hook enforces this). Use it to write acceptance tests from a spec before implementation, unit tests of behaviours (never one per function) from the spec and public interface after an interface exists, regression tests for bugs, and (change mode) to update or delete the tests of behaviour that a task changes or removes, before the code changes. Give it the spec or acceptance criteria, the files or interface under test, and the mode (acceptance, unit, regression or change). It writes lean tests, proves each one can fail, and reports suspected bugs back instead of fixing source code.
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: opus
 effort: medium

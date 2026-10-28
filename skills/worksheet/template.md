@@ -10,7 +10,7 @@
 
 ## Goal and acceptance criteria
 
-<What done means. Copy from the spec or task, or write them if it's a small task.>
+<What done means. Copy them from the spec or the task, or write them for a small task.>
 
 - [ ] AC1:
 - [ ] AC2:
@@ -47,7 +47,7 @@ Write it so another agent could take over from the last entry.>
 ## Verified
 
 <What you actually checked and how: commands run, screens clicked through, screenshots taken.
-Evidence: docs/evidence/{{NAME}}/EVIDENCE.md (shipinetics:evidence). Also what you didn't verify, and why.>
+Evidence: docs/evidence/{{NAME}}/EVIDENCE.md (shipinetics:evidence). Also what you did not verify, and why.>
 
 ## Reviews
 
@@ -69,7 +69,7 @@ each, with the evidence. Until a human approves, the change uses existing tokens
 
 ## Blockers
 
-<Anything stopping progress, what you tried, and what's needed to unblock it.>
+<What stops progress, what you tried, and what is necessary to continue.>
 
 ## Metrics
 

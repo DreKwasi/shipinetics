@@ -1,9 +1,9 @@
 # Project tools
-> Summary: Index of scripts in bin/ (and tools/ if present) that agents and humans use to work on this repo, with one line each on what they do. Check here before writing a one-off command sequence.
+> Summary: The scripts in bin/ (and tools/, if it exists), with one line on what each one does. Agents and people use them to work on this repo. Look here before you write a sequence of commands.
 > Owns: bin/*, tools/*
 > Entry points: run any tool with --help
 > Depends on: plugin tools on PATH: worksheet, shipinetics-verify, shipinetics-companions
-> Gotchas: a tool that isn't listed here won't be found. Add the line when you add the tool
+> Gotchas: agents do not find a tool that is not in this list. Add its line when you add the tool
 > Owner persona: maintainability | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
 <!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->

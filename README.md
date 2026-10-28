@@ -2,17 +2,19 @@
 
 Shipinetics is a plugin for Claude Code. It gives every project the same workflow, reviews and guardrails. You install it one time. Then each project gets these parts:
 
-- **Verify gates.** Checks run in tiers: quick checks while the agent works, all fast checks before the work is done, and the full suite in CI. The agent runs verify itself. A push or a PR is blocked until the complete checks pass on exactly that code. A pass stays valid until the code changes.
-- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function.
+- **Verify gates.** Checks run in tiers. The agent runs quick checks while it works, and all fast checks before the work is done. CI runs the full suite. The agent runs verify itself. A push or a PR is blocked until the complete checks pass on exactly that code. A pass stays valid until the code changes.
+- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function. When code changes or is deleted, test-writer first changes or deletes its tests. So the suite grows only with new behaviour.
 - **A verification map.** It tells any agent how to start the real app, check it, and use each feature the way a user does. A reviewer uses the feature again by itself. It does not trust the author's screenshots.
-- **Evidence on every PR.** Each PR shows the change in the running app: screenshots, a recording, or terminal output. An independent reviewer gives each PR a merge-risk grade.
+- **Evidence on every PR.** Each PR shows the change in the running app. The evidence is screenshots, a recording, or terminal output. An independent reviewer gives each PR a merge-risk grade.
 - **Design checks.** UI changes are compared with the project's design system (`DESIGN.md`). Setup writes `DESIGN.md` from the tokens that the code already uses.
 - **Secrets stay hidden.** Secrets stay in the vault. The agent never sees their values.
 - **Independent reviewers.** The reviewers are read-only and work in their own context. They include a security reviewer (Cloudflare's security-audit skill) and a UI reviewer (Impeccable).
 - **Security scans.** SkillSpector scans agent tools before you install them. Strix tests your own app, but only after you approve each run. A full security audit runs on the schedule that you choose.
+- **Routes.** For small tasks and larger, the agent offers you two or three routes and recommends one. Each route names the skills that it uses.
 - **Companions.** Shipinetics uses some third-party skills with its own skills, for example Matt Pocock's `grilling` and Cloudflare's `security-audit`. Each new session tells you which ones are missing, why Shipinetics uses each one, and its SkillSpector result.
 - **Explanations.** Whiteboards and HTML pages show you what the agents did. All text for people uses ASD-STE100 (Simplified Technical English).
 - **Worksheets.** Each task has a worksheet. Another agent can continue a task from its worksheet.
+- **Token usage.** A log records the tokens that each session used, for each agent and model. A page shows them in charts. No model runs to make them, so they cost nothing.
 
 ## Two layers
 
@@ -30,7 +32,7 @@ Shipinetics is a plugin for Claude Code. It gives every project the same workflo
    claude plugin install shipinetics@shipinetics
    ```
 
-2. Install the companions. Shipinetics uses them together with its own skills. "Companions" below gives the reason for each one and its SkillSpector result, and [GETTING-STARTED.md](GETTING-STARTED.md) gives all the install commands in one block. If you start a session before you install them, Shipinetics lists the missing ones at the start of the session.
+2. Install the companions. Shipinetics uses them together with its own skills. "Companions" below gives the reason for each one and its SkillSpector result. [GETTING-STARTED.md](GETTING-STARTED.md) gives all the install commands in one block. If you start a session before you install them, the session starts with a list of the missing ones.
 
 To try the plugin for one session without an install, run `claude --plugin-dir <path to a clone of this repo>`.
 
@@ -47,6 +49,8 @@ Each release has a version. [CHANGELOG.md](CHANGELOG.md) shows what changed.
 
 2. Restart Claude Code.
 3. Read the changelog entry. If it has a **breaking** change, do the steps it gives in each project.
+
+If you added the marketplace from a local clone of this repo (`claude plugin marketplace add <path to the clone>`), Claude Code reads the plugin from that folder. Then you do not update it. Edits in the folder take effect at the next session, or when you run `/reload-plugins`. The version number is only for installs from GitHub.
 
 The plugin update changes the skills, agents, hooks and tools. It does not change the files that setup copied into your projects. To compare a project with the newest templates, run `/shipinetics:setup audit` in the project. Setup merges changes into your files. It never overwrites them.
 
@@ -87,7 +91,10 @@ If you do not want a companion, add its name to `companions_skip` in `~/.config/
 The results come from SkillSpector 2.12.0 in static mode (`--no-llm`), on 2026-10-28. Static mode looks for risky words and patterns, so it gives false positives. Each HIGH finding was checked by hand:
 
 - **Impeccable:** six phrases in design guidance, for example "Never judge fidelity from one full-page thumbnail" and "without warning" (about a turn limit). None of them is an instruction to do something harmful.
-- **`security-audit`:** a security checklist that names credential files (`credentials.json`, keychain), `/etc/passwd` in tests that reject unsafe paths, and four files that the scan read only in part.
+- **`security-audit`:**
+  - a security checklist that names credential files (`credentials.json`, keychain);
+  - `/etc/passwd` in tests that reject unsafe paths;
+  - four files that the scan read only in part.
 - **`diagnosing-bugs`:** "show instruction" in a comment of a script template.
 
 These versions were scanned:
@@ -130,7 +137,7 @@ Companions change upstream, and Shipinetics depends on some of their details. Th
 
 Shipinetics also takes two ideas from pstack (Lauren Tan's skills): the verification map and the independent check by the reviewer. They are part of Shipinetics, so you do not install pstack.
 
-You can use other skills with Shipinetics. The edit guard applies to all of them: only `shipinetics:test-writer` writes tests, so a skill that tells the main agent to write tests gets that step blocked. Give that step to test-writer.
+You can use other skills with Shipinetics. The edit guard applies to all of them: only `shipinetics:test-writer` writes tests. If a skill tells the main agent to write a test, the guard blocks that step. Give that step to test-writer.
 
 ## Projects with their own setup, and multi-repo workspaces
 
@@ -159,7 +166,7 @@ Set `launch = user` when you start the dev servers yourself. Then agents only ru
 | 1 | Workflow | `shipinetics:workflow` | Your `AGENT_WORKFLOW.md`, if you have one, replaces it |
 | 2 | System docs that stay true | `shipinetics:system-docs` | `docs/systems/*.md`, each with a 7-line header |
 | 3 | Run the app | `shipinetics:verification-map`, workflow step 6 | `docs/verification/`, and "Run the app yourself" in `AGENTS.md` |
-| 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer`, `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
+| 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer` (modes: acceptance, unit, regression, change), `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
 | 5 | Linters that fix | `shipinetics:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (it also limits commits to 400 changed lines), `.githooks/commit-msg` (it requires the `Worksheet:` trailer) |
 | 6 | Reviews by other agents | `shipinetics:review`, three reviewer agents, 7 personas | `docs/review/personas/` for the project's own personas |
 | 7 | Worksheets and tags | `shipinetics:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` trailers |
@@ -178,6 +185,8 @@ Set `launch = user` when you start the dev servers yourself. Then agents only ru
 | M | Merge risk | `shipinetics:review` | `## Merge risk` in each PR body |
 | X | Security tools | `shipinetics:security-scans`, `scan-skills`, the install gate | `docs/security/` |
 | E | Explanations | `shipinetics:explain`, Whiteboard | `.shipinetics/explainers/` (not committed) |
+| C | Companions | `companions.tsv`, `shipinetics-companions`, the companions notice | `companions_skip` in `.shipinetics/config` or `~/.config/shipinetics/config` |
+| U | Token usage | `shipinetics-usage`, the usage log hook | The worksheet Metrics. The log is `~/.local/share/shipinetics/usage.tsv`, outside the project |
 
 ## What code enforces
 
@@ -261,10 +270,35 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
 - **Independent check.** For medium tasks and larger, and UI changes, the final reviewer uses the change in the app itself. It uses every entry point from the verification map, on the final code. Its result is PASS, ISSUES or BLOCKED.
 - **Design system.** Agents never change tokens to remove a finding. They write the change in the worksheet, under "Design-system change requests". You decide. Setup can protect the design files.
 - **Claims tables.** Reviews of research and docs check each fact against evidence that the reviewer opened: `file:line`, or a source URL with the date. Each fact gets a result: verified, incorrect or unresolved.
-- **Evidence.** Each PR shows the change in the real app: a screenshot for each acceptance criterion, a recording for UI changes, and terminal output for CLIs and APIs. Agents record it with `evidence` and the Playwright template in `shipinetics:evidence`.
+- **Evidence.** Each PR shows the change in the real app:
+  - a screenshot for each acceptance criterion;
+  - a recording for UI changes;
+  - terminal output for CLIs and APIs.
+
+  Agents record it with `evidence` and the Playwright template in `shipinetics:evidence`.
 - **Merge risk.** An independent reviewer grades each PR as low, medium or high. It uses Warp's `merge-risk` skill. The grade tells you how carefully to review. Nothing merges by itself.
 - **Your review.** For medium tasks and larger, the agent makes a Whiteboard. The merge-risk grade, the review results and the evidence screenshots are at the top. Without Whiteboard, the agent makes an HTML page.
 - **Explanations.** `shipinetics:explain` sets the formats: ASD-STE100 text, diagrams, Whiteboards, HTML pages, and videos with narration when you ask for one.
+
+## Tests
+
+`shipinetics:test-writer` writes all the tests. It works in its own context, from the spec, and it does not trust the code. It has four modes:
+
+| Mode | When | What it does |
+|---|---|---|
+| `acceptance` | Before the code, for medium tasks and larger | Writes the acceptance tests from the spec. They must fail first |
+| `unit` | When the public interface exists | Writes tests of the module's behaviours |
+| `regression` | Before a bug fix | Writes a test that shows the bug |
+| `change` | Before code changes or is deleted | Changes the tests of changed behaviour. Deletes the tests of removed behaviour, and names each one |
+
+These rules keep the suite small:
+
+- **One test for each behaviour, with every assertion that it needs.** A test has one reason to fail. Test-writer never splits one behaviour into a test for each assertion. One test never covers two behaviours.
+- **The suite grows only with new behaviour.** Test-writer reports the net change in tests. Each new test names its new behaviour.
+- **Each test must catch a bug.** Test-writer breaks the code on purpose and sees the test fail. It does this in a copy of the project under `$TMPDIR`, never in your working tree.
+- **Test-writer runs the full suite** before it reports.
+
+The test-integrity reviewer checks each change for tests that stay after their code was deleted. `/shipinetics:test-audit` finds tests that test nothing, and it deletes orphan tests first.
 
 ## Effort
 
@@ -302,7 +336,7 @@ flowchart LR
 |---|---|
 | `shipinetics-usage` | This project's sessions in the last 30 days: new input, cache write, cache read and output tokens, and the totals |
 | `shipinetics-usage session [id]` | One session (default: the newest one), for each agent and model, with the rows for the worksheet Metrics |
-| `shipinetics-usage html` | A page with charts: tokens for each session, output tokens for each session, and tokens for each agent. Each chart has a table view. The page goes in `.shipinetics/explainers/` |
+| `shipinetics-usage html` | A page with charts: tokens for each session, output tokens for each session, and tokens for each agent. Each chart has a table view. In a set-up project the page goes in `.shipinetics/explainers/`, else in `$TMPDIR`. `--out` sets another path |
 | `shipinetics-usage backfill` | Records the transcripts that the log does not have yet. The report and the page do this themselves |
 
 Use `--all` for every project and `--days N` for another range. Claude Code deletes old transcripts (after `cleanupPeriodDays`, 30 days by default), but the log keeps the numbers. The log shows tokens, not money. The cost depends on your plan: use `/usage` in Claude Code for it.
@@ -334,9 +368,9 @@ Each worksheet has a Metrics block. It records the model, the effort, the plugin
 ## Known limits
 
 - The guards only see Claude's file tools and the text of commands. Changes to guarded files go through a person or a named command (`shipinetics-config apply`, `bench-compare --init`, `known-failing init`). The setup skill lists them. An agent can still write a file or print a variable through a script that it writes and runs. The environment scrub and the reviewers are the layers behind the guards.
-- The reviewers have Bash, so they can run `git diff` and tests. They are read-only because their instructions say so, not because code enforces it. Claude Code ignores hooks on plugin agents.
+- The reviewers have Bash, so they can run `git diff` and tests. They are read-only because their instructions say so, not because code enforces it. Claude Code ignores the `hooks` field in a plugin agent's frontmatter.
 - The install gate asks you. In a run without a person, nobody can answer, so installs are refused.
-- The usage log reads Claude Code's transcript files. Their format is internal to Claude Code and can change. If a session ends when Claude Code is killed, the SessionEnd hook does not run, but `shipinetics-usage` records the session later from its transcript. The usage log needs `python3`.
+- The usage log reads Claude Code's transcript files. Their format is internal to Claude Code and can change. If Claude Code is killed, the SessionEnd hook may not run, but `shipinetics-usage` records the session later from its transcript. The usage log needs `python3`.
 - The companion check is simple. A plugin counts as installed when Claude Code's `installed_plugins.json` names it, whatever its scope and even when it is disabled. A skill counts as installed only in `~/.claude/skills`, `~/.agents/skills` or the project's `.claude/skills`, so a skill that comes inside another plugin shows as missing. Add it to `companions_skip` in that case.
 - Strix was not installed when these parts were built. SkillSpector static mode gives false positives on skills that discuss security (see "SkillSpector results").
 - `evidence pr-body` links to files on the pushed branch. Push before you open the PR. Without git LFS, keep recordings small.
@@ -351,9 +385,7 @@ Each worksheet has a Metrics block. It records the model, the effort, the plugin
 agents/           reviewer (Opus, high), test-writer, security-reviewer, ui-reviewer (Opus, medium)
 bin/              bench-compare, design-check, evidence, known-failing, scan-skills,
                   shipinetics-companions, shipinetics-config, shipinetics-usage, shipinetics-verify,
-                  skills-outdated,
-                  worksheet
-                  (on the agent's PATH)
+                  skills-outdated, worksheet (on the agent's PATH)
 hooks/            hooks.json
 scripts/          lib.sh (shared helpers), guard-edits.sh, guard-secrets.sh, guard-pr.sh,
                   guard-installs.sh, companions-notice.sh, usage-record.sh, usage.py and
