@@ -83,7 +83,7 @@ Tell the agent what you want, as you do now. The agent follows `shipinetics:work
 3. For medium tasks and larger, it asks you questions about the design first. Each question has its recommended answer. When the code can answer a question, it reads the code and does not ask you. Then it writes a spec with acceptance criteria. New domain terms go in `GLOSSARY.md`. You approve the criteria.
 4. The agent writes the code and commits it. After each step, it runs the quick checks on what changed (`shipinetics-verify quick`).
 5. `shipinetics:test-writer` writes the acceptance tests and unit tests for that commit, in its own context. It writes one test for each behaviour, never one test for each function. When the task changed or removed behaviour, it changes or deletes the old tests. It reports the net change in tests and the bugs it found. The agent fixes the bugs. The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
-6. It gets reviews: `shipinetics:reviewer` (Opus, in its own context), and the security or UI reviewer when the change needs them. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, the final reviewer uses the change in the app itself.
+6. It gets reviews: `shipinetics:reviewer` (Opus, in its own context), and the security or UI reviewer when the change needs them. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, `shipinetics:live-tester` (Sonnet, in its own context) uses the change in the app itself.
 7. It records evidence from the running app, on the final code:
    - a screenshot of the result for each acceptance criterion;
    - a recording for UI changes;
@@ -165,7 +165,7 @@ If the version does not change, `claude plugin update` does nothing for installs
 
 ## Effort
 
-The main session runs at high effort. The `reviewer` agent runs on Opus at high effort, and the other three agents run on Opus at medium effort. To use a different effort for a session, start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium`. This setting overrides all others, also for agents. The README lists the settings for each part.
+The main session runs at high effort. The `reviewer` agent runs on Opus at high effort. `test-writer`, `security-reviewer` and `ui-reviewer` run on Opus at medium effort. `live-tester` runs on Sonnet at medium effort. To use a different effort for a session, start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium`. This setting overrides all others, also for agents. The README lists the settings for each part.
 
 ## Problems and solutions
 

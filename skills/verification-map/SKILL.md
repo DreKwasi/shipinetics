@@ -22,9 +22,9 @@ Argument: `$ARGUMENTS`. `create` builds the map. `maintain` checks the whole map
 |---|---|
 | **Launch** | Commands to go from an empty data directory to a *usable* app: install, migrations, seed data, start (through the project's secrets runner if it needs secrets), and the readiness check. Readiness means a real request succeeds, not that a port is open: a health check can pass while init scripts still run |
 | **Doctor** | One read-only check that this instance is worth driving: the process is up, it's running this checkout's code (build version or commit), the port belongs to it, and the test login works. Run it before driving and after any surprise |
-| **Isolation** | Whether two instances can run side by side (ports, data directories, queues), and how. Reviewers re-check the app while the author's instance may still be running |
+| **Isolation** | Whether two instances can run side by side (ports, data directories, queues), and how. The live tester re-checks the app while the author's instance may still be running |
 | **Drive** | The harness: Playwright for web, a PTY or plain commands for CLIs, HTTP for APIs, the simulator for mobile. Use stable handles: roles, labels, `data-testid`, not CSS paths |
-| **Evidence** | What proof looks like here (see the standards below), and where it goes: `docs/evidence/<worksheet>/` for a task, `$TMPDIR` for a reviewer's re-check |
+| **Evidence** | What proof looks like here (see the standards below), and where it goes: `docs/evidence/<worksheet>/` for a task, `$TMPDIR` for the live tester's re-check |
 | **Cleanup** | Stop only what you started, by the PID you recorded, never by process name. Never delete evidence. Leave the data directory as you found it, or say where you left it |
 | **Feature index** | A table: feature ID, name, entry points, file, last verified (date and commit) |
 
@@ -58,7 +58,7 @@ Some projects can't have agents start the app: the servers need the user's own c
 - **No seeding, migrations or resets.** Work with the data that's there. If a feature needs data that isn't there, create it through the app, as the test account.
 - **Writes only as the test account.** The map's Launch section names a test account (its credentials come through the project's secrets runner, never pasted). Every write happens as that account. Never change other users' data or shared settings.
 - **Clean up what you wrote.** Record each thing you create (IDs, names) as you go, and delete it through the app or its API when you're done, then read it back to confirm it's gone. Say in the report what you couldn't remove. Evidence still survives cleanup.
-- **One instance.** Reviewers re-check on the same running instance, after the doctor passes. The Isolation section says what can and can't run side by side.
+- **One instance.** The live tester re-checks on the same running instance, after the doctor passes. The Isolation section says what can and can't run side by side.
 - **Browser fallback.** If the agent's sandbox blocks connections to localhost (connection refused or not permitted when the user can open the page), drive the app with the harness's preview browser, for example Claude Code's preview tools, pointed at the URL the user's server serves. Screenshots and recordings from it count as evidence. Note in EVIDENCE.md which browser recorded it.
 
 Write these rules into the README's Launch, Doctor, Isolation and Cleanup sections when the project uses `launch = user`, with this project's test account, URL and restart command.
@@ -91,5 +91,5 @@ Edit only `docs/verification/` and its helper scripts, never product code.
 | Workflow step 6 | Drive the touched features from their files, every entry point |
 | A task touches a feature the map lacks | Add its file in the same task |
 | Evidence | The standards above, and the feature ID and entry point in each EVIDENCE.md row |
-| Independent re-check | The wrap-up reviewer re-drives the main touched feature at the final code (shipinetics:review) |
+| Independent re-check | `shipinetics:live-tester` re-drives the main touched feature at the final code (shipinetics:review) |
 | Weekly sweep | `maintain` |

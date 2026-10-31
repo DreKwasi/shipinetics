@@ -267,7 +267,7 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
   - `shipinetics:ui-reviewer` for changes that people see.
 
   The UI reviewer first compares the change with `DESIGN.md` (`design-check`, then a check by hand). Then it runs Impeccable's critique and audit on real screenshots. The findings of all reviewers are merged and filtered before the author acts on them.
-- **Independent check.** For medium tasks and larger, and UI changes, the final reviewer uses the change in the app itself. It uses every entry point from the verification map, on the final code. Its result is PASS, ISSUES or BLOCKED.
+- **Independent check.** For medium tasks and larger, and UI changes, `shipinetics:live-tester` uses the change in the app itself, on Sonnet at medium effort. It uses every entry point from the verification map, on the final code. Its result is PASS, ISSUES or BLOCKED.
 - **Design system.** Agents never change tokens to remove a finding. They write the change in the worksheet, under "Design-system change requests". You decide. Setup can protect the design files.
 - **Claims tables.** Reviews of research and docs check each fact against evidence that the reviewer opened: `file:line`, or a source URL with the date. Each fact gets a result: verified, incorrect or unresolved.
 - **Evidence.** Each PR shows the change in the real app:
@@ -303,10 +303,11 @@ The test-integrity reviewer checks each change for tests that stay after their c
 
 ## Effort
 
-The agents run on Opus. Their effort depends on the job:
+The model and the effort depend on the job:
 
-- `reviewer` sets `effort: high`. It is the main review at each checkpoint.
-- `test-writer`, `security-reviewer` and `ui-reviewer` set `effort: medium`.
+- `reviewer` runs on Opus and sets `effort: high`. It is the main review at each checkpoint.
+- `test-writer`, `security-reviewer` and `ui-reviewer` run on Opus and set `effort: medium`.
+- `live-tester` runs on Sonnet and sets `effort: medium`. It only drives the app and reports what it saw. The reviewers judge the work.
 - The project settings template sets `"effortLevel": "high"` for the main session.
 
 To change the effort:
@@ -383,7 +384,8 @@ Each worksheet has a Metrics block. It records the model, the effort, the plugin
 
 ```
 .claude-plugin/   plugin.json, marketplace.json
-agents/           reviewer (Opus, high), test-writer, security-reviewer, ui-reviewer (Opus, medium)
+agents/           reviewer (Opus, high), test-writer, security-reviewer, ui-reviewer (Opus, medium),
+                  live-tester (Sonnet, medium)
 bin/              bench-compare, design-check, evidence, known-failing, scan-skills,
                   shipinetics-companions, shipinetics-config, shipinetics-usage, shipinetics-verify,
                   skills-outdated, worksheet (on the agent's PATH)

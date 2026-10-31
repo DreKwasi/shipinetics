@@ -9,6 +9,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 ## Unreleased
 
 ### Changed
+- A new agent, `shipinetics:live-tester`, does the re-check at wrap-up. It runs on Sonnet at medium effort. Before, `shipinetics:reviewer` drove the app on Opus at high effort. The re-check only drives the app and reports PASS, ISSUES or BLOCKED, so it does not need the reviewer's model. The reviewer no longer drives the app. The steps of the re-check did not change.
 - Tests come after the code. The agent implements the change and commits it. Then `shipinetics:test-writer` writes the tests for that commit, in one request with every mode the task needs. Before, test-writer wrote acceptance tests before the code, and they failed by design. Test-writer still works from the spec and the public interface, and it still proves that each test catches its bug.
   - New tests must pass on the code. A failure is a suspected bug.
   - New and changed tests must also fail on the code before the change. Test-writer runs them once against the base commit, in a git worktree. This keeps the old fail-first proof.
