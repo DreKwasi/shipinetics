@@ -6,7 +6,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
-## Unreleased
+## 0.9.0
 
 ### Changed (breaking)
 - Evidence for a UI change is one paced recording of the flow, not a screenshot per criterion plus a recording. Each criterion's row in EVIDENCE.md names the recording and the time where its result shows: `walkthrough.webm @ 0:07`. Screenshots are only for a change that can't be recorded, with a `> No recording: <reason>` line, and never beside a recording.
