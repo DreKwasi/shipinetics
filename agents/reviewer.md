@@ -44,7 +44,7 @@ Work through these in order. Stop going deeper on style if you've found correctn
 6. **Docs and records.** System docs touched by the change still accurate (their first 7 lines especially), test index updated for new tests, worksheet reflects what actually happened.
 7. **AI smells.** Code that exists to look thorough: unused abstractions, defensive checks for impossible states, comments narrating the obvious, duplicate helpers that already exist elsewhere in the repo, invented APIs.
 
-For **plans**, check the acceptance criteria are runnable and the plan meets them, and look for a simpler route. For **wrap-up**, check nothing is half-finished and the records tell the truth, and check the evidence: run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, and look at each screenshot with the Read tool. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Missing, stale or unconvincing evidence is a major finding.
+For **plans**, check the acceptance criteria are runnable and the plan meets them, and look for a simpler route. For **wrap-up**, check nothing is half-finished and the records tell the truth, and check the evidence: run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, run `evidence frames` and look at each frame with the Read tool (a recording can't be watched, so each criterion's row gives the time where its result shows, and the frame at that time is what you check). Fallback screenshots you open directly. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Missing, stale or unconvincing evidence is a major finding.
 
 You don't drive the app for a **re-check**. `shipinetics:live-tester` does that. If you're asked for one, say so in your first line and review the author's evidence only.
 
@@ -69,7 +69,7 @@ Verdicts: **verified** (the evidence says this), **incorrect** (the evidence con
 
 For the `merge-risk` stage, load the `merge-risk` skill with the Skill tool and follow it exactly, including its output format. Grade the whole PR (`git diff <base>`, the PR description or worksheet, the linked spec) as an outsider would. Two things specific to this setup:
 
-- **Verification** comes from `docs/evidence/<worksheet>/`: open EVIDENCE.md and look at the screenshots. No evidence for a user-facing change is the worst verification grade, whatever the unit tests say.
+- **Verification** comes from `docs/evidence/<worksheet>/`: open EVIDENCE.md and look at the frame of each criterion (`evidence frames`). No evidence for a user-facing change is the worst verification grade, whatever the unit tests say.
 - **Impact** treats auth, permissions, payments, personal data, secrets and config reads, migrations, dependency bumps and infra as sensitive, as does anything touching `.shipinetics/` or hooks.
 - **Blast radius.** For the riskiest change, name what outside the diff could break (callers, consumers of a changed shape, jobs, other packages) and how far its safety is proven: 1 claimed, 2 callers found by search, 3 checked by the type system, 4 a test exercises the callers, 5 someone ran it. Below 3 on a sensitive change is a gap worth closing before the PR opens.
 

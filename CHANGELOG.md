@@ -8,6 +8,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Changed (breaking)
+- Evidence for a UI change is one paced recording of the flow, not a screenshot per criterion plus a recording. Each criterion's row in EVIDENCE.md names the recording and the time where its result shows: `walkthrough.webm @ 0:07`. Screenshots are only for a change that can't be recorded, with a `> No recording: <reason>` line, and never beside a recording.
+  - Recordings and screenshots never go in git. `evidence init` writes a `.gitignore` in the evidence folder, and `evidence check` fails when one is tracked.
+  - New opt-in setting `evidence_upload_cmd`: a command that uploads a file to the team's store (SharePoint or OneDrive, S3, Google Drive...) and prints its link. `evidence upload` runs it and puts the links in EVIDENCE.md. Without it, the human drags the recording into the PR.
+  - New `evidence frames`: it extracts the frame at each criterion's time (needs `ffmpeg`). Agents and reviewers can't watch a video, so they check these frames.
+  - The record template paces the recording for a person: pauses, typing at reading speed, and a hold on each result.
+  - The CI evidence job accepts a `Video:` or `Screenshot:` link, a GitHub attachment or `terminal.log`. A file name alone no longer passes.
+
+  Steps for each project: copy the new `evidence` job from `templates/github/workflows/verify.yml` into `.github/workflows/verify.yml`. Install `ffmpeg`. If the team has a store, set `evidence_upload_cmd` in `.shipinetics/config` (the config template has an rclone example). Evidence folders of open branches that commit media: run `git rm --cached` on the media and add the folder's `.gitignore` (`evidence init <worksheet>` writes it). If the project tracked `docs/evidence/**` with git LFS, remove that line from `.gitattributes`.
+
 ### Changed
 - A new agent, `shipinetics:test-plan-reviewer`, reviews test-writer's test plan before any test is written, for tasks M and up. It runs on Sonnet at high effort. Test-writer gets "Plan first", returns its plan and writes no files. The reviewer gives each row KEEP, CUT, MERGE, MOVE or REWRITE, by the spec and the test index, and lists acceptance criteria with no row. Then the same test-writer writes the tests of the approved plan. Before, irrelevant tests were found only after they were written and mutation-proven. S tasks and regression-only requests skip the review. A cut row that test-writer keeps goes under "Plan disputes", and the test-integrity review decides.
 - A new agent, `shipinetics:live-tester`, does the re-check at wrap-up. It runs on Sonnet at medium effort. Before, `shipinetics:reviewer` drove the app on Opus at high effort. The re-check only drives the app and reports PASS, ISSUES or BLOCKED, so it does not need the reviewer's model. The reviewer no longer drives the app. The steps of the re-check did not change.

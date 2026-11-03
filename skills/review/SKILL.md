@@ -38,7 +38,7 @@ Research and docs reviews return a **claims table** instead of findings: every c
 
 ### Independent re-check at wrap-up
 
-The author's screenshots show what the author saw. For tasks M and up, and any change that touches UI, an independent agent also drives the change itself. Spawn `shipinetics:live-tester` with the commit, the acceptance criteria and the touched features. It runs on Sonnet at medium effort (its frontmatter). Don't pass a model or an effort. It launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes; with `launch = user` it always reuses the user's instance), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
+The author's recording shows what the author saw. For tasks M and up, and any change that touches UI, an independent agent also drives the change itself. Spawn `shipinetics:live-tester` with the commit, the acceptance criteria and the touched features. It runs on Sonnet at medium effort (its frontmatter). Don't pass a model or an effort. It launches its own instance from `docs/verification/README.md` (or reuses the running one after the doctor check passes; with `launch = user` it always reuses the user's instance), drives the main feature the task touched through every entry point its feature file lists, and reports PASS, ISSUES or BLOCKED per feature, with its own artifacts under `$TMPDIR`. It runs once, on the final code, after review fixes. Later commits that change only docs, tests or records keep the verdict. Any other change needs a new re-check. Record the verdict and the commit it ran at in the worksheet's Reviews table.
 
 ## Choosing personas
 
@@ -92,7 +92,7 @@ Agent reviewers check the work. The human still has to understand it. For tasks 
 1. Call `session_capabilities`, then `session_get_instructions` (default topic), and follow those instructions exactly. They change between versions, so don't work from memory.
 2. Target the task's change: the worktree against the base branch for uncommitted work, or the commit range for committed work.
 3. Put the merge-risk grade, the agent review verdicts and any open findings in a callout near the top, so the human sees what's already been checked. Write all the Whiteboard's text in ASD-STE100 (shipinetics:explain).
-4. Add an Evidence section: upload the key screenshots from `docs/evidence/<worksheet>/` with `session_upload` and show them as image components next to the criteria they prove. Link the recording.
+4. Add an Evidence section: link the recording, with each criterion's time. Upload the frame of each key criterion (`evidence frames`) with `session_upload` and show it as an image component next to the criterion it proves.
 5. Link the Whiteboard from the worksheet's Reviews section.
 
 If Whiteboard isn't available, write an HTML explainer of the change instead (shipinetics:explain).

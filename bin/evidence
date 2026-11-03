@@ -4,13 +4,21 @@
 # Usage:
 #   evidence init [worksheet]               create <evidence_dir>/<worksheet>/EVIDENCE.md (default: current worksheet)
 #   evidence run [-w worksheet] -- <cmd>    run a command, append it and its output to terminal.log
+#   evidence upload [worksheet]             put the recordings in the project's store (evidence_upload_cmd)
+#   evidence frames [worksheet] [out dir]   extract the frame at each criterion's time, to look at it
 #   evidence check [worksheet...]           check evidence for these worksheets (default: current)
 #   evidence check --branch [base]          check every worksheet with work on this branch since base
 #   evidence pr-body [base]                 print the "## Evidence" section for a PR from this branch
 #
 # Run it inside the git repo the PR comes from. Evidence lives in <evidence_dir>/<worksheet>/ in that
-# repo (default docs/evidence): EVIDENCE.md with one row per acceptance criterion, screenshots,
-# recordings and terminal.log. A change touching a path in .shipinetics/ui-paths also needs a recording.
+# repo (default docs/evidence): EVIDENCE.md with one row per acceptance criterion, and the
+# recordings, screenshots and terminal.log it names.
+# A change touching a path in .shipinetics/ui-paths is proved by a recording: each criterion's row
+# names it and the time where the result shows ("walkthrough.webm @ 0:07"). Recordings are never
+# committed. With evidence_upload_cmd set (opt-in), `evidence upload` puts them in the project's
+# store and writes the links in EVIDENCE.md. Without it, a person attaches them to the PR.
+# Screenshots are only for a change that can't be recorded, with the reason on a "> No recording:"
+# line. Never both.
 # Evidence must be fresh: EVIDENCE.md's Commit line names the commit it was recorded at, and no
 # code may have changed since. Changes to docs, Markdown, tests (.shipinetics/test-paths), worksheets,
 # .shipinetics/ and the evidence itself don't count, so they keep the evidence valid.
@@ -34,7 +42,17 @@ pkg_ws="$(sy_cfg "$root" package_worksheets_dir)"
 prefix=""; [ "$root" != "$repo" ] && prefix="$(sy_rel "$root" "$repo")/"
 
 artifacts='\.(png|jpe?g|gif|webm|mp4|mov|log|txt)'
-recordings='\.(webm|mp4|gif|mov)$'
+media='\.(png|jpe?g|gif|webm|mp4|mov)$'
+links_re='https?://[^][:space:]|<>()]+'
+recordings='\.(webm|mp4|mov|gif)'
+time_re='@[[:space:]]*[0-9]+:[0-5][0-9](\.[0-9]+)?'
+media_gitignore='*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[gG][iI][fF]
+*.[wW][eE][bB][mM]
+*.[mM][pP]4
+*.[mM][oO][vV]'
 
 current_ws() {
   local f="$root/$dn/.cache/current-worksheet" p
@@ -114,26 +132,71 @@ fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if 
   return 1
 }
 
+media_links() { # media_links: reads text on stdin, prints "video <url>" or "screenshot <url>" per media link
+  # A link is a video or a screenshot by its label ([video](...), [screenshot](...)) or by the
+  # extension at the end of its URL, with or without a label. Other links (tickets, docs) are not media.
+  grep -oE "(\[[^]]*\]\()?$links_re" | while IFS= read -r m; do
+    label=""; url="$m"
+    case "$m" in "["*) label="$(printf '%s' "$m" | sed 's/^\[\([^]]*\)\].*/\1/' | tr '[:upper:]' '[:lower:]')"; url="${m#*](}" ;; esac
+    path="$(printf '%s' "$url" | sed 's/[?#].*//' | tr '[:upper:]' '[:lower:]')"
+    case "$label $path" in
+      *video*|*recording*|*.webm|*.mp4|*.mov|*.gif) echo "video $url" ;;
+      *screenshot*|*.png|*.jpg|*.jpeg) echo "screenshot $url" ;;
+    esac
+  done | sort -u
+}
+
+local_media() { # local_media <EVIDENCE.md>: "video <name>" or "screenshot <name>" per media file it names
+  # Media named without a link is still on this machine (git ignores it): not uploaded yet.
+  sed -E "s#$links_re##g" "$1" | grep -oiE "[A-Za-z0-9_./-]+${media%\$}" | sort -u | while IFS= read -r f; do
+    if printf '%s' "$f" | grep -qiE "$recordings"; then echo "video $f"; else echo "screenshot $f"; fi
+  done
+}
+
 check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
-  local ws="$1" dir="$ev_base/$1" ev="$ev_base/$1/EVIDENCE.md" bad=0 f p ac line
+  local ws="$1" dir="$ev_base/$1" ev="$ev_base/$1/EVIDENCE.md" bad=0 f p ac line kinds names links on_disk videos all
   if [ ! -f "$ev" ]; then
     echo "  $ws: no $ev. Start it with: evidence init $ws"
     return 1
   fi
-  if ! ls "$dir" 2>/dev/null | grep -qE "$artifacts\$"; then
-    echo "  $ws: $dir has no screenshot, recording or terminal log"; bad=1
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    echo "  $ws: $f is in git. Recordings and screenshots never go into git: run git rm --cached $f (the folder's .gitignore keeps it out after that)"; bad=1
+  done < <(git ls-files -- "$dir" | grep -iE "$media")
+  links="$(media_links <"$ev")"
+  on_disk="$(local_media "$ev")"
+  all="$(printf '%s\n%s\n' "$links" "$on_disk" | sed '/^$/d')"
+  if ! ls "$dir" 2>/dev/null | grep -qE '\.(log|txt)$' && [ -z "$all" ]; then
+    echo "  $ws: $dir has no terminal log, and EVIDENCE.md names no recording"; bad=1
   fi
+  names="$(sed -E "s#$links_re##g" "$ev" | grep -oE "[A-Za-z0-9_./-]+$artifacts" | sort -u || true)"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
     case "$f" in */*) p="$f" ;; *) p="$dir/$f" ;; esac
-    [ -s "$p" ] || [ -s "$dir/$f" ] || { echo "  $ws: EVIDENCE.md names $f, but that file is missing or empty"; bad=1; }
-  done < <(grep -oE "[A-Za-z0-9_./-]+$artifacts" "$ev" | sort -u)
+    if [ ! -s "$p" ] && [ ! -s "$dir/$f" ]; then
+      echo "  $ws: EVIDENCE.md names $f, but that file is missing or empty"; bad=1
+    elif printf '%s' "$f" | grep -qiE "$media" && [ -n "$(sy_cfg "$root" evidence_upload_cmd)" ]; then
+      echo "  $ws: $f is not uploaded. Run: evidence upload $ws"; bad=1
+    fi
+  done <<<"$names"
+  kinds="$(printf '%s\n' "$all" | cut -d' ' -f1 | sed '/^$/d' | sort -u | tr '\n' ' ')"
+  if [ "$kinds" = "screenshot video " ]; then
+    echo "  $ws: EVIDENCE.md has screenshots and a recording. The recording is the proof: remove the screenshots. Never both"; bad=1
+  elif [ "$kinds" = "screenshot " ] && ! grep -qE "^>[[:space:]]*No recording:[[:space:]]*[^[:space:]]" "$ev"; then
+    echo "  $ws: screenshots are only for a change that can't be recorded. Record the flow, or give the reason on a '> No recording: <reason>' line"; bad=1
+  fi
+  videos="$(printf '%s\n' "$all" | grep -c '^video ' || true)"
+  if [ "$videos" -gt 1 ]; then
+    echo "  $ws: EVIDENCE.md names $videos recordings. Use one recording of the whole flow"; bad=1
+  fi
   for ac in $(acs_of "$ws"); do
     line="$(grep -E "^\|[[:space:]]*$ac[[:space:]]*\|" "$ev" || true)"
     if [ -z "$line" ]; then
       echo "  $ws: $ac has no row in EVIDENCE.md"; bad=1
-    elif ! printf '%s' "$line" | grep -qE "$artifacts"; then
-      echo "  $ws: the $ac row doesn't name an evidence file"; bad=1
+    elif ! printf '%s' "$line" | grep -qE "$artifacts|$links_re"; then
+      echo "  $ws: the $ac row doesn't name a recording or a terminal log"; bad=1
+    elif printf '%s' "$line" | grep -qiE "$recordings|\[(video|recording)\]" && ! printf '%s' "$line" | grep -qE "$time_re"; then
+      echo "  $ws: the $ac row names the recording but not the time where its result shows, for example: walkthrough.webm @ 0:07"; bad=1
     fi
   done
   fresh_one "$ws" "$ev" "$2" || bad=1
@@ -141,8 +204,8 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
     while IFS= read -r f; do
       [ -z "$f" ] && continue
       if sy_in_list "$root/$dn/ui-paths" "$prefix$f"; then
-        if ! ls "$dir" 2>/dev/null | grep -qE "$recordings"; then
-          echo "  $ws: changes UI ($prefix$f) but has no screen recording (.webm, .mp4, .gif or .mov)"; bad=1
+        if [ -z "$kinds" ]; then
+          echo "  $ws: changes UI ($prefix$f) but EVIDENCE.md names no recording"; bad=1
         fi
         break
       fi
@@ -157,6 +220,7 @@ case "$cmd" in
     ws="${1:-$(current_ws)}"
     dir="$ev_base/$ws"; ev="$dir/EVIDENCE.md"
     mkdir -p "$dir"
+    [ -f "$dir/.gitignore" ] || printf '%s\n' "$media_gitignore" >"$dir/.gitignore"
     if [ -f "$ev" ]; then echo "$ev"; exit 0; fi
     wf="$(worksheet_file "$ws" || echo "(worksheet not found)")"
     {
@@ -164,7 +228,7 @@ case "$cmd" in
       echo "> Commit: $(git rev-parse --short HEAD) (update when you record) | Recorded: $(date '+%Y-%m-%d %H:%M') | Worksheet: $(sy_rel "$root" "$wf")"
       echo "> App: <how it was started, for example with the project's secrets runner: $(sy_cfg "$root" secrets_runner) npm run dev>"
       echo
-      echo "One row per acceptance criterion. Evidence is a file in this folder: a screenshot, a recording, or terminal.log."
+      echo "One row per acceptance criterion. For a UI change, the evidence is one paced recording of the flow and the time where the criterion's result shows: walkthrough.webm @ 0:07. evidence upload replaces the file name with its link, for example [video](https://...) @ 0:07. For a CLI or an API, it is terminal.log. Screenshots only when the change can't be recorded, with a '> No recording: <reason>' line, never both. Git ignores recordings and screenshots here: never commit them."
       echo
       echo "| Criterion | Feature and entry point | Evidence | What it shows (action and resulting state) |"
       echo "|---|---|---|---|"
@@ -194,6 +258,57 @@ case "$cmd" in
     set -e
     printf '[exit %s at %s]\n' "$rc" "$(date '+%Y-%m-%d %H:%M:%S')" >>"$log"
     exit "$rc"
+    ;;
+  upload)
+    ws="${1:-$(current_ws)}"
+    dir="$ev_base/$ws"; ev="$dir/EVIDENCE.md"
+    [ -f "$ev" ] || die "no $ev. Start it with: evidence init $ws"
+    todo="$(local_media "$ev")"
+    [ -n "$todo" ] || { echo "evidence: nothing to upload for $ws"; exit 0; }
+    upcmd="$(sy_cfg "$root" evidence_upload_cmd)"
+    if [ -z "$upcmd" ]; then
+      echo "evidence: no store is set (evidence_upload_cmd in $dn/config is opt-in). Git ignores these files. Attach them to the PR by hand:" >&2
+      printf '%s\n' "$todo" | while read -r _ f; do echo "  $repo/$dir/$f" >&2; done
+      exit 1
+    fi
+    while read -r kind f; do
+      [ -s "$dir/$f" ] || die "$dir/$f is missing or empty"
+      out="$(cd "$root" && sh -c "$upcmd" evidence-upload "$repo/$dir/$f" "$ws/$f")" || die "the upload command failed for $f"
+      u="$(printf '%s\n' "$out" | grep -E '^https?://' | tail -n 1)"
+      [ -n "$u" ] || die "the upload command printed no link for $f. Its last line must be the https:// link"
+      tmp="$ev.tmp"
+      awk -v name="$f" -v rep="[$kind]($u)" '
+        { out = ""; line = $0
+          while ((i = index(line, name)) > 0) {
+            before = (i > 1) ? substr(line, i - 1, 1) : ""
+            if (before ~ /[A-Za-z0-9_.\/-]/) { out = out substr(line, 1, i + length(name) - 1) }
+            else { out = out substr(line, 1, i - 1) rep }
+            line = substr(line, i + length(name))
+          }
+          print out line }' "$ev" >"$tmp" && mv "$tmp" "$ev"
+      echo "evidence: uploaded $f: $u"
+    done <<<"$todo"
+    echo "evidence: the local copies stay in $dir for evidence frames. Git ignores them."
+    ;;
+  frames)
+    ws="${1:-$(current_ws)}"
+    dir="$ev_base/$ws"; ev="$dir/EVIDENCE.md"
+    out="${2:-${TMPDIR:-/tmp}/shipinetics-frames/$ws}"
+    [ -f "$ev" ] || die "no $ev. Start it with: evidence init $ws"
+    command -v ffmpeg >/dev/null 2>&1 || die "frames needs ffmpeg. Install it (macOS: brew install ffmpeg; Debian or Ubuntu: apt install ffmpeg)"
+    rec="$(ls "$dir" 2>/dev/null | grep -iE "$recordings\$" | head -n 1 || true)"
+    [ -n "$rec" ] || die "no recording in $dir on this machine. Record it, or download it from its link in EVIDENCE.md into $dir"
+    mkdir -p "$out"
+    n=0
+    while IFS= read -r line; do
+      label="$(printf '%s' "$line" | awk -F'|' '{ gsub(/^[ \t]+|[ \t]+$/, "", $2); print $2 }' | tr -c 'A-Za-z0-9_.\n-' '-')"
+      t="$(printf '%s' "$line" | grep -oE "$time_re" | head -n 1 | sed 's/^@[[:space:]]*//')"
+      secs="$(awk -v t="$t" 'BEGIN { split(t, a, ":"); printf "%.2f", a[1] * 60 + a[2] + 0.5 }')"
+      ffmpeg -v error -y -ss "$secs" -i "$dir/$rec" -frames:v 1 "$out/$label.png" </dev/null || die "ffmpeg could not extract $label at $t from $rec"
+      echo "$out/$label.png ($label @ $t)"
+      n=$((n + 1))
+    done < <(grep -E "^\|.*$time_re" "$ev")
+    [ "$n" -gt 0 ] || die "no row in EVIDENCE.md gives a time (walkthrough.webm @ 0:07)"
     ;;
   check)
     list=()
@@ -242,16 +357,20 @@ case "$cmd" in
       echo "### $w"
       if [ ! -f "$dir/EVIDENCE.md" ]; then echo "No evidence recorded."; continue; fi
       sed -n '/^| Criterion/,/^$/p' "$dir/EVIDENCE.md"
-      for f in "$dir"/*; do
+      while read -r kind murl; do
+        [ -n "$murl" ] || continue
+        echo; if [ "$kind" = video ]; then echo "Video: $murl"; else echo "Screenshot: $murl"; fi
+      done < <(media_links <"$dir/EVIDENCE.md")
+      while read -r kind f; do
+        [ -n "$f" ] || continue
+        echo; echo "Recording $f is not uploaded. Drag $repo/$dir/$f into this PR description, so GitHub hosts it."
+      done < <(local_media "$dir/EVIDENCE.md")
+      for f in "$dir"/*.log "$dir"/*.txt; do
         [ -f "$f" ] || continue
-        case "$f" in
-          *.png|*.jpg|*.jpeg|*.gif) echo; echo "![$(basename "$f")]($(link "$f")?raw=true)" ;;
-          *.webm|*.mp4|*.mov) echo; echo "Recording: [$(basename "$f")]($(link "$f"))" ;;
-          *.log|*.txt) echo; echo "Terminal transcript: [$(basename "$f")]($(link "$f"))" ;;
-        esac
+        echo; echo "Terminal transcript: [$(basename "$f")]($(link "$f"))"
       done
     done < <(branch_worksheets "$base")
     ;;
-  ""|-h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' ;;
+  ""|-h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) die "unknown command: $cmd (try --help)" ;;
 esac

@@ -48,7 +48,7 @@ Start with one test project. Choose a project that has tests and some small task
 3. Answer its questions. They come in one message. For example, setup asks:
    - about facts that it could not confirm;
    - for secret names, and which files hold secrets;
-   - about git LFS and the `no-evidence` label;
+   - where recordings go (your team's store, or attached to the PR by hand) and the `no-evidence` label;
    - how often to run a full security audit;
    - which optional phases you want.
 4. Setup then installs every phase in the same run. It proves that each phase works, and it commits each phase before it starts the next:
@@ -85,9 +85,10 @@ Tell the agent what you want, as you do now. The agent follows `shipinetics:work
 5. `shipinetics:test-writer` writes the acceptance tests and unit tests for that commit, in its own context. For medium tasks and larger, it writes its test plan first, and `shipinetics:test-plan-reviewer` (Sonnet, in its own context) cuts the planned tests that are not relevant before any test is written. It writes one test for each behaviour, never one test for each function. When the task changed or removed behaviour, it changes or deletes the old tests. It reports the net change in tests and the bugs it found. The agent fixes the bugs. The agent uses the feature in the real app, from the verification map, through each entry point. Before it says the work is done, it runs the complete checks (`shipinetics-verify`). A push or a PR needs the complete checks to pass on the final code. No hook runs checks when the agent stops.
 6. It gets reviews: `shipinetics:reviewer` (Opus, in its own context), and the security or UI reviewer when the change needs them. UI changes are compared with `DESIGN.md`. If the design needs a new token, the agent asks you in the worksheet. It does not add the token. For medium tasks and larger, `shipinetics:live-tester` (Sonnet, in its own context) uses the change in the app itself.
 7. It records evidence from the running app, on the final code:
-   - a screenshot of the result for each acceptance criterion;
-   - a recording for UI changes;
+   - for UI changes, one recording of the flow, at a pace you can follow, with the time where each acceptance criterion shows. Screenshots only when the change can't be recorded, never both;
    - terminal output for CLIs and APIs.
+
+   Recordings never go in git. If your project sets `evidence_upload_cmd`, the agent uploads them to your store and links them. If not, you drag the recording into the PR.
 
    If the code changes after that, the old evidence fails the check.
 8. For medium tasks and larger, it makes a Whiteboard of the change for you.
@@ -173,7 +174,7 @@ The main session runs at high effort. The `reviewer` agent runs on Opus at high 
 |---|---|
 | `shipinetics-verify quick` is slow | Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows which tier and step is slow. Put slow suites behind `--full` |
 | `gh pr create` is refused | This is correct. The complete checks did not pass on this exact code (run `shipinetics-verify`), the branch has no complete evidence, or the body has no Evidence section. `evidence check --branch` shows what is missing |
-| `evidence check` says the code changed after the evidence | A code fix came after the screenshots. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests do not cause this |
+| `evidence check` says the code changed after the evidence | A code fix came after the recording. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests do not cause this |
 | `design-check` says there is no design system | `DESIGN.md` is missing or has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
 | The agent says it cannot write a test | This is correct. It must use `shipinetics:test-writer`. For a large one-time change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |
 | A session starts with a list of missing companions | Install them (step 3 of section 1), or add the ones that you do not want to `companions_skip` in `~/.config/shipinetics/config` |

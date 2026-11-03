@@ -4,8 +4,8 @@ Shipinetics is a plugin for Claude Code. It gives every project the same workflo
 
 - **Verify gates.** Checks run in tiers. The agent runs quick checks while it works, and all fast checks before the work is done. CI runs the full suite. The agent runs verify itself. A push or a PR is blocked until the complete checks pass on exactly that code. A pass stays valid until the code changes.
 - **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function. When code changes or is deleted, test-writer changes or deletes its tests in the same task, after the change is committed. So the suite grows only with new behaviour.
-- **A verification map.** It tells any agent how to start the real app, check it, and use each feature the way a user does. A reviewer uses the feature again by itself. It does not trust the author's screenshots.
-- **Evidence on every PR.** Each PR shows the change in the running app. The evidence is screenshots, a recording, or terminal output. An independent reviewer gives each PR a merge-risk grade.
+- **A verification map.** It tells any agent how to start the real app, check it, and use each feature the way a user does. A reviewer uses the feature again by itself. It does not trust the author's recording.
+- **Evidence on every PR.** Each PR shows the change in the running app. The evidence is one paced recording of the flow, with the time of each acceptance criterion (screenshots only when it can't be recorded, never both), or terminal output. Recordings never go in git: they go to your team's store (opt-in) or are attached to the PR. An independent reviewer gives each PR a merge-risk grade.
 - **Design checks.** UI changes are compared with the project's design system (`DESIGN.md`). Setup writes `DESIGN.md` from the tokens that the code already uses.
 - **Secrets stay hidden.** Secrets stay in the vault. The agent never sees their values.
 - **Independent reviewers.** The reviewers are read-only and work in their own context. They include a security reviewer (Cloudflare's security-audit skill) and a UI reviewer (Impeccable).
@@ -271,8 +271,7 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
 - **Design system.** Agents never change tokens to remove a finding. They write the change in the worksheet, under "Design-system change requests". You decide. Setup can protect the design files.
 - **Claims tables.** Reviews of research and docs check each fact against evidence that the reviewer opened: `file:line`, or a source URL with the date. Each fact gets a result: verified, incorrect or unresolved.
 - **Evidence.** Each PR shows the change in the real app:
-  - a screenshot for each acceptance criterion;
-  - a recording for UI changes;
+  - for UI changes, one paced recording of the flow with the time of each criterion; screenshots only when it can't be recorded, never both. Never committed: `evidence upload` puts it in the store that `evidence_upload_cmd` names (opt-in), or you drag it into the PR. Agents check it frame by frame (`evidence frames`, needs `ffmpeg`);
   - terminal output for CLIs and APIs.
 
   Agents record it with `evidence` and the Playwright template in `shipinetics:evidence`.
@@ -378,7 +377,7 @@ Each worksheet has a Metrics block. It records the model, the effort, the plugin
 - The usage log reads Claude Code's transcript files. Their format is internal to Claude Code and can change. If Claude Code is killed, the SessionEnd hook may not run, but `shipinetics-usage` records the session later from its transcript. The usage log needs `python3`.
 - The companion check is simple. A plugin counts as installed when Claude Code's `installed_plugins.json` names it, whatever its scope and even when it is disabled. A skill counts as installed only in `~/.claude/skills`, `~/.agents/skills` or the project's `.claude/skills`, so a skill that comes inside another plugin shows as missing. Add it to `companions_skip` in that case.
 - Strix was not installed when these parts were built. SkillSpector static mode gives false positives on skills that discuss security (see "SkillSpector results").
-- `evidence pr-body` links to files on the pushed branch. Push before you open the PR. Without git LFS, keep recordings small.
+- `evidence pr-body` copies the recording links from EVIDENCE.md and links `terminal.log` on the pushed branch. Push before you open the PR. Without a store, a person must drag the recording into the PR.
 - `bin/with-secrets` reads Google Secret Manager through gcloud. When `.shipinetics/config` has `vault = infisical`, it runs `infisical run`. A project with its own runner sets `secrets_runner`.
 - No hook makes the agent run verify before it stops. The workflow tells it to, and the push and PR gates refuse code that has no complete pass. Keep `--quick` to seconds and the complete tier to a few minutes. Never let a check print environment values.
 - `design-check` finds fonts, colours, radii and font sizes that are not in `DESIGN.md`. The UI reviewer checks the rest: spacing, unknown `var()` names, new tokens and copied components. Without token frontmatter in `DESIGN.md`, there is nothing to check against.

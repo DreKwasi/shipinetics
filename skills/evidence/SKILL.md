@@ -1,6 +1,6 @@
 ---
 name: evidence
-description: Capture proof that a change works (screenshots per acceptance criterion, a screen recording for UI changes, terminal transcripts for CLIs and APIs) from the real running app, and attach it to every PR. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
+description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to every PR. Recordings are uploaded and linked, never committed. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
 argument-hint: "[worksheet]"
 ---
 
@@ -10,21 +10,28 @@ argument-hint: "[worksheet]"
 >
 > Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
-A PR without proof that it works isn't worth a reviewer's time. Passing tests are necessary, not sufficient: tests can be wrong, and they never show what the user sees. So every PR carries evidence recorded from the real, running app at the PR's code: screenshots for each acceptance criterion, a screen recording for anything visual, and terminal transcripts for CLIs, APIs and jobs.
+A PR without proof that it works isn't worth a reviewer's time. Passing tests are necessary, not sufficient: tests can be wrong, and they never show what the user sees. So every PR carries evidence recorded from the real, running app at the PR's code: one recording of the flow for anything visual, and terminal transcripts for CLIs, APIs and jobs.
+
+**Rules for media:**
+- **A recording first.** One recording of the whole flow. Each criterion's row names the time where its result shows: `walkthrough.webm @ 0:07`. People jump to that time. Agents can't watch a video, so `evidence frames` extracts the frame at each time, and agents look at those frames.
+- **Screenshots only when the change can't be recorded,** with the reason on a `> No recording: <reason>` line in EVIDENCE.md. Never both.
+- **Paced, not rushed.** A person must be able to follow it. Pause on the starting screen, type at reading speed, wait a beat before each important action, and hold each result for about two seconds. The record template does this (`slowMo`, `type()`, `pause()`, `mark()`). Without the template, pace it by hand the same way.
+- **Media never goes into git.** Everyone who pulls the repo would pull every recording. `evidence init` writes a `.gitignore` in the evidence folder that ignores media. Only EVIDENCE.md and `terminal.log` are committed.
+- **The store is opt-in.** If `.shipinetics/config` sets `evidence_upload_cmd`, `evidence upload` puts the recording in the team's store (SharePoint or OneDrive, S3, Google Drive, through rclone or the team's own command) and replaces the file name in EVIDENCE.md with its link. The time stays. Without a store, the recording stays on disk, and the human drags it into the PR description, so GitHub hosts it.
 
 Worksheet: `$ARGUMENTS` (default: the current one).
 
 ## What's enforced
 
 - **`gh pr create` and `gh pr ready` are blocked** by a hook until `evidence check --branch` passes and the PR body contains the `## Evidence` section.
-- **CI fails any PR** (agent or human) whose description has no `## Evidence` section with a screenshot, recording or transcript, unless it carries the `no-evidence` label (for docs-only or config-only changes).
-- **Reviewers look at it:** the wrap-up reviewer checks evidence against the acceptance criteria, the UI reviewer starts from the screenshots, and the Whiteboard shows them to the human.
+- **CI fails any PR** (agent or human) whose description has no `## Evidence` section that links a recording (or a fallback screenshot) or a transcript, unless it carries the `no-evidence` label (for docs-only or config-only changes).
+- **Reviewers look at it:** the wrap-up reviewer checks evidence against the acceptance criteria, the UI reviewer starts from the frames of the recording, and the Whiteboard shows the recording and its key frames to the human.
 
 ## What counts
 
 | Change | Required evidence |
 |---|---|
-| UI (any path in `.shipinetics/ui-paths`) | A screenshot per acceptance criterion showing the observable result, a mobile-width screenshot of the main changed screen, and one screen recording of the whole flow |
+| UI (any path in `.shipinetics/ui-paths`) | One paced recording of the whole flow, with the time where each acceptance criterion's result shows, and a mobile-width part for the main changed screen. If it can't be recorded: a screenshot per criterion and a mobile-width one, with the reason. Never both |
 | CLI | A terminal transcript per criterion: the real command and its real output, via `evidence run` |
 | API | A transcript of real requests against the running service (curl or httpie through `evidence run`), showing status and body |
 | Background job, data change | A transcript of triggering it and of the resulting state (a query, a log line, a file) |
@@ -36,7 +43,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 - Recorded from the app started the normal way (`bin/with-secrets <start command>`), at the code you're submitting. Not mocks, not Storybook, not a test's fixture server, unless that is the product.
 - Shows the result the criterion talks about, not just that a page loaded, and the state it left behind.
 - For a bug, the symptom reproduced twice through the real UI before the fix, and gone after it. Never force or inject the symptom.
-- Contains no secrets, tokens or personal data. Use seeded test accounts. Check every screenshot before you commit it.
+- Contains no secrets, tokens or personal data. Use seeded test accounts. Check the frames of every recording before you upload it.
 - Recordings stay short: under a minute, one flow. Several short recordings beat one long one.
 
 ## How to capture it
@@ -44,13 +51,14 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 1. **Commit the code first,** so the evidence can name the commit it shows. Then **start the file:** `evidence init`. It creates `docs/evidence/<worksheet>/EVIDENCE.md` with a row for every acceptance criterion in the worksheet.
 2. **Run the app** and check it works before recording. If `shipinetics-config get launch` says `user`, the user runs the servers: follow the user-run rules in shipinetics:verification-map instead of launching anything. If the sandbox blocks localhost, record with the harness's preview browser and say so in EVIDENCE.md.
 3. **Record:**
-   - **Web:** copy `${CLAUDE_SKILL_DIR}/record-template.mjs` to `docs/evidence/<worksheet>/record.mjs`, write one block per criterion (act, wait for the visible result, screenshot `AC<n>-<name>.png`), and run it with the base URL: `node docs/evidence/<worksheet>/record.mjs http://localhost:3000`. It saves the screenshots and `walkthrough.webm`, and fails if the page logged errors.
+   - **Web:** copy `${CLAUDE_SKILL_DIR}/record-template.mjs` to `docs/evidence/<worksheet>/record.mjs`, write one block per criterion (act at a person's pace, wait for the visible result, `mark('AC<n>')`), and run it with the base URL: `node docs/evidence/<worksheet>/record.mjs http://localhost:3000`. It saves `walkthrough.webm` in the evidence folder (git ignores it), prints the time of each mark for the Evidence column, and fails if the page logged errors.
    - **CLI, API, jobs:** `evidence run -- <command>` runs the command and appends it, its output and its exit code to `terminal.log`. Run one command per criterion.
-   - **iOS simulator:** `xcrun simctl io booted screenshot <file>.png` and `xcrun simctl io booted recordVideo <file>.mov` (stop it with Ctrl-C), or the simulator tool's screenshot action.
-4. **Look at every screenshot** with the Read tool before you list it. Confirm it shows what the row claims. If it doesn't, the feature or the recording is wrong: fix it, don't describe around it.
-5. **Fill in EVIDENCE.md:** for each criterion, the file name and one line on what it shows. Update the commit line to the commit you recorded at.
-6. **Check:** `evidence check`. It confirms every criterion has a file, every named file exists, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. Record it when the feature works (workflow step 6), so reviewers can start from it. A later docs or test commit doesn't make you record it again. If a review fix touches code, re-record the criteria it affects at wrap-up and update the Commit line. Only this branch's own changes count, so merging main doesn't make evidence stale.
-7. Commit the evidence with the work (trailer `Worksheet: <name>`). With git LFS set up (`/shipinetics:setup` asks), recordings don't bloat the repo. Without it, keep recordings small, or keep them out of git and attach them to the PR by hand.
+   - **iOS simulator:** `xcrun simctl io booted recordVideo <file>.mov` (stop it with Ctrl-C). Drive the app at a person's pace, and note the time where each criterion's result shows. Screenshots (`xcrun simctl io booted screenshot <file>.png`) only if it can't be recorded.
+4. **Fill in EVIDENCE.md:** for each criterion, the recording and its time (`walkthrough.webm @ 0:07`), or `terminal.log`, and one line on what it shows. Update the Commit line to the commit you recorded at.
+5. **Look at every frame:** `evidence frames` extracts the frame at each time to `$TMPDIR` and prints the paths (it needs `ffmpeg`). Look at each one with the Read tool. Confirm it shows what the row claims. If it doesn't, the feature, the recording or the time is wrong: fix it, don't describe around it. Fallback screenshots you look at directly.
+6. **Upload:** `evidence upload`, if the project set `evidence_upload_cmd`. It replaces each file name with its link and keeps the local copy for `evidence frames`. Without a store it lists the files for the human to attach to the PR.
+7. **Check:** `evidence check`. It confirms that every criterion has a recording with its time or a terminal log, every named file exists, no recording or screenshot is in git, with a store the recordings are uploaded, there is one recording and no screenshots beside it, screenshots have a reason, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. Record it when the feature works (workflow step 6), so reviewers can start from it. A later docs or test commit doesn't make you record it again. If a review fix touches code, re-record the criteria it affects at wrap-up and update the Commit line. Only this branch's own changes count, so merging main doesn't make evidence stale.
+8. Commit EVIDENCE.md, `terminal.log` and the folder's `.gitignore` with the work (trailer `Worksheet: <name>`). Never commit the recording or screenshots.
 
 ## Opening the PR
 
@@ -64,8 +72,8 @@ Put your summary above the generated `## Evidence` section in that file (what ch
 gh pr create --title "<title>" --body-file "$TMPDIR/pr-body.md"
 ```
 
-Push the branch first so the image links resolve. If evidence changes after review, regenerate the section and update the PR body (`gh pr edit --body-file`).
+Push the branch first so the `terminal.log` link resolves. If a recording isn't uploaded, the section says so: drag the file into the PR description. CI fails until the description links it. If evidence changes after review, regenerate the section and update the PR body (`gh pr edit --body-file`).
 
 ## Reviewing a PR
 
-Open the evidence before reading the diff. For each criterion: does the screenshot or transcript actually show the result? Is it from this branch's code? `evidence check` fails if code changed after the commit on the Commit line. Anything missing, stale or unconvincing is a finding, severity major.
+Open the evidence before reading the diff. For each criterion: run `evidence frames` and look at the frame at its time (or the transcript, or the fallback screenshot). Does it actually show the result? If the recording isn't on your machine, download it from its link into the evidence folder first. Is it from this branch's code? `evidence check` fails if code changed after the commit on the Commit line. Anything missing, stale or unconvincing is a finding, severity major.

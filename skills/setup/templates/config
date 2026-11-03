@@ -16,6 +16,13 @@
 # personas_dir = docs/review/personas
 # evidence_dir = docs/evidence
 
+# ---- Evidence store (opt-in). Recordings never go in git. With this set, `evidence upload` runs the
+# command once per recording: $1 is the file, $2 a suggested name (<worksheet>/<file>). The command
+# uploads it to the team's store (SharePoint or OneDrive, S3, Google Drive...) and prints a link that
+# reviewers can open as its last line. Setting it is the team's yes to upload evidence there.
+# Without it, a person attaches the recording to the PR by hand.
+# evidence_upload_cmd = rclone copyto "$1" "evidence:pr-evidence/$2" && rclone link "evidence:pr-evidence/$2"
+
 # ---- Verify (single repo)
 # Checks run in tiers, each at the moment its result is needed. Nothing is skipped:
 #   verify_quick_cmd  shipinetics-verify quick, after each step, scoped to the changed files

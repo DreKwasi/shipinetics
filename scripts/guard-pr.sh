@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # PreToolUse hook for Bash. Blocks `gh pr create` and `gh pr ready` until the branch has
-# complete evidence (screenshots, recordings or terminal transcripts for every acceptance
+# complete evidence (a recording, or terminal transcripts, for every acceptance
 # criterion; see shipinetics:evidence), the complete verify has passed on exactly this code
 # (shipinetics-verify), and the PR body carries the "## Evidence" section.
 #
@@ -47,7 +47,7 @@ evidence="$(cd "$(dirname "$0")/.." && pwd)/bin/evidence"
 if ! out="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" check --branch 2>&1)"; then
   deny "shipinetics: this PR has no complete evidence yet, so it can't be opened.
 $out
-Capture it (shipinetics:evidence): screenshots per acceptance criterion, a screen recording for UI changes, terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
+Capture it (shipinetics:evidence): one paced recording of the flow for UI changes, with the time of each acceptance criterion (screenshots only if it can't be recorded), terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
 fi
 case "$out" in *docs-only*) exit 0 ;; esac
 

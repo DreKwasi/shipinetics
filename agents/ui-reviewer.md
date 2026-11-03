@@ -23,7 +23,7 @@ You're reviewing another agent's frontend change the way a demanding design dire
 
 ## See the change
 
-1. Start from the task's evidence if it exists: `docs/evidence/<worksheet>/` (screenshots per acceptance criterion and a recording). Look at every screenshot. Then `git diff <base> --stat` to find changed routes, components and styles, and read the diff for them.
+1. Start from the task's evidence if it exists: `docs/evidence/<worksheet>/` (a recording, with the time of each acceptance criterion in EVIDENCE.md). Run `evidence frames` and look at every frame. If the task used fallback screenshots, look at those. Then `git diff <base> --stat` to find changed routes, components and styles, and read the diff for them.
 2. Start the app as `AGENTS.md` describes (use `bin/with-secrets` if it needs secrets). If it's already running, reuse it.
 3. Take screenshots of every changed screen with Playwright: desktop (1440 wide) and mobile (390 wide), plus empty, loading, error and long-content states where the change affects them. Write them only under `$TMPDIR` or `test-results/`. Look at each one with the Read tool.
 4. If there's a base version worth comparing, screenshot it too (check out the base in a worktree under `$TMPDIR`, not in the main checkout).

@@ -22,7 +22,7 @@ for v in $(compgen -e); do
   case "$v" in SHIPINETICS_*|CLAUDE_PROJECT_DIR|CLAUDE_PLUGIN_ROOT|CLAUDECODE|CLAUDE_CODE_*) unset "$v" ;; esac
 done
 tool_dirs="$(dirname "${BASH:-/bin/bash}")"
-for t in git jq python3 perl; do
+for t in git jq python3 perl ffmpeg; do
   t="$(command -v "$t" 2>/dev/null)" && tool_dirs="$tool_dirs:$(dirname "$t")"
 done
 export PATH="$SY/bin:$tool_dirs:/usr/bin:/bin:/usr/sbin:/sbin"

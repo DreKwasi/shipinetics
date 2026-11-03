@@ -79,7 +79,7 @@ Tests aren't enough. Start the app and run the doctor check from `docs/verificat
 
 For web apps, drive it with Playwright or the Playwright MCP and take a screenshot of the result. Look at the screenshot. For CLIs and APIs, run the real commands and read the output. Write what you checked, and what you saw, in the worksheet.
 
-Once it works, commit, then **record the evidence** (shipinetics:evidence) and set its Commit line to that commit: a screenshot per acceptance criterion and a screen recording for UI changes, or terminal transcripts for CLIs and APIs, saved in `docs/evidence/<worksheet>/` and checked with `evidence check`. Recording now lets reviewers start from it. If a review fix later changes code, `evidence check` names the files, and you re-record the criteria they affect at wrap-up. Every PR needs it, and the hook won't let a PR open without it.
+Once it works, commit, then **record the evidence** (shipinetics:evidence) and set its Commit line to that commit: for UI changes one paced recording of the flow with the time of each acceptance criterion (screenshots only when it can't be recorded), or terminal transcripts for CLIs and APIs, in `docs/evidence/<worksheet>/` and checked with `evidence check`. Recordings never go in git: `evidence upload` puts them in the project's store, or the human attaches them to the PR. Recording now lets reviewers start from it. If a review fix later changes code, `evidence check` names the files, and you re-record the criteria they affect at wrap-up. Every PR needs it, and the hook won't let a PR open without it.
 
 ## 7. Verify
 

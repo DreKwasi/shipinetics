@@ -42,7 +42,8 @@ jobs:
           retention-days: 7
 
   evidence:
-    # Every PR shows the change working: screenshots, a screen recording or a terminal transcript.
+    # Every PR shows the change working: a linked recording (screenshots only when a change can't be
+    # recorded) or a terminal transcript. Recordings are never in git, so the section must link one.
     # Generate the section with `evidence pr-body`. Add the no-evidence label for docs-only changes.
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-evidence')
     runs-on: ubuntu-latest
@@ -52,10 +53,10 @@ jobs:
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
           if ! printf '%s\n' "$PR_BODY" | grep -q '^## Evidence'; then
-            echo "::error::This PR has no '## Evidence' section. Add screenshots, a screen recording or a terminal transcript of the change working (bin/evidence pr-body generates it), or add the no-evidence label for docs-only changes."
+            echo "::error::This PR has no '## Evidence' section. Add a link to a recording of the change working, or a terminal transcript of the change working (bin/evidence pr-body generates it), or add the no-evidence label for docs-only changes."
             exit 1
           fi
-          if ! printf '%s\n' "$PR_BODY" | sed -n '/^## Evidence/,$p' | grep -qiE '\.(png|jpe?g|gif|webm|mp4|mov)|user-attachments|terminal\.log'; then
-            echo "::error::The Evidence section has no screenshot, recording or terminal transcript."
+          if ! printf '%s\n' "$PR_BODY" | sed -n '/^## Evidence/,$p' | grep -qiE '(Video|Screenshot): *https?://|user-attachments|terminal\.log'; then
+            echo "::error::The Evidence section links no recording, screenshot or terminal transcript. Upload the recording (evidence upload) or drag it into the PR description."
             exit 1
           fi
