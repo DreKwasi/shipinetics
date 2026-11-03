@@ -18,12 +18,18 @@ The project's own commands, layout and fixtures are in `docs/testing/how-to-writ
 1. **Spec first.** Acceptance criteria in `docs/specs/<slug>.md` (shipinetics:spec) or, for small tasks, in the worksheet. No criteria, no tests: tests without a spec just freeze whatever the code does.
 2. **Implement, then commit.** Run the existing targeted tests as you go (one file, one name), not the whole suite. Old tests of behaviour that you changed or removed can fail now. Leave them: test-writer changes or deletes them in step 3.
 3. **Then the tests, in one request.** Spawn `shipinetics:test-writer` once, with every mode the task needs: `acceptance` (the criteria, at the entry point; for M and up), `unit` (domain logic), `regression` (a bug you fixed) and `change` (tests of changed or removed behaviour). Give it the spec and the commit range. Don't edit source while it runs. The new tests must pass on your code. Regression tests must also fail on the code before your fix: test-writer checks that against the base commit. New acceptance tests become protected.
+   For tasks M and up, the plan is reviewed before any test is written:
+   1. Spawn test-writer with "Plan first". It returns its test plan and writes no files.
+   2. Spawn `shipinetics:test-plan-reviewer` with the spec, the plan and the target. Give it nothing else. It returns KEEP, CUT, MERGE, MOVE or REWRITE for each row, and the acceptance criteria that have no row.
+   3. Send the verdict to the same test-writer (SendMessage, so it keeps its context). It writes and proves the tests of the approved plan.
+
+   Skip the plan review for S tasks and for a request with only `regression` mode: the plan has one row.
 4. **Bugs it reports are yours to fix.** Test-writer reports a "suspected bug" when the code disagrees with the spec. Fix the code. If you believe the test is wrong, don't argue with the test, argue with the spec: send test-writer your reasoning and the spec line, and it decides. If the spec itself is ambiguous, ask the human (interactive) or mark it under "Test change requests" in the worksheet (autonomous).
 5. **`shipinetics-verify`** passes before you're done. Test-writer runs only targeted tests, so the complete verify is what runs the suite on the final code.
 
 Run test-writer in the foreground and wait for its report before you run verify or report to the user. If the report has "Slow test runs", tell the user the numbers and the suggested fix (shipinetics:workflow, step 5). Don't change the project's test setup without their yes. Its suspected bugs are input to your next step.
 
-Test-writer runs on Opus at medium effort (its frontmatter). Don't pass a model or an effort when you spawn it. Its independence comes from its fresh context and the spec, not from a different model.
+Test-writer runs on Opus at medium effort (its frontmatter). Don't pass a model or an effort when you spawn it. Its independence comes from its fresh context and the spec, not from a different model. Test-plan-reviewer runs on Sonnet at high effort (its frontmatter). Don't pass a model or an effort. It judges a short table against the spec, so it doesn't need Opus.
 
 ## What to give test-writer
 

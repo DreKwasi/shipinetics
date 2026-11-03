@@ -62,7 +62,7 @@ You don't write tests for your own code (shipinetics:testing). When the implemen
 - `regression` for a bug that you fixed. The test passes on the fix and fails on the code before it.
 - `change` when the task changed or removed behaviour that has tests. It changes or deletes those tests, so the suite doesn't pile up tests for code that no longer exists.
 
-Give it the spec and the commit range (`<base>..HEAD`; in workspace mode, the package repo's range). Don't edit source while it runs. Test-writer runs only targeted tests. Run `shipinetics-verify quick` after its report. The complete verify (step 7) runs the suite. Read its net change: the number of tests grows only with new behaviour.
+For M and up, ask it for the plan first, and have `shipinetics:test-plan-reviewer` review the plan before test-writer writes the tests (shipinetics:testing, step 3). Give it the spec and the commit range (`<base>..HEAD`; in workspace mode, the package repo's range). Don't edit source while it runs. Test-writer runs only targeted tests. Run `shipinetics-verify quick` after its report. The complete verify (step 7) runs the suite. Read its net change: the number of tests grows only with new behaviour.
 
 Read its report. "Suspected bugs" are yours to fix: fix them, commit, and send test-writer the new commit if a test needs a second look. "Gaps" usually mean the spec needs work.
 

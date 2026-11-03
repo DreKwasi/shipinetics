@@ -166,7 +166,7 @@ Set `launch = user` when you start the dev servers yourself. Then agents only ru
 | 1 | Workflow | `shipinetics:workflow` | Your `AGENT_WORKFLOW.md`, if you have one, replaces it |
 | 2 | System docs that stay true | `shipinetics:system-docs` | `docs/systems/*.md`, each with a 7-line header |
 | 3 | Run the app | `shipinetics:verification-map`, workflow step 6 | `docs/verification/`, and "Run the app yourself" in `AGENTS.md` |
-| 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer` (modes: acceptance, unit, regression, change), `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
+| 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer` (modes: acceptance, unit, regression, change), `shipinetics:test-plan-reviewer`, `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
 | 5 | Linters that fix | `shipinetics:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (it also limits commits to 400 changed lines), `.githooks/commit-msg` (it requires the `Worksheet:` trailer) |
 | 6 | Reviews by other agents | `shipinetics:review`, three reviewer agents, 7 personas | `docs/review/personas/` for the project's own personas |
 | 7 | Worksheets and tags | `shipinetics:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` trailers |
@@ -291,6 +291,8 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
 | `regression` | A bug fix | Writes a test that passes on the fix and fails on the code before the fix |
 | `change` | The task changed or removed behaviour | Changes the tests of changed behaviour. Deletes the tests of removed behaviour, and names each one |
 
+For medium tasks and larger, test-writer writes its test plan first, and writes no tests. `shipinetics:test-plan-reviewer` reviews the plan against the spec, in its own context. It cuts a planned test that does not trace to the spec, that catches no plausible bug, that an existing test already covers or that is at the wrong layer. It also finds acceptance criteria that have no planned test. Then test-writer writes the tests of the approved plan. A test that is cut at this step costs nothing to write or to prove.
+
 These rules keep the suite small:
 
 - **One test for each behaviour, with every assertion that it needs.** A test has one reason to fail. Test-writer never splits one behaviour into a test for each assertion. One test never covers two behaviours.
@@ -308,6 +310,7 @@ The model and the effort depend on the job:
 - `reviewer` runs on Opus and sets `effort: high`. It is the main review at each checkpoint.
 - `test-writer`, `security-reviewer` and `ui-reviewer` run on Opus and set `effort: medium`.
 - `live-tester` runs on Sonnet and sets `effort: medium`. It only drives the app and reports what it saw. The reviewers judge the work.
+- `test-plan-reviewer` runs on Sonnet and sets `effort: high`. It judges a short test plan against the spec, before the tests are written.
 - The project settings template sets `"effortLevel": "high"` for the main session.
 
 To change the effort:
@@ -385,7 +388,7 @@ Each worksheet has a Metrics block. It records the model, the effort, the plugin
 ```
 .claude-plugin/   plugin.json, marketplace.json
 agents/           reviewer (Opus, high), test-writer, security-reviewer, ui-reviewer (Opus, medium),
-                  live-tester (Sonnet, medium)
+                  live-tester (Sonnet, medium), test-plan-reviewer (Sonnet, high)
 bin/              bench-compare, design-check, evidence, known-failing, scan-skills,
                   shipinetics-companions, shipinetics-config, shipinetics-usage, shipinetics-verify,
                   skills-outdated, worksheet (on the agent's PATH)

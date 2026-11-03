@@ -16,6 +16,7 @@
 - Test names that claim one thing while the body checks another.
 - Any change to files in `.shipinetics/protected-paths`.
 - Tests written by the implementing agent instead of `shipinetics:test-writer` (check the worksheet and the commit for how they were produced).
+- Rows under "Plan disputes" in test-writer's report: a test that `shipinetics:test-plan-reviewer` cut and test-writer kept. Decide each one. Keep it only if it encodes the spec line it names.
 
 **Look for bloat too**
 - Tests organised per function (one per exported helper, named after functions) instead of per behaviour.
