@@ -72,6 +72,16 @@ The detail is in the test-writer agent, and the test-integrity persona reviews i
 - **The spec changed:** update the spec first (with the human's agreement), then have test-writer update the tests. For a protected acceptance test, test-writer writes the new version to `.shipinetics/pending/<test path>`, and a human applies it with `shipinetics-config apply`.
 - **Flaky:** find the race or shared state. No retries, no sleeps. If it can't be fixed now, a queue task names the test and what you found.
 
+## Catching flaky tests
+
+A flaky test passes and fails on the same code. It hides real bugs and teaches people to re-run until green. Three checks catch it, and none of them turns a failure into a pass:
+
+1. **When it's written.** Test-writer runs each new or changed test 5 more times at HEAD. One failure, and the test isn't done.
+2. **When verify fails.** `bin/verify` gates the suite with `known-failing check --rerun '<cmd>'`. The failures run once more. A test that passes then is named **flaky** in the output and logged in `.shipinetics/.cache/flaky.tsv`, but the check still fails. So you know if you broke something or hit a race. Fix the race, or, if it isn't yours and can't be fixed now, add a queue task that names the test, and ask the human what to do. Never re-run verify until it passes.
+3. **Every week.** The sweep runs `known-failing hunt -n 5 -- <cmd with {junit}>` on the main branch: the suite 5 times on the same code. Each test that passed and failed gets a queue task. `known-failing flaky` adds the ones that verify found during the week.
+
+The re-run and the hunt need a JUnit report (see below). `{junit}` in the command is the path to write it to.
+
 Never make a test pass by loosening, deleting, skipping or re-snapshotting it. The hooks block the direct route and the reviewers check for the indirect ones.
 
 ## A suite that already fails

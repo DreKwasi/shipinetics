@@ -203,6 +203,11 @@ You can switch off each hook. Put `hooks_off` in the project's `.shipinetics/con
 
 **Known failures** (`bin/known-failing`). Some suites already fail. For them, `bin/verify` can run `known-failing check <junit.xml>`. Then only new failures fail the check. The list of known failures is `.shipinetics/known-failing`, and it is protected. See shipinetics:testing.
 
+**Flaky tests** (`bin/known-failing`). A flaky test passes and fails on the same code. Three checks find them, and none of them turns a failure into a pass:
+- Test-writer runs each new test 5 more times before it is done.
+- `known-failing check --rerun '<cmd>'` in `bin/verify` runs the failures once more. A test that passes then is named flaky and logged, but the check still fails.
+- The weekly sweep runs the suite 5 times with `known-failing hunt` and queues a task for each flaky test.
+
 **Secrets guard** (`scripts/guard-secrets.sh`, in every project). It blocks commands that could show a secret to the agent:
 - commands that show the environment;
 - inline scripts that read the environment;

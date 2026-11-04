@@ -110,6 +110,8 @@ If the project isn't a git repo, copy the source, test and build config folders 
 
 1. **Run the new tests against the implementation.** They must pass. A failure is a suspected bug (see below) or a broken test: find out which before you continue.
 
+   **Then run them 5 times more, in one run** (the runner's repeat option if it has one: `pytest --count` from pytest-repeat, `go test -count`, Playwright `--repeat-each`; else a loop). Every run must pass. A test that passes and fails on the same code is flaky, and a flaky test is not done: find the cause (time or date, test order, shared state or data, an async wait on something that isn't awaited, randomness without a seed, a real network call) and fix the test. Never add a retry, a longer timeout or a sleep. If the cause is in the source (a race), report it as a suspected bug. Report the repeat runs under Results.
+
    **Measure the cost of one run.** Time a run of one fast test with the targeted command (`/usr/bin/time -p <cmd>`, and the runner's setup time if it shows one, such as pytest's `--durations`). That wall time is the fixed cost that every proof run pays. If it is over 10 seconds, or your proof runs take over 5 minutes in total, report it under "Slow test runs". Don't change the project's test config to fix it: that is the user's decision.
 2. **The tests fail on the code before the change.** Make a worktree of the base of the commit range, and run all your new and changed tests there, in one run. Each must fail for the right reason: the behaviour is missing (an import error of the new code counts), the bug is present, or the old behaviour is there. A test that passes on the base code doesn't test the change. A test that can't load at base for another reason (a missing helper that you didn't copy) is not a proof: fix the copy, or report the proof as not possible.
 3. **Each behaviour test catches its bug.** Make the mistake that its plan row names (flip a condition, drop a step, change a constant, return early) and see the test fail. Do it all in one script, in a worktree of HEAD:
@@ -141,7 +143,7 @@ Final report, in this order:
 
 ## Results
 Tests added: N. Tests extended: N. Tests changed: N. Tests deleted: N (names, and the behaviour that was removed). Net change: +N/-N (each net new test names its new behaviour). New files: N (names, and why the module had none). Passing: N. Failing: N.
-Commands run: the targeted test command and its last line, and the time of the mutation run.
+Commands run: the targeted test command and its last line, the repeat runs (N of N passed), and the time of the mutation run.
 
 ## Suspected bugs
 | Test | Spec says | Code does |

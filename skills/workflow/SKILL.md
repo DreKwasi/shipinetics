@@ -86,6 +86,7 @@ Once it works, commit, then **record the evidence** (shipinetics:evidence) and s
 You run verify yourself. No hook runs it when you stop.
 
 - After a step that changes behaviour, run `shipinetics-verify quick`. It checks only the changed files. Until test-writer finishes step 5, old tests of behaviour that you changed or removed can fail there. That is expected. Any other failure is yours.
+- If verify names a test **flaky** (it failed, then passed on a re-run), it still failed. If your change touches what the test covers, the race is probably yours: fix it. If not, add a queue task with the test and the output, and tell the user. Don't run verify again and again to get a pass (shipinetics:testing, "Catching flaky tests").
 - Before you mark the task done, run `shipinetics-verify`. It runs the complete verify (`bin/verify`) and must pass. It records the pass for exactly this code, so the pre-push hook and the PR gate reuse it and do not run it again. Committing the code, or editing only the worksheet, evidence or feedback log, keeps the pass. Any other change needs a new run.
 - Don't run verify while a subagent is still editing or running tests. Wait for it to finish.
 - Don't answer a question with a verify run. Run it only when the code changed.

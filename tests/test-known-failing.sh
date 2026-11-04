@@ -40,4 +40,29 @@ known-failing init r2.xml >/dev/null
 eq "re-init goes to pending" "$(grep -c '^cart' .shipinetics/pending/.shipinetics/known-failing):$(known-failing count)" "2:3"
 mkdir -p bin; cp "$SY/bin/known-failing" bin/
 bin/known-failing check r2.xml >/dev/null 2>&1; eq "a copy works without the plugin" "$?" 0
+# Flaky tests: a re-run names them but never passes the check; hunt finds mixed results.
+rm -f .shipinetics/known-failing; rm -rf .shipinetics/pending
+# flip.sh <junit>: "steady" always passes, "broken" always fails, "racy" fails on odd runs
+cat >flip.sh <<'SH'
+n=$(( $(cat count 2>/dev/null || echo 0) + 1 )); echo "$n" >count
+r=pass; [ $((n % 2)) = 1 ] && r=fail
+{ echo '<testsuites><testsuite name="s">'
+  echo '<testcase classname="cart" name="steady"/>'
+  echo '<testcase classname="cart" name="broken"><failure>x</failure></testcase>'
+  if [ "$r" = fail ]; then echo '<testcase classname="cart" name="racy"><failure>x</failure></testcase>'
+  else echo '<testcase classname="cart" name="racy"/>'; fi
+  echo '</testsuite></testsuites>'; } >"$1"
+SH
+rm -f count; sh flip.sh first.xml
+out="$(known-failing check --rerun 'sh flip.sh {junit}' first.xml 2>&1)"; eq "a flaky failure still fails the check" "$?" 1
+has "a test that passes on the re-run is named flaky" "$out" "Flaky (failed, then passed on a re-run)"
+has "a test that fails again is named failing" "$out" "failed again on a re-run):
+  cart::broken"
+OUT="$(known-failing flaky)"; has "flaky lists what the re-run found" "$OUT" "1  cart::racy"
+rm -f count; out="$(known-failing hunt -n 4 -- sh flip.sh {junit} 2>&1)"; eq "hunt fails when a test is flaky" "$?" 1
+has "hunt names the flaky test and its rate" "$out" "cart::racy (failed 2 of 4)"
+has "hunt names a test that always fails as broken" "$out" "Failed on every run (broken, not flaky):
+  cart::broken"
+hasnt "hunt doesn't name a steady test" "$out" "steady"
+out="$(known-failing hunt -n 2 -- true 2>&1)"; eq "hunt fails when a run writes no report" "$?" 2
 done_testing

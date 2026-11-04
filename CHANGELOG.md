@@ -6,6 +6,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Added
+- Ways to catch flaky tests (a test that passes and fails on the same code). None of them turns a failure into a pass.
+  - Test-writer runs each new or changed test 5 more times at HEAD. A test that fails once is not done: it finds the cause and fixes it, without retries, longer timeouts or sleeps.
+  - `known-failing check --rerun '<cmd>'` runs the new failures once more. The ones that pass then are named flaky and logged in `.shipinetics/.cache/flaky.tsv`. The check still fails. `known-failing flaky` lists them, most often first.
+  - `known-failing hunt -n N -- <cmd>` runs the suite N times on the same code and names each test that both passed and failed, with its failure rate. The weekly sweep runs it and queues a task for each one.
+
+  Steps for each project (optional): in `bin/verify`, gate the test suite with `known-failing check --rerun '<the suite's command, writing its JUnit report to {junit}>' <report>`, as the `bin/verify` template shows. Copy the new `known-failing` from the plugin's `bin/` into the project's `bin/` for CI.
+
 ## 0.9.0
 
 ### Changed (breaking)
