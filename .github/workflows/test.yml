@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-15-intel]  # macOS for bash 3.2 and BSD tools; Intel because arm64 runners are often short
     runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
