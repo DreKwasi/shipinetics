@@ -6,7 +6,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
-## Unreleased
+## 0.9.1
 
 ### Changed
 - Every test proves an acceptance criterion. Test-writer writes a test, or a case in a test, only for what a criterion states, and names the criterion at the start of the test's name: `refund-rounding AC2` (the spec's slug or, with no spec, the worksheet's name, and the ID). In a file of one spec's tests, the ID alone is enough.
