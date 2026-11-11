@@ -12,7 +12,7 @@ argument-hint: "<issue URL, task ID or description>"
 
 Input: `$ARGUMENTS`. Fetch it if it's an issue URL (`gh issue view`) or a task ID (`TODOS.md`).
 
-The human's job is intent and acceptance criteria. Your job is to make those criteria concrete enough that a test can check them. After the implementation, an independent agent writes those tests (shipinetics:testing).
+The human's job is intent and acceptance criteria. Your job is to make those criteria concrete enough that a test can check them. After the implementation, an independent agent writes those tests (shipinetics:testing). It tests only what a criterion states, so the criteria are the whole list of what must stay true.
 
 ## Steps
 
@@ -59,7 +59,8 @@ Keep it under 4,000 characters.
 <What's wrong or missing today, for whom. Evidence if any.>
 
 ## Acceptance criteria
-Each one is observable from outside the code and maps to one test.
+Each one is observable from outside the code. Every test names the criterion that it proves (`<slug> AC2`), and a behaviour that no criterion states gets no test.
+IDs are stable: never renumber. A new criterion takes the next free number. A removed one stays as a struck-through line with its ID, so that no test reference moves to another criterion.
 
 - AC1: Given <state>, when <action>, then <observable result>. Test: `e2e/acceptance/<slug>.spec.ts` "AC1 ..."
 - AC2: ...
@@ -71,7 +72,7 @@ Each one is observable from outside the code and maps to one test.
 <A few lines: which systems change and how. Enough for a plan review, not a design doc.>
 
 ## Risks and edge cases
-<Data migration, permissions, concurrency, empty and error states, performance.>
+<Data migration, permissions, concurrency, empty and error states, performance. If the change adds or changes a state or a transition: which transitions are now valid, and what a retry or a second request at the same time does. Each rule that must hold is an acceptance criterion above, or it gets no test.>
 
 ## Open questions
 <Decisions made without the human, so they can overrule them.>
@@ -89,4 +90,5 @@ Each one is observable from outside the code and maps to one test.
 - **Observable:** "the invoice shows the total including tax", not "tax is calculated correctly".
 - **Specific:** real values. "Given a cart with two items at $10 and 8% tax, the total shows $21.60."
 - **Includes the unhappy path:** at least one criterion for invalid input, an empty state or a failure.
+- **Complete:** each case that must not break is in a criterion, with its values (a limit, the currencies, an error). Test-writer tests nothing else. It proposes the criteria that it finds missing, and the human decides.
 - **No implementation detail:** criteria survive a rewrite of the code.

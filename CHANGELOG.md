@@ -8,7 +8,23 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Changed
+- Every test proves an acceptance criterion. Test-writer writes a test, or a case in a test, only for what a criterion states, and names the criterion at the start of the test's name: `refund-rounding AC2` (the spec's slug or, with no spec, the worksheet's name, and the ID). In a file of one spec's tests, the ID alone is enough.
+  - Its plan table has a Criterion column and a Cases column. A behaviour that no criterion states gets no test: test-writer lists it under "Proposed criteria", and the human (or, in an autonomous session, the agent for a technical detail) decides whether to add it to the spec.
+  - Test-plan-reviewer cuts a row with no criterion, a row whose criterion doesn't state what it checks (a false link), and cases that the criterion doesn't state. The implementation reviewer and the test-integrity persona check the same in the diff.
+  - A bug fix gets a criterion for the correct behaviour before test-writer writes the regression test.
+  - Criterion IDs are stable. A new criterion takes the next free number. A removed one stays, struck through.
+  - The test audit looks for the criterion of each old test with no reference. It never deletes a test for that reason alone.
+
+  Steps for each project (optional): add a Criterion column to `docs/testing/test-index.md`, and give the criteria in open specs and worksheets IDs (`AC1`, `AC2` ...). `/shipinetics:setup audit` shows the template changes. Old tests keep working: test-writer adds a reference only to a test that it changes.
+
 ### Added
+- State machines are documented, reviewed and audited.
+  - A system doc can have a "States" section: where the state lives, the states, the invariants with what enforces each one, a transition table with a guard for each row, and a diagram. The template has it. A system with no states doesn't need it.
+  - A new review persona, `state-integrity`, checks a diff that writes a status, a lifecycle field or flags that depend on each other: unguarded writes, transitions that the table doesn't list, retries that repeat a side effect, and two requests at the same time. Each finding is "reachable by trace" (the path as `file:line` and the order of events) or "reproduced". The implementation reviewer has a short form of the check in its Correctness step.
+  - A new skill, `/shipinetics:state-audit`, audits one to three systems. It finds the explicit and implicit state machines, writes their tables from every write in the code, looks for the invalid states that the code can reach, confirms each one, and queues the confirmed bugs by impact, one task for each group that one fix closes. Each fix states the invariant as an acceptance criterion, gets a regression test from test-writer and updates the table in the same commit.
+  - The sweep compares the States tables with the period's changes and queues an audit where a table is missing. It never runs the audit itself.
+- tasteskill as an optional companion (`taste-skill@taste-skill`). The workflow offers it as a route for UI work that builds or redesigns a page or an app screen. Its rules here: `DESIGN.md` wins over its kit, the kit files that the page loads go in as one vendored commit, its screenshots stay out of git, and its checkers don't replace `design-check`, the UI reviewer or the evidence. SkillSpector 2.12.0 gives version 2.5.1 DO_NOT_INSTALL in static mode. All 23 HIGH findings were checked by hand as false positives (README, "SkillSpector results").
 - Ways to catch flaky tests (a test that passes and fails on the same code). None of them turns a failure into a pass.
   - Test-writer runs each new or changed test 5 more times at HEAD. A test that fails once is not done: it finds the cause and fixes it, without retries, longer timeouts or sleeps.
   - `known-failing check --rerun '<cmd>'` runs the new failures once more. The ones that pass then are named flaky and logged in `.shipinetics/.cache/flaky.tsv`. The check still fails. `known-failing flaky` lists them, most often first.

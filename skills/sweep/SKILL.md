@@ -30,6 +30,7 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Pattern drift:** the same problem solved in different ways in different commits (error handling, data fetching, validation). Which one does `docs/conventions.md` say? If it says nothing, should it?
 - **Half-finished work:** migrations started and not completed, feature flags never removed, old and new code paths both live, TODOs added and never queued.
 - **Docs drift:** system docs whose 7-line headers no longer match the code after several small changes.
+- **States drift:** for each system changed in the period, compare the "States" section of its doc with the writes to its state fields in the combined diff. A new state, transition or guard that the table doesn't show is a small fix. A system that has states and no table, or a period with a bug from an invalid state, a double side effect or a stuck record, gets a queue task to run shipinetics:state-audit on it. Don't run the audit inside the sweep: it is a task of its own.
 - **Design-system drift** (UI projects): `design-check --all` for values outside DESIGN.md, and Impeccable's `doctor` for a DESIGN.md that's incomplete or many commits behind the code. Collect the period's design-system change requests from worksheets: approved ones need a `/impeccable document` refresh, open ones need the human.
 - **Test gaps:** behavior added across several commits that's only tested in pieces, or not at all end to end.
 - **Dependency creep:** new packages, especially several that do the same job.

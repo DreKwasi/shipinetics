@@ -42,6 +42,28 @@ Every doc in `docs/systems/` starts with exactly these 7 lines (template: `docs/
 - You confirmed a doc against the code and it was right: bump `Last verified`.
 - You learned a gotcha the hard way: add it to the header's Gotchas line and the Gotchas section.
 
+## States
+
+A system whose records, sessions or screens move through states gets a `## States` section, below "How it works". A system with no states has no such section. It holds, for each state machine in the system:
+
+- **Where the state lives:** the field or fields, as `file:line` or `table.column`. Say if it is implicit (a combination of flags or timestamps, not one field).
+- **States:** each one, with what it means in one line, and which ones are terminal.
+- **Invariants:** what must be true in every state, and what can never be true together ("`paid_at` is set if and only if status is `paid` or `refunded`"). One line each, with what enforces it: a database constraint, a transaction, a guard at `file:line`, or "nothing" (that is a gap, and a queue task).
+- **Transitions:** a table. Any transition that isn't in it is invalid.
+
+```
+| From | Event | To | Guard (file:line) | Safe to repeat? |
+|---|---|---|---|---|
+| pending | payment webhook | paid | orders.ts:88 `where status = 'pending'` | yes, by event ID |
+| paid | refund request | refunded | refunds.ts:41 | no: see Gotchas |
+```
+
+- **A Mermaid `stateDiagram-v2`** of the same table, below it.
+
+Write what the code does, not what it should do. A transition that the code allows and the product doesn't want goes in the table with "BUG: T-NNN" in the Guard column, so the table stays true until the fix lands. Then the fix removes the row.
+
+Whoever adds a state, a transition or a guard updates the table in the same commit. The `state-integrity` persona checks the diff against it, and shipinetics:state-audit rebuilds it from the code and looks for the invalid states that the code can reach.
+
 ## When to create
 
 - A folder, service or package with its own responsibility has no doc. Write one from the template, filled from reading the code. A short accurate doc beats a long speculative one.

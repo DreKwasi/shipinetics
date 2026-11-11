@@ -12,8 +12,8 @@
 
 | Change | Write |
 |---|---|
-| New user-facing behaviour | An e2e test for the main path, written from the acceptance criteria after the code. Unit tests for the domain logic's behaviours |
-| Bug fix | A regression case in the test of the behaviour it broke. It passes on the fix and fails on the code before the fix (test-writer runs it against the base commit). Not a new file named after the fix |
+| New user-facing behaviour | An e2e test for each acceptance criterion's main example, written from the criteria after the code. Unit tests for the other cases that the criteria state |
+| Bug fix | A criterion that states the correct behaviour (the one the bug broke, or a new one in the worksheet). Then a regression case in the test of the behaviour it broke. It passes on the fix and fails on the code before the fix (test-writer runs it against the base commit). Not a new file named after the fix |
 | Pure logic (parsing, calculation, state machines) | Tests of its behaviours through its public interface, with edge cases and invalid input as rows in a table |
 | Glue (routes, controllers, wiring) or trivial code | No unit tests. A behaviour test at the entry point covers it |
 | Refactor | No new tests. The existing tests must pass with no change. If a test had to change, the change was not a pure refactor |
@@ -33,6 +33,7 @@
 
 ## Rules
 
+- **Every test proves an acceptance criterion, and names it.** Put the reference at the start of the test's name, or of its group's name: `refund-rounding AC2` (the spec's slug, or the worksheet's name for a task with no spec, and the criterion's ID). Where test names can't hold free text, put it in a comment on the test. In a file of one spec's tests (`e2e/acceptance/<slug>.spec.ts`), the ID alone is enough. Each case checks what its criterion states. A behaviour that no criterion states gets no test: propose the criterion instead.
 - **Test behaviours, not functions.** One test per behaviour a user or caller can observe, through the public entry point, at one layer. Never one test per function, and never on private functions or call counts.
 - **One home per behaviour.** Tests live in the module's test file, grouped by behaviour. Extend the existing test before adding one.
 - **One test per behaviour, with every assertion it needs.** Several assertions about one behaviour belong in one test. Never split one behaviour into a test for each assertion, and never cover two behaviours in one test. Name the test after its behaviour.
@@ -54,4 +55,4 @@
 
 ## After writing tests
 
-Update `docs/testing/test-index.md`: one line per behaviour, under its module, naming the test that proves it.
+Update `docs/testing/test-index.md`: one line per behaviour, under its module, naming its criterion and the test that proves it.

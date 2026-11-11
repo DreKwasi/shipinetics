@@ -50,6 +50,7 @@ Persona files live in `${CLAUDE_SKILL_DIR}/personas/`. A project can add its own
 | `ai-smells` | Every impl review | `shipinetics:reviewer` with this persona |
 | **security** | Auth, input handling, file or network access, secrets or config, permissions, dependencies, anything reachable by untrusted users | `shipinetics:security-reviewer`, which uses Cloudflare's `security-audit` skill in guidance mode plus the security persona. |
 | **frontend** | Any change to UI: components, styles, routes, copy, layout | `shipinetics:ui-reviewer`, which checks conformance to DESIGN.md (`design-check` plus a manual pass), then runs impeccable's `critique` and `audit` against real screenshots. Its "Design-system gaps" go to the worksheet's design-system change requests |
+| `state-integrity` | The diff writes a status, a lifecycle field or flags that depend on each other, or touches a retried handler (webhook, queue job, payment, import), a background job, or a multi-step UI flow | `shipinetics:reviewer` with this persona. It gives each finding as reachable by trace or reproduced |
 | `performance` | Hot paths, loops over data, queries, rendering, startup, bundle size | `shipinetics:reviewer` with this persona |
 | `maintainability` | New modules, new abstractions, large diffs, changes to shared code | `shipinetics:reviewer` with this persona |
 | `code-quality` | Medium and larger diffs | `shipinetics:reviewer` with this persona |

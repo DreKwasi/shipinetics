@@ -3,7 +3,7 @@
 Shipinetics is a plugin for Claude Code. It gives every project the same workflow, reviews and guardrails. You install it one time. Then each project gets these parts:
 
 - **Verify gates.** Checks run in tiers. The agent runs quick checks while it works, and all fast checks before the work is done. CI runs the full suite. The agent runs verify itself. A push or a PR is blocked until the complete checks pass on exactly that code. A pass stays valid until the code changes.
-- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. It writes one test for each behaviour that a user or caller can see, never one test for each function. When code changes or is deleted, test-writer changes or deletes its tests in the same task, after the change is committed. So the suite grows only with new behaviour.
+- **Independent tests.** A separate agent writes the tests, never the agent that wrote the code. Each test proves an acceptance criterion and names it. It writes one test for each behaviour that a user or caller can see, never one test for each function. When code changes or is deleted, test-writer changes or deletes its tests in the same task, after the change is committed. So the suite grows only with new behaviour.
 - **A verification map.** It tells any agent how to start the real app, check it, and use each feature the way a user does. A reviewer uses the feature again by itself. It does not trust the author's recording.
 - **Evidence on every PR.** Each PR shows the change in the running app. The evidence is one paced recording of the flow, with the time of each acceptance criterion (screenshots only when it can't be recorded, never both), or terminal output. Recordings never go in git: they go to your team's store (opt-in) or are attached to the PR. An independent reviewer gives each PR a merge-risk grade.
 - **Design checks.** UI changes are compared with the project's design system (`DESIGN.md`). Setup writes `DESIGN.md` from the tokens that the code already uses.
@@ -78,6 +78,7 @@ During a task, the agent offers you routes. Each route names the companion skill
 | `security-audit` (Cloudflare) | The security reviewer, and the full security audit on the schedule in `security_audit_every` | DO_NOT_INSTALL in static mode. All 10 HIGH findings are false positives (see below) | `npx skills add cloudflare/security-audit-skill -g -a claude-code` |
 | `merge-risk` (Warp) | The merge-risk grade on each PR | SAFE. No findings | `npx skills add warpdotdev/common-skills --skill merge-risk -g -a claude-code` |
 | Impeccable plugin | The UI reviewer, `design-check`, the design-system setup step, HTML pages | DO_NOT_INSTALL in static mode. All 6 HIGH findings are false positives (see below) | `claude plugin marketplace add pbakaus/impeccable`, then `claude plugin install impeccable@impeccable`. Use the plugin, not `npx skills add`: that copy is not written for Claude Code |
+| tasteskill plugin (optional) | A route for UI work that builds or redesigns a page or app screen: an art direction, real photographs, and checks in a real browser. A page takes 30 to 45 minutes and a few hundred thousand tokens. It needs Node 22 or newer and Chrome, Edge or Chromium | DO_NOT_INSTALL in static mode. All 23 HIGH findings are false positives (see below) | `claude plugin marketplace add Leonxlnx/taste-skill`, then `claude plugin install taste-skill@taste-skill` |
 | dev.fast Whiteboard plugin | Whiteboards of changes and systems, for your review. Without it, the agent uses Mermaid diagrams | SAFE for the plugin. The plugin only starts the Whiteboard app, which SkillSpector does not scan | `claude plugin marketplace add devdotfast/whiteboard`, then `claude plugin install whiteboard@devfast`, and the dev.fast Whiteboard app |
 | NVIDIA SkillSpector | `scan-skills` and the install gate | Not scanned: it is the scanner | `uv tool install git+https://github.com/NVIDIA/skillspector.git` |
 | Strix (optional) | Security tests of your app (shipinetics:security-scans). It needs Docker and a provider key in your vault | Not scanned: it is a CLI, not a skill | `curl -sSL https://strix.ai/install \| bash` |
@@ -88,7 +89,7 @@ If you do not want a companion, add its name to `companions_skip` in `~/.config/
 
 ### SkillSpector results
 
-The results come from SkillSpector 2.12.0 in static mode (`--no-llm`), on 2026-10-28. Static mode looks for risky words and patterns, so it gives false positives. Each HIGH finding was checked by hand:
+The results come from SkillSpector 2.12.0 in static mode (`--no-llm`), on 2026-10-28 (tasteskill on 2026-11-08). Static mode looks for risky words and patterns, so it gives false positives. Each HIGH finding was checked by hand:
 
 - **Impeccable:** six phrases in design guidance, for example "Never judge fidelity from one full-page thumbnail" and "without warning" (about a turn limit). None of them is an instruction to do something harmful.
 - **`security-audit`:**
@@ -96,6 +97,12 @@ The results come from SkillSpector 2.12.0 in static mode (`--no-llm`), on 2026-1
   - `/etc/passwd` in tests that reject unsafe paths;
   - four files that the scan read only in part.
 - **`diagnosing-bugs`:** "show instruction" in a comment of a script template.
+- **tasteskill:**
+  - 19 HTML comments that tell the agent how to fill in its templates (16 in `starter.html`, 3 in other templates and READMEs);
+  - a symlink helper and a Windows error message in `install.sh`. The plugin install does not run `install.sh`;
+  - a CSS comment that names developer tools, and its rules for addresses on a page ("a street and a district only").
+
+  Its scripts start headless Chrome, `ffmpeg` and `node`. They get fonts, icons and photographs from Google Fonts, jsDelivr, Wikimedia Commons and Lorem Picsum. The scan read five files only in part.
 
 These versions were scanned:
 
@@ -106,6 +113,7 @@ These versions were scanned:
 | `merge-risk` | `warpdotdev/common-skills` at commit 8792394 (2026-10-20) |
 | Impeccable | 4.5.0, commit 508d7e8 |
 | Whiteboard plugin | 0.1.0, commit 23cead9 |
+| tasteskill | 2.5.1, commit f6b7657 (2026-11-07) |
 
 A newer version can be different. Scan it again before you install it: `skillspector scan <source> --no-llm` (shipinetics:security-scans).
 
@@ -132,6 +140,7 @@ Companions change upstream, and Shipinetics depends on some of their details. Th
 | `wait-what` | A new explanation in ASD-STE100, with the terms from `GLOSSARY.md` |
 | `diagnosing-bugs` | Its phases 1 to 6. The regression test is in phase 5 |
 | `merge-risk` | A grade of low, medium or high, with the files that caused the grade |
+| tasteskill | The `design-taste-frontend` skill. Its checkers (`consistency.mjs`, `assets/layout/check.mjs`, `perf.mjs`) report FAIL and WARN for a page in a real browser. It builds on its own kit (`assets/`) |
 
 ### Other skill packs
 
@@ -168,7 +177,7 @@ Set `launch = user` when you start the dev servers yourself. Then agents only ru
 | 3 | Run the app | `shipinetics:verification-map`, workflow step 6 | `docs/verification/`, and "Run the app yourself" in `AGENTS.md` |
 | 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer` (modes: acceptance, unit, regression, change), `shipinetics:test-plan-reviewer`, `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
 | 5 | Linters that fix | `shipinetics:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (it also limits commits to 400 changed lines), `.githooks/commit-msg` (it requires the `Worksheet:` trailer) |
-| 6 | Reviews by other agents | `shipinetics:review`, three reviewer agents, 7 personas | `docs/review/personas/` for the project's own personas |
+| 6 | Reviews by other agents | `shipinetics:review`, three reviewer agents, 8 personas | `docs/review/personas/` for the project's own personas |
 | 7 | Worksheets and tags | `shipinetics:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` trailers |
 | 8 | Session feedback | `shipinetics:feedback`, workflow wrap-up | `docs/agent-feedback.md` |
 | 9 | Tools that agents build | `shipinetics:workflow` (step 9) | `bin/`, `docs/tools.md` |
@@ -176,6 +185,7 @@ Set `launch = user` when you start the dev servers yourself. Then agents only ru
 | 11 | Conventions | `shipinetics:lint-rule` moves them into linters | `docs/conventions.md` |
 | 13 | Task queue | `shipinetics:task-queue` | `TODOS.md`, or Linear through `bin/tasks` |
 | 14 | Test audit | `shipinetics:test-audit` | `docs/test-audits/` |
+| 14b | State audit | `shipinetics:state-audit`, the `state-integrity` persona | The "States" section of each doc in `docs/systems/`, `docs/state-audits/` |
 | 15 | Visual regression | `shipinetics:visual-regression`, `shipinetics:ui-reviewer` | Screenshot tests, with baselines in LFS or PR artifacts |
 | 16 | Benchmarks | `shipinetics:perf`, `bench-compare` | `perf/baselines/`, `bin/bench` |
 | 17 | Profiling | `shipinetics:perf` (experiment steps) | `docs/perf/experiments.md` |
@@ -295,10 +305,11 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
 | `regression` | A bug fix | Writes a test that passes on the fix and fails on the code before the fix |
 | `change` | The task changed or removed behaviour | Changes the tests of changed behaviour. Deletes the tests of removed behaviour, and names each one |
 
-For medium tasks and larger, test-writer writes its test plan first, and writes no tests. `shipinetics:test-plan-reviewer` reviews the plan against the spec, in its own context. It cuts a planned test that does not trace to the spec, that catches no plausible bug, that an existing test already covers or that is at the wrong layer. It also finds acceptance criteria that have no planned test. Then test-writer writes the tests of the approved plan. A test that is cut at this step costs nothing to write or to prove.
+For medium tasks and larger, test-writer writes its test plan first, and writes no tests. `shipinetics:test-plan-reviewer` reviews the plan against the spec, in its own context. It cuts a planned test that does not prove the acceptance criterion that it names, that catches no plausible bug, that an existing test already covers or that is at the wrong layer. It also finds acceptance criteria that have no planned test. Then test-writer writes the tests of the approved plan. A test that is cut at this step costs nothing to write or to prove.
 
 These rules keep the suite small:
 
+- **Each test proves an acceptance criterion.** The test's name starts with its criterion, for example `refund-rounding AC2` (the spec and the criterion's ID). Each case checks what that criterion states. When a behaviour seems to need a test but no criterion states it, test-writer writes no test. It proposes the criterion, and you decide. Criterion IDs never change, so `rg 'refund-rounding AC2'` always finds the tests of a criterion. A bug fix first gets a criterion for the correct behaviour.
 - **One test for each behaviour, with every assertion that it needs.** A test has one reason to fail. Test-writer never splits one behaviour into a test for each assertion. One test never covers two behaviours.
 - **The suite grows only with new behaviour.** Test-writer reports the net change in tests. Each new test names its new behaviour.
 - **Each test must catch a bug.** Each new test fails on the code before the change. Test-writer also breaks the code on purpose and sees the test fail. It does this in git worktrees under `$TMPDIR`, never in your working tree. One script runs all the mutants, and each mutant runs only the new and changed tests.
@@ -402,7 +413,7 @@ scripts/          lib.sh (shared helpers), guard-edits.sh, guard-secrets.sh, gua
                   usage-page.html (the token usage log and page)
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
-                  feedback, task-queue, sweep, test-audit,
+                  feedback, task-queue, sweep, test-audit, state-audit,
                   visual-regression, perf, verification-map
 companions.tsv    the companions: why Shipinetics uses each one, how to install it, its SkillSpector result
 CHANGELOG.md      what changed in each release, and the versioning rules

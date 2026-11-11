@@ -10,7 +10,7 @@
 
 ## Goal and acceptance criteria
 
-<What done means. Copy them from the spec or the task, or write them for a small task.>
+<What done means. Copy them from the spec or the task, or write them for a small task. For a bug, a criterion states the correct behaviour. Each test names the criterion that it proves: the spec's slug and ID, or, with no spec, this worksheet's name and ID ("{{NAME}} AC1"). Don't renumber.>
 
 - [ ] AC1:
 - [ ] AC2:

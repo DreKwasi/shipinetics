@@ -8,10 +8,10 @@
 
 <!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
 
-One row per behaviour, as a sentence a user or caller would recognise, never a function name. Kind is unit, e2e, acceptance, visual or bench. A behaviour appears once, because it is tested at one layer. When a behaviour is removed, remove its row in the same change.
+One row per behaviour, as a sentence a user or caller would recognise, never a function name. Criterion is the acceptance criterion that the test proves (`refund-rounding AC2`): `rg` finds the tests of a criterion by it. Kind is unit, e2e, acceptance, visual or bench. A behaviour appears once, because it is tested at one layer. When a behaviour is removed, remove its row in the same change.
 
 ## {{System name}}
 
-| Behaviour | Test (file, group) | Kind | Audited |
-|---|---|---|---|
-| {{e.g. "ties go to whoever reached the total first"}} | `{{path}}`, {{group}} | unit | {{YYYY-MM-DD or never}} |
+| Behaviour | Criterion | Test (file, group) | Kind | Audited |
+|---|---|---|---|---|
+| {{e.g. "ties go to whoever reached the total first"}} | {{e.g. league-close AC2}} | `{{path}}`, {{group}} | unit | {{YYYY-MM-DD or never}} |

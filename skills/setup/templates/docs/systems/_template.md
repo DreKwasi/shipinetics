@@ -16,6 +16,17 @@
 
 {{Data flow from entry point to result. A short list or a small diagram. Link to code with file:line.}}
 
+## States
+
+<!-- Only if records, sessions or screens in this system move through states. Delete this section if not. Rules: shipinetics:system-docs, "States". -->
+
+{{Where the state lives (field or fields, file:line). The states, one line each, terminal ones marked. The invariants, each with what enforces it.}}
+
+| From | Event | To | Guard (file:line) | Safe to repeat? |
+|---|---|---|---|---|
+
+{{A Mermaid stateDiagram-v2 of the table.}}
+
 ## Key decisions
 
 {{Why it's built this way, and what was rejected. One line each. Link the worksheet where it was decided, or the ADR in docs/adr/ if it's a project-wide decision.}}

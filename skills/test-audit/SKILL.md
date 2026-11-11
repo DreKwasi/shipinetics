@@ -39,6 +39,7 @@ Aim for 10 to 20 test files per run.
 - Depends on order, time, randomness or shared state, so it passes by luck.
 - Skipped, `.only`, `xfail`, or commented out.
 - E2E test that performs actions and never asserts the outcome.
+- Names no acceptance criterion, names one that the spec removed, or names one whose sentence doesn't state what the test checks (see "Tests with no criterion").
 
 **Then prove it** with a mutation check. This is the part that matters:
 
@@ -67,12 +68,20 @@ A suite that's too big is slow, noisy, and hides the tests that matter. For each
 
 0. **Find orphans.** Tests whose code or behaviour no longer exists: they import a deleted module, call a removed option, or pass even when you delete the code they name. Delete them (through test-writer). They are the first cut, before any reshaping.
 
-1. **Find redundancy.** With a mutation tool, look at which mutants each test kills. Without one, group tests by the behavior they exercise. Any test that kills nothing another test doesn't already kill, and doesn't encode a named requirement, is redundant.
+1. **Find redundancy.** With a mutation tool, look at which mutants each test kills. Without one, group tests by the behavior they exercise. Any test that kills nothing another test doesn't already kill, and isn't the only test of its acceptance criterion, is redundant.
 2. **Find tests that test the wrong thing:** framework or library behavior, getters and setters, private functions, call counts on internal collaborators, what the type checker already guarantees.
 3. **Reshape per-function suites into per-behaviour ones.** A file with one test per exported function becomes tests of the module's behaviours through its public entry point, grouped by behaviour. Files named after fixes or tickets merge into the module's test file. A behaviour tested at two layers keeps the lower one.
 4. **Merge same-shaped cases** into one table-driven test.
 5. Have `shipinetics:test-writer` make the reshapes, cuts and merges, then re-run the mutation check to confirm the suite still catches everything it caught before.
 6. Record in the report: tests and files before and after, orphans deleted, and mutations caught before and after. Fewer tests catching the same mutations is a win.
+
+## Tests with no criterion
+
+Tests written before criterion references, or by hand, may name no criterion. Don't delete one for that reason alone. For each one:
+
+1. Find the criterion that it proves: in `docs/specs/`, in the worksheets of the commits that added it (`git log --follow <test file>`), and in the test index. If you find it, have test-writer add the reference.
+2. If no criterion states its behaviour, list it in the report as a proposed criterion (Given ..., when ..., then ...). The human decides: add the criterion to a spec, or delete the test. Until then, the test stays.
+3. A test that names a removed criterion is an orphan (step 0 of "Prune the bloat"), unless another criterion now states its behaviour.
 
 ## Report
 
@@ -82,6 +91,9 @@ Write `docs/test-audits/YYYY-MM-DD.md`:
 # Test audit YYYY-MM-DD
 > Summary: <N files audited, M weak tests found, K fixed>
 | Test | Smell | Mutation tried | Survived? | Action |
+
+Proposed criteria (tests whose behaviour no criterion states):
+| Test | Proposed criterion | Keep or delete? (for the human) |
 
 Bloat: <tests before> to <tests after>, <files before> to <files after>. Mutations caught: <before> to <after>.
 ```

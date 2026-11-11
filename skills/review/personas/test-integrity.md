@@ -13,14 +13,15 @@
 - The unit under test mocked, or mocks that return exactly what the assertion checks.
 - Retries, longer timeouts or `waitForTimeout` added instead of fixing a race.
 - New behavior with no test. Bug fixes with no regression test.
+- A new or changed test that names no acceptance criterion, or names one whose sentence doesn't state what the test checks (a false link). A case that its criterion doesn't state. Tests that name a criterion that the spec removed.
 - Test names that claim one thing while the body checks another.
 - Any change to files in `.shipinetics/protected-paths`.
 - Tests written by the implementing agent instead of `shipinetics:test-writer` (check the worksheet and the commit for how they were produced).
-- Rows under "Plan disputes" in test-writer's report: a test that `shipinetics:test-plan-reviewer` cut and test-writer kept. Decide each one. Keep it only if it encodes the spec line it names.
+- Rows under "Plan disputes" in test-writer's report: a test that `shipinetics:test-plan-reviewer` cut and test-writer kept. Decide each one. Keep it only if it proves the criterion it names.
 
 **Look for bloat too**
 - Tests organised per function (one per exported helper, named after functions) instead of per behaviour.
-- A behaviour tested at more than one layer (unit and again through the controller or end to end).
+- A behaviour tested at more than one layer (unit and again through the controller or end to end). An acceptance test that shows its criterion once at the entry point, beside unit cases of the same criterion, is not a finding.
 - A new test file named after a fix or a ticket, when the module already has a test file.
 - Tests that would fail if the internals were restructured without changing behaviour.
 - Unit tests of glue or trivial code, and tests for cases that can't happen.

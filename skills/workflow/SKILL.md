@@ -38,7 +38,7 @@ If the system doc was wrong or thin, fix it now. For unfamiliar or risky systems
 
 ## 3. Spec and plan
 
-- For M and up, write a spec with runnable acceptance criteria (shipinetics:spec). For S, write the criteria in the worksheet.
+- For M and up, write a spec with runnable acceptance criteria (shipinetics:spec). For S and XS, write the criteria in the worksheet, with IDs (`AC1`, `AC2` ...). Tests are only written for what a criterion states, so put each case that must not break in a criterion.
 - Plan the steps as a checklist in the worksheet. Each step should leave the code working.
 - M and up: get a plan review (shipinetics:review plan) before writing code. Fixing a plan is cheap. Fixing an implementation isn't.
 - M and up, interactive: the spec ends with a ready-to-paste `/goal` line (shipinetics:spec). Offer it to the user so the implementation runs until its deliverables are shown, not until you feel done.
@@ -58,13 +58,13 @@ If the system doc was wrong or thin, fix it now. For unfamiliar or risky systems
 You don't write tests for your own code (shipinetics:testing). When the implementation is committed, spawn `shipinetics:test-writer` once, with every mode the task needs:
 
 - `acceptance` for M and up: the acceptance criteria, at the entry point.
-- `unit` for domain logic: its behaviours, through the public interface.
-- `regression` for a bug that you fixed. The test passes on the fix and fails on the code before it.
+- `unit` for domain logic: the other cases that the criteria state, through the public interface.
+- `regression` for a bug that you fixed. The test passes on the fix and fails on the code before it. First make sure that a criterion states the correct behaviour: the criterion that the bug broke, or a new one in the worksheet ("AC1: Given <your smallest repro>, when <action>, then <the correct result>").
 - `change` when the task changed or removed behaviour that has tests. It changes or deletes those tests, so the suite doesn't pile up tests for code that no longer exists.
 
 For M and up, ask it for the plan first, and have `shipinetics:test-plan-reviewer` review the plan before test-writer writes the tests (shipinetics:testing, step 3). Give it the spec and the commit range (`<base>..HEAD`; in workspace mode, the package repo's range). Don't edit source while it runs. Test-writer runs only targeted tests. Run `shipinetics-verify quick` after its report. The complete verify (step 7) runs the suite. Read its net change: the number of tests grows only with new behaviour.
 
-Read its report. "Suspected bugs" are yours to fix: fix them, commit, and send test-writer the new commit if a test needs a second look. "Gaps" usually mean the spec needs work.
+Read its report. "Suspected bugs" are yours to fix: fix them, commit, and send test-writer the new commit if a test needs a second look. "Proposed criteria" are behaviours that it did not test, because no criterion states them: decide on them as shipinetics:testing (step 4) says. "Gaps" usually mean the spec needs work.
 
 If the report has "Slow test runs", the project's tests cost more time than they need to. Tell the user now, in two or three lines: the command, the time of one run of one test, how much of the task's time that cost, the likely cause and the suggested fix. Don't change the project's test setup unless the user says yes: it is their code, and a fix such as reusing the test database must not weaken CI. Write it in the worksheet. In an autonomous session, add a queue task with the numbers instead. Tell the user only once per project. If they keep the setup, write the measured cost and their choice on the fixed-cost line of `docs/testing/how-to-write-tests.md` ("Fixed cost of one run: 36 s, kept by the user on <date>"). When that line records their choice, don't tell them again.
 
@@ -138,9 +138,10 @@ Use the companion skills at these steps. Where a companion's rules and Shipineti
 | `research` | The task depends on external facts: an API, a limit, a version | 2 | Its findings go in the claims table, with the URL and the date |
 | `prototype` | A question needs a runnable answer: a state model, a screen | 3, interactive | Write the answer in the spec or in the worksheet's Decisions. Delete the prototype before the PR |
 | `codebase-design` | A change needs a new module or seam | 3 | Reviewers use the same words (depth, seam, adapter). Its advice to delete old tests goes to test-writer |
-| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Fix the bug first. Then test-writer writes the regression test (phase 5) in `regression` mode, from your smallest repro and the fix commit |
+| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Fix the bug first. Write the correct behaviour as a criterion in the worksheet (or name the spec criterion that the bug broke). Then test-writer writes the regression test (phase 5) in `regression` mode, from that criterion, your smallest repro and the fix commit |
 | `wait-what` | The user types `/wait-what` | any | Explain again: a little context first, ASD-STE100 (shipinetics:explain), and the terms in `GLOSSARY.md` |
 | Impeccable | UI work | 3, 4, 8 | `shape` for the brief, `polish` before review, `detect` and `audit` in review (shipinetics:review) |
+| tasteskill (optional) | UI work that builds or redesigns a page or an app screen: a landing page, a company site, a dashboard. Offer it as a route, with its cost: 30 to 45 minutes and a few hundred thousand tokens for a page | 4, 6 | `DESIGN.md` wins over its kit: give it the project's tokens and fonts, and put a value that the page really needs in "Design-system change requests". Without `DESIGN.md`, run `/impeccable document` after the build. Commit only the kit files that the page loads, as one vendored commit before the page's commits (`SHIPINETICS_ALLOW_BIG_COMMIT=1`, and say why in the message). Point its screenshots and browser profile at `$TMPDIR`, never into git. The prices, hours and addresses that its report says it assumed go in the worksheet's open questions. Its checkers are part of step 6. They do not replace `design-check`, the UI reviewer or the evidence |
 | `security-audit` | The change touches security | 8 | Through `shipinetics:security-reviewer` |
 | `merge-risk` | A PR opens | 10 | Through shipinetics:review |
 

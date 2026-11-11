@@ -38,6 +38,7 @@ This guide gives the steps to start with Shipinetics. Do some steps one time on 
 5. Install the other tools that you want:
    - **Secrets:** run `gcloud auth login` and `gcloud auth application-default login`. Then `bin/with-secrets` can read Secret Manager.
    - **Security tests of your app (optional):** Strix: `curl -sSL https://strix.ai/install | bash`. It needs Docker (running). Keep its LLM provider key in your vault.
+   - **Page design (optional):** tasteskill: `claude plugin marketplace add Leonxlnx/taste-skill`, then `claude plugin install taste-skill@taste-skill`. The agent offers it as a route when a task builds or redesigns a page. It needs Node 22 or newer and Chrome, Edge or Chromium.
 
 ## 2. Set up a project (one time)
 
@@ -129,6 +130,7 @@ For long tasks, paste the `/goal` line from the spec. Claude continues until a s
 | `/shipinetics:sweep` | Looks at the week's commits for duplicate code, drift and work that is not complete. It also checks the verification map, the design system, the secrets and evidence guardrails, the time that checks take, and companions that have updates (`skills-outdated`). When a full security audit is due, it runs the audit |
 | `/improve-codebase-architecture` | Optional (Matt Pocock's skills). When the sweep finds the same problem areas each week, it proposes better modules. You choose what goes in the queue |
 | `/shipinetics:test-audit` | Finds tests that do not test what they say. It removes tests that add nothing, and it changes tests for each function into tests for each behaviour |
+| `/shipinetics:state-audit` | Writes down the states, invariants and transition table of one to three systems, in their system docs. It finds the invalid states that the code can reach, also through retries and two requests at the same time, and adds a task for each group of confirmed bugs. It doesn't fix them unless you ask |
 | `scan-skills` | Scans all installed skills, agents and plugins with SkillSpector. Act on each result marked DO_NOT_INSTALL |
 | `shipinetics-usage html` | A page with charts of the tokens that each session and each agent used. It reads Claude Code's transcripts, so it costs nothing. `shipinetics-usage` gives the same numbers in the terminal |
 
