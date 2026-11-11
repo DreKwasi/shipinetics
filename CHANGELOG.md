@@ -6,6 +6,12 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## 0.9.2
+
+### Added
+- A new skill, `/shipinetics:pr-review`, reviews someone else's pull request, or paired PRs in two repos. It explains the change on Whiteboard boards (or an HTML explainer), checks each decision in the code at the PR head, and runs the independent reviewers in the background. Findings are ranked, each with `file:line`, a failure case and a fix. It reads the PR with `gh`, never from the local checkout, and it posts comments to GitHub only after a yes.
+  - If the PR changes a state, a transition or a guard, the overview shows the state machine after the PR (states, invariants, transition table, diagram), and the `state-integrity` reviewer looks for the invalid states that the code can reach, through retries and concurrent calls too. A changed transition with no change to the system doc's States table is a finding.
+
 ## 0.9.1
 
 ### Changed

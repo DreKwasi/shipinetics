@@ -178,6 +178,7 @@ Set `launch = user` when you start the dev servers yourself. Then agents only ru
 | 4 | Tests | `shipinetics:testing`, `shipinetics:test-writer` (modes: acceptance, unit, regression, change), `shipinetics:test-plan-reviewer`, `shipinetics:spec` | `docs/testing/`, `e2e/`, `.shipinetics/test-paths` |
 | 5 | Linters that fix | `shipinetics:lint-rule` | `bin/lint-fix`, `bin/llm-fix`, `.githooks/pre-commit` (it also limits commits to 400 changed lines), `.githooks/commit-msg` (it requires the `Worksheet:` trailer) |
 | 6 | Reviews by other agents | `shipinetics:review`, three reviewer agents, 8 personas | `docs/review/personas/` for the project's own personas |
+| 6b | Review of someone else's PR | `shipinetics:pr-review` | Whiteboard boards, or an HTML explainer. Nothing in the repo |
 | 7 | Worksheets and tags | `shipinetics:worksheet`, `worksheet` | `docs/worksheets/`, `ws/*` tags, `Worksheet:` trailers |
 | 8 | Session feedback | `shipinetics:feedback`, workflow wrap-up | `docs/agent-feedback.md` |
 | 9 | Tools that agents build | `shipinetics:workflow` (step 9) | `bin/`, `docs/tools.md` |
@@ -413,7 +414,7 @@ scripts/          lib.sh (shared helpers), guard-edits.sh, guard-secrets.sh, gua
                   usage-page.html (the token usage log and page)
 skills/           setup (with templates/), workflow, spec, system-docs, testing, lint-rule,
                   review (with personas/), evidence, security-scans, secrets, explain, worksheet,
-                  feedback, task-queue, sweep, test-audit, state-audit,
+                  feedback, task-queue, sweep, test-audit, state-audit, pr-review,
                   visual-regression, perf, verification-map
 companions.tsv    the companions: why Shipinetics uses each one, how to install it, its SkillSpector result
 CHANGELOG.md      what changed in each release, and the versioning rules
