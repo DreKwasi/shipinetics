@@ -7,7 +7,7 @@ description: The standard task loop for any coding task in a shipinetics-set-up 
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 >
-> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
+> Text for people (docs, worksheets, reports, PR descriptions, commit messages, review comments, replies, and each label on a board, diagram or table): write it in ASD-STE100, by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 This is how every task runs, interactive or autonomous. Skip steps only where the size table says you can. If the project has its own `AGENT_WORKFLOW.md`, it overrides anything here that conflicts.
 
@@ -47,7 +47,7 @@ If the system doc was wrong or thin, fix it now. For unfamiliar or risky systems
 ## 4. Implement
 
 - Small steps. After each one, run the targeted tests for what you touched, not the whole suite. Old tests of behaviour that you changed or removed can fail. Leave them for test-writer (step 5).
-- Commit each step once it works, with the `Worksheet:` trailer. A reviewer reads a few hundred lines closely and skims anything bigger, so the pre-commit hook refuses commits over the size limit (400 changed lines by default). If a step comes out bigger, split it into commits that each leave the code working.
+- Commit each step once it works, with the `Worksheet:` trailer. Write the message by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`): the first line says what changed, and the body says why. A reviewer reads a few hundred lines closely and skims anything bigger, so the pre-commit hook refuses commits over the size limit (400 changed lines by default). If a step comes out bigger, split it into commits that each leave the code working.
 - Never try to see a secret's value. To run something that needs secrets, use `bin/with-secrets <command>` (shipinetics:secrets).
 - Follow `docs/conventions.md`. Look for an existing helper before writing a new one.
 - Update the worksheet log as you go: what you did, what happened, what you decided and why. Write it so another agent could take over mid-step.
@@ -111,8 +111,14 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 ## 10. Wrap up
 
 1. If review fixes changed code since the evidence was recorded, re-record the affected criteria now (`evidence check` says which). Then the wrap-up review for S and up (shipinetics:review wrapup).
-2. Commit what's left: evidence, docs, the worksheet. Message says why, not just what. Add the trailer line `Worksheet: <name>`.
-3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, add your summary above the Evidence section, get the merge-risk grade from an independent reviewer and add it below (shipinetics:review), then `gh pr create --body-file "$TMPDIR/pr-body.md"` (shipinetics:evidence).
+2. Commit what's left: evidence, docs, the worksheet. The first line of the message says what changed, and the body says why. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Add the trailer line `Worksheet: <name>`.
+3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section. Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
+   - Each sentence names its actor.
+   - Each verb is the specific verb, not "handles" or "supports".
+   - The summary states results, not intent.
+   - The words that add nothing are cut, unless they carry weight.
+
+   Then get the merge-risk grade from an independent reviewer and add it below (shipinetics:review). Then run `gh pr create --body-file "$TMPDIR/pr-body.md"` (shipinetics:evidence).
 4. Mark the worksheet done with a summary and exact next steps, if any. Fill in its Metrics block (shipinetics:worksheet). `worksheet tag`.
 5. Update the task queue: done, or follow-ups added.
 6. Append feedback to `docs/agent-feedback.md` (shipinetics:feedback).

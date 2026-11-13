@@ -12,7 +12,7 @@ Shipinetics is a plugin for Claude Code. It gives every project the same workflo
 - **Security scans.** SkillSpector scans agent tools before you install them. Strix tests your own app, but only after you approve each run. A full security audit runs on the schedule that you choose.
 - **Routes.** For small tasks and larger, the agent offers you two or three routes and recommends one. Each route names the skills that it uses.
 - **Companions.** Shipinetics uses some third-party skills with its own skills, for example Matt Pocock's `grilling` and Cloudflare's `security-audit`. Each new session tells you which ones are missing, why Shipinetics uses each one, and its SkillSpector result.
-- **Explanations.** Whiteboards and HTML pages show you what the agents did. All text for people uses ASD-STE100 (Simplified Technical English).
+- **Explanations.** Whiteboards and HTML pages show you what the agents did. All text for people uses ASD-STE100 (Simplified Technical English) as a baseline, with the plain-language rules in [skills/explain/plain-language.md](skills/explain/plain-language.md). PR descriptions and commit messages follow them too.
 - **Worksheets.** Each task has a worksheet. Another agent can continue a task from its worksheet.
 - **Token usage.** A log records the tokens that each session used, for each agent and model. A page shows them in charts. No model runs to make them, so they cost nothing.
 
@@ -294,6 +294,7 @@ In a project without `verify_quick_cmd`, `shipinetics-verify quick` runs the com
 - **Merge risk.** An independent reviewer grades each PR as low, medium or high. It uses Warp's `merge-risk` skill. The grade tells you how carefully to review. Nothing merges by itself.
 - **Your review.** For medium tasks and larger, the agent makes a Whiteboard. The merge-risk grade, the review results and the evidence screenshots are at the top. Without Whiteboard, the agent makes an HTML page.
 - **Explanations.** `shipinetics:explain` sets the formats: ASD-STE100 text, diagrams, Whiteboards, HTML pages, and videos with narration when you ask for one.
+- **Plain language.** [skills/explain/plain-language.md](skills/explain/plain-language.md) is the guide for all text for people, and for PR descriptions first. The agent names the actor, uses the specific verb, states results and not intent, and cuts words such as "simply" and "robust". Identifiers, commands and product names stay exactly as they are. The agent reads its PR summary against the guide before it opens the PR. At the wrap-up review, the reviewer reads the branch's commit messages against it.
 
 ## Tests
 

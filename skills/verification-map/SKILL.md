@@ -8,7 +8,7 @@ argument-hint: "[create|maintain|light <feature ids>]"
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 >
-> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
+> Text for people (docs, worksheets, reports, PR descriptions, commit messages, review comments, replies, and each label on a board, diagram or table): write it in ASD-STE100, by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 "The build passed" says little about whether a feature works. Proof means using the real app the way a user does, through every way a user can reach the feature, and showing the result and the state it leaves behind. The map makes that repeatable: any agent, on any model, can launch the app, drive a feature and capture proof without rediscovering how. It lives in `docs/verification/` and is committed, so every agent and CI can read it. The approach comes from pstack's verification skills.
 

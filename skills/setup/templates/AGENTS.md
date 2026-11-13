@@ -65,7 +65,18 @@ Scan any skill, plugin or MCP server with SkillSpector before installing it, and
 
 ## Explaining your work
 
-Write everything for people in ASD-STE100 (Simplified Technical English): docs, reports, worksheets, PR bodies, Whiteboards, HTML pages and replies. Short sentences, active voice, one word for one thing. Where there's structure or flow, or a code change, show it on a Whiteboard. In committed files, also add a Mermaid diagram and a link to the Whiteboard. Without Whiteboard, use Mermaid only. Use an HTML page for anything big. Details: shipinetics:explain.
+Write everything for people in ASD-STE100 (Simplified Technical English), as a baseline and not as a compliance target. That includes docs, reports, worksheets, PR descriptions, commit messages, Whiteboards, HTML pages and replies. The full rules are in the plain-language guide, `skills/explain/plain-language.md` in the Shipinetics plugin. The main rules:
+
+- Keep sentences short, at about 25 words or fewer.
+- Use the active voice, and name the actor.
+- Use one term for one concept.
+- Use the specific verb: "rejects", not "handles".
+- State results, not intent.
+- Cut filler words such as "simply", "just" or "robust", unless they carry weight.
+- Keep identifiers, commands and product names exactly as they are.
+- Write labels by the same rules. A node, a title or a table cell is a short sentence, or a name with its article. An edge says what happens, with a verb. Don't use made-up tags, or symbols in place of words.
+
+Where there's structure or flow, or a code change, show it on a Whiteboard. In committed files, also add a Mermaid diagram and a link to the Whiteboard. Without Whiteboard, use Mermaid only. Use an HTML page for anything big. Details: shipinetics:explain.
 
 ## Protected files
 

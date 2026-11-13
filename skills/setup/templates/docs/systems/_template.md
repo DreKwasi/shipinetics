@@ -6,7 +6,7 @@
 > Gotchas: {{the things that bite people, in one line, e.g. "amounts are integer cents; webhooks can arrive twice"}}
 > Owner persona: {{persona name}} | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
-<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Write the diagram's labels by the same rules. Rules: shipinetics:explain. -->
 
 <!-- The 7 lines above are the greppable summary. `head -n 7 docs/systems/*.md` should give
      a useful map of the whole codebase. Keep them accurate and specific. Update "Last verified"
