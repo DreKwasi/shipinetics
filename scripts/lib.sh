@@ -270,11 +270,12 @@ sy_safe_env_names() {
   else printf '%s\n' "$SY_SAFE_ENV"; fi
 }
 
-# sy_sanitize <cmd|code> <safe names>: stdin to stdout, minus the text the env guards shouldn't
+# sy_sanitize <cmd|code|gate> <safe names>: stdin to stdout, minus the text the guards shouldn't
 # judge. Both modes turn complete reads of safe variables into SAFE_ENV. cmd mode (a Bash command)
 # also drops heredoc bodies that can't run, the inert pattern of grep, egrep, fgrep, git grep and
-# rg, and printenv of safe names. Whenever it can't be sure text is inert, it leaves it in, so the
-# guards judge it.
+# rg, and printenv of safe names. gate mode (for the PR gate and the install gate) drops text only
+# from three known command shapes: a note written with cat, a list of git steps, and a search.
+# Whenever it can't be sure text is inert, it leaves it in, so the guards judge it.
 sy_sanitize() { perl -e "$SY_SANITIZE_PL" "$1" "$2"; }
 read -r -d '' SY_SANITIZE_PL <<'PL' || true
 use strict; use warnings;
@@ -415,6 +416,173 @@ sub search_patterns {
   return join '', map { $_->[1] } @tok;
 }
 
+# gate mode, for the PR gate and the install gate. It drops text only when the whole command has
+# one of three known shapes, and leaves every other command whole. The shapes need no parsing of
+# comments, pipes into programs, substitutions or functions, where bash and this script could
+# disagree about what runs. Any doubt keeps the text, so the gate judges it.
+#   1. A note: cat > <file>.md|.txt|.rst|.adoc <<'X' with a quoted delimiter. Its body goes.
+#      Plain cd and git steps (shape 2) may follow.
+#   2. Commits: plain cd and git steps joined by ;, && or new lines. A commit message that can't
+#      expand goes.
+#   3. A search: one grep, egrep, fgrep, rg or git grep, piped only into commands that print.
+#      The pattern goes.
+
+# A word that the shell can't expand: all in single quotes, no $, ` or \ at all, or
+# "$(cat <<'X' ... X)" whose quoted delimiter stops the body from expanding, with nothing after
+# the first delimiter line but the closing ). Never a word that starts a comment.
+sub inert_word {
+  my $w = shift;
+  return 0 if $w =~ /^#/ || !closed_quotes($w);
+  return 1 if $w =~ /^'[^']*'$/ || $w !~ /[\$`\\]/;
+  # The body must not expand at all: bash 3.2 can end the $( early at a ) in the body, and then
+  # the rest is plain text in double quotes.
+  if ($w =~ /^"\$\(\s*cat\s*<<(-?)\s*'([A-Za-z_][A-Za-z0-9_]*)'[ \t]*\n(.*?)\n(\t*)\2\n(.*)$/s) {
+    my ($dash, $body, $tabs, $rest) = ($1, $3, $4, $5);
+    return 1 if ($dash || $tabs eq '') && $rest =~ /^\s*\)"$/ && $body !~ /[\$`\\]/;
+  }
+  return 0;
+}
+
+# True if every quote in the word closes. A quote left open makes bash read on, past where the
+# tokenizer stops.
+sub closed_quotes { (my $x = shift) =~ s/'[^']*'|"(?:[^"\\]|\\.)*"//gs; return $x !~ /['"]/ }
+
+# A word with nothing for the shell to do: no $, ` or \, no new line, no comment, closed quotes.
+sub plain_word { my $w = shift; return $w !~ /[\$`\\\n]/ && $w !~ /^#/ && closed_quotes($w) }
+
+# The options that each allowed git step may take. Anything else (--output, --ext-diff,
+# --receive-pack, -e ...) fails the shape: some git options write files or run programs.
+my %git_opts = (
+  add    => qr/^(?:-A|--all|-u|--update|-N|--intent-to-add|-f|--force|-v|--verbose)$/,
+  commit => qr/^(?:-a|--all|-q|--quiet|-s|--signoff|--allow-empty|--amend|--no-edit|--no-verify|-n|-v|--verbose)$/,
+  push   => qr/^(?:-u|--set-upstream|-q|--quiet|--tags|--follow-tags|--force-with-lease|-f|--force|--no-verify)$/,
+  status => qr/^(?:-s|--short|-b|--branch|--porcelain(?:=v[12])?|-u(?:no|normal|all)?)$/,
+  diff   => qr/^(?:--stat|--name-only|--name-status|--cached|--staged|--check|--shortstat|--no-color)$/,
+  log    => qr/^(?:-\d+|-n|--oneline|--stat|--graph|--decorate|--no-decorate|--(?:format|pretty)=.*|--max-count=\d+|--no-color)$/s,
+  show   => qr/^(?:--stat|--name-only|--name-status|--oneline|-s|--no-patch|--(?:format|pretty)=.*|--no-color)$/s,
+  fetch  => qr/^(?:-q|--quiet|--prune|-p|--tags|--all)$/,
+  pull   => qr/^(?:-q|--quiet|--rebase|--ff-only|--no-rebase)$/,
+);
+
+# The options that a command after a search may take. They only print; sort -o, uniq OUT and
+# sort --compress-program write files or run programs.
+my %sink_words = (
+  head => qr/^(?:-[nc]?\d*|\d+)$/,
+  tail => qr/^(?:-[nc]?\d*|\d+)$/,
+  wc   => qr/^-[lwcm]+$/,
+  sort => qr/^(?:-[nrufbd]+|-k[\d.,]+)$/,
+  uniq => qr/^-[cud]+$/,
+  cut  => qr/^(?:-[fc][\d,-]+|-[fc]|[\d,-]+|-d.?|'.'|"[^"\\\$`]")$/,
+  tr   => qr/^(?:-[dsc]+|'[^']*'|"[^"\\\$`]*"|[A-Za-z0-9:\[\]-]+)$/,
+);
+
+# Shape 2. Returns the text without its inert commit messages, or undef if it isn't the shape.
+sub gate_commits {
+  my @tok = tokens(shift);
+  my (@segs, @cur);
+  for my $i (0 .. $#tok) {
+    my ($type, $x) = @{$tok[$i]};
+    if ($type eq 's') {
+      return undef unless $x eq ';' || $x eq '&' || $x eq "\n";
+      push @segs, [@cur] if @cur; @cur = (); next;
+    }
+    push @cur, $i if $type eq 'w';
+  }
+  push @segs, [@cur] if @cur;
+  return undef unless @segs;
+  my @blank;
+  for my $seg (@segs) {
+    my @w = @$seg;
+    my $first = $tok[$w[0]][1];
+    if ($first eq 'cd') { return undef unless @w == 2 && plain_word($tok[$w[1]][1]); next }
+    return undef unless $first eq 'git';
+    my $a = 1;
+    while ($a < @w && $tok[$w[$a]][1] =~ /^(?:-C|--no-pager)$/) {
+      if ($tok[$w[$a]][1] eq '-C') { return undef unless $a + 1 < @w && plain_word($tok[$w[$a + 1]][1]); $a += 2 } else { $a++ }
+    }
+    return undef unless $a < @w && $git_opts{$tok[$w[$a]][1]};
+    my $sub = $tok[$w[$a]][1];
+    my $after_dashes = 0;
+    for (my $i = $a + 1; $i < @w; $i++) {
+      my $raw = $tok[$w[$i]][1];
+      if (!$after_dashes && $raw eq '--') { $after_dashes = 1; next }
+      if ($sub eq 'commit' && !$after_dashes) {
+        if ($raw eq '--message' || $raw =~ /^-[aqsnv]*m$/) {
+          return undef unless $i + 1 < @w && inert_word($tok[$w[$i + 1]][1]);
+          push @blank, $w[$i + 1]; $i++; next;
+        }
+        if ($raw =~ /^(?:--message=|-m)(.+)$/s) {
+          return undef unless inert_word($1);
+          push @blank, $w[$i]; next;
+        }
+      }
+      return undef unless plain_word($raw);
+      return undef if !$after_dashes && $raw =~ /^-/ && $raw !~ $git_opts{$sub};
+    }
+  }
+  $tok[$_][1] = '' for @blank;
+  return join '', map { $_->[1] } @tok;
+}
+
+# Shape 1. Returns the text without the note's body, or undef if it isn't the shape.
+sub gate_note {
+  my $s = shift;
+  return undef unless $s =~ /\A[ \t]*cat[ \t]*>>?[ \t]*([A-Za-z0-9_.\/-]+\.(?:md|txt|rst|adoc))[ \t]*<<(-?)[ \t]*'([A-Za-z_][A-Za-z0-9_]*)'([^\n]*)\n/;
+  my ($file, $dash, $delim, $tail) = ($1, $2, $3, $4);
+  my @lines = split /\n/, substr($s, $+[0]), -1;
+  my $k;
+  for my $j (0 .. $#lines) { my $l = $lines[$j]; $l =~ s/^\t+// if $dash; if ($l eq $delim) { $k = $j; last } }
+  return undef unless defined $k;
+  my $rest = join "\n", @lines[$k + 1 .. $#lines];
+  my $out = "cat > $file\n";
+  if ($tail =~ /\S/) {
+    return undef unless $tail =~ /^[ \t]*(?:&&|;)[ \t]*(\S.*)$/;
+    my $r = gate_commits($1); return undef unless defined $r;
+    $out .= "$r\n";
+  }
+  if ($rest =~ /\S/) { my $r = gate_commits($rest); return undef unless defined $r; $out .= $r }
+  return $out;
+}
+
+# Shape 3. Returns the text without the search pattern, or undef if it isn't the shape.
+sub gate_search {
+  (my $s = shift) =~ s/[ \t]+2>\/dev\/null(?=[ \t|]|$)//g;
+  my @tok = tokens($s);
+  my (@stages, @cur, $prev);
+  for my $i (0 .. $#tok) {
+    my ($type, $x) = @{$tok[$i]};
+    if ($type eq 's') {
+      return undef unless $x eq '|' && !(defined $prev && $prev eq '|');
+      push @stages, [@cur]; @cur = (); $prev = '|'; next;
+    }
+    $prev = undef if $type eq 'w';
+    push @cur, $i if $type eq 'w';
+  }
+  push @stages, [@cur];
+  return undef if grep { !@$_ } @stages;
+  my ($first, @sinks) = @stages;
+  my $cmd = $tok[$first->[0]][1];
+  return undef unless $cmd =~ /^(?:[ef]?grep|rg)$/ || ($cmd eq 'git' && @$first > 1 && $tok[$first->[1]][1] eq 'grep');
+  for my $st (@sinks) {
+    my ($name, @args) = map { $tok[$_][1] } @$st;
+    my $ok = $sink_words{$name} or return undef;
+    for my $a (@args) { return undef unless plain_word($a) && $a =~ $ok }
+  }
+  return search_patterns($s);
+}
+
+sub gate_text {
+  my $t = shift;
+  return $t if $t =~ /\r/;
+  (my $s = $t) =~ s/\n+\z//;
+  for my $shape (\&gate_note, \&gate_commits, \&gate_search) {
+    my $r = $shape->($s);
+    return $r if defined $r;
+  }
+  return $t;
+}
+
+if ($mode eq 'gate') { $t = gate_text($t) }
 if ($mode eq 'cmd') {
   $t = search_patterns(heredocs($t));
   $t =~ s/(?<![\w-])printenv((?:[ \t]+(?:$n))+)(?=[ \t]*(?:$|[;&|>)\n]))/:/g if length $n;
