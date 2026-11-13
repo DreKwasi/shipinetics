@@ -22,7 +22,10 @@ fi
 # Installs and updates: an update pulls new code too. `skills check` counts: it can update and
 # remove skills while it checks. bin/skills-outdated is the read-only check.
 re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add'
-[[ "$cmd" =~ $re ]] || exit 0
+# Judge only text that can run: an inert heredoc body, a commit message, a search pattern or a
+# comment line can name an install without running it. If perl is missing, judge all of it.
+run="$(printf '%s' "$cmd" | sy_sanitize gate "")" || run="$cmd"
+[[ "$run" =~ $re ]] || exit 0
 
 if command -v skillspector >/dev/null 2>&1; then
   advice="Scan the source first with: skillspector scan <source> --no-llm. Approve only if the result is SAFE, or CAUTION after reading the findings."
