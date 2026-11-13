@@ -21,18 +21,23 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 . "$here/scripts/lib.sh"
 die() { echo "worksheet: $*" >&2; exit 1; }
 
+cmd="${1:-}"; shift || true
+case "$cmd" in ""|-h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+
+# Only new and use write anything, and they create their folders themselves. No command creates
+# .shipinetics/ in a repo that isn't set up: the current worksheet goes in sy_state_dir.
 root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a Shipinetics project or a git repo"
 dir="$root/$(sy_cfg "$root" worksheets_dir)"
-state="$(sy_dir "$root")/.cache/current-worksheet"
-mkdir -p "$dir" "$(dirname "$state")"
+sdir="$(sy_state_dir "$root")" || die "can't find a place to keep the current worksheet in $root"
+state="$sdir/current-worksheet"
 name_of() { basename "$1" .md; }
 
-cmd="${1:-}"; shift || true
 case "$cmd" in
   new)
     slug="${1:-}"; [ -n "$slug" ] || die "usage: worksheet new <slug> [\"Title\"]"
     case "$slug" in *[!a-z0-9-]*) die "slug must be lowercase letters, digits and dashes" ;; esac
     custom="$(sy_cfg "$root" worksheet_new_cmd)"
+    mkdir -p "$dir"   # a project's own new command can expect the folder, as before
     if [ -n "$custom" ]; then
       path="$(cd "$root" && sh -c "$custom \"\$1\"" _ "$slug" | tail -n 1)"
       case "$path" in /*) ;; *) path="$root/$path" ;; esac
@@ -51,7 +56,7 @@ case "$cmd" in
       content="${content//"{{BASE}}"/$(git -C "$PWD" rev-parse --short HEAD 2>/dev/null || echo none)}"
       printf '%s\n' "$content" >"$path"
     fi
-    printf '%s' "$path" >"$state"
+    mkdir -p "$sdir"; printf '%s' "$path" >"$state"
     echo "$path"
     ;;
   current)
@@ -61,7 +66,7 @@ case "$cmd" in
   use)
     n="${1:-}"; [ -n "$n" ] || die "usage: worksheet use <name>"
     path="$dir/${n%.md}.md"; [ -f "$path" ] || die "no worksheet at $path"
-    printf '%s' "$path" >"$state"; echo "$path"
+    mkdir -p "$sdir"; printf '%s' "$path" >"$state"; echo "$path"
     ;;
   list)
     for f in "$dir"/*.md; do
@@ -90,6 +95,5 @@ case "$cmd" in
       echo "$tag -> $(git rev-parse --short HEAD)"
     fi
     ;;
-  ""|-h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) die "unknown command: $cmd (try --help)" ;;
 esac

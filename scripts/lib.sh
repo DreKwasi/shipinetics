@@ -47,6 +47,18 @@ sy_flag() { [ "$(sy_env "$1" 0)" = "1" ]; }
 # sy_dir <root>: the project's folder (settings, policy lists and .cache)
 sy_dir() { printf '%s/%s\n' "$1" "$SY_DIR_NAME"; }
 
+# sy_state_dir <root>: where tools keep local state, such as the current worksheet. In a set-up
+# project it is .shipinetics/.cache. In a plain git repo it is a folder in the git directory, so
+# that no tool creates .shipinetics/ there: that folder makes the hooks treat a repo as set up.
+# Each git worktree gets its own folder. Fails when root is neither. Doesn't create the folder.
+sy_state_dir() {
+  local p
+  if [ -d "$(sy_dir "$1")" ]; then printf '%s/.cache\n' "$(sy_dir "$1")"; return 0; fi
+  p="$(git -C "$1" rev-parse --git-path shipinetics 2>/dev/null)" || return 1
+  case "$p" in /*) ;; *) p="$1/$p" ;; esac
+  printf '%s\n' "$p"
+}
+
 # sy_root [start]: nearest folder at or above start (default: the project dir, else PWD) holding
 # .shipinetics/
 sy_root() {

@@ -16,6 +16,12 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
   Any other command is judged whole, as before. A command with a pipe into a program, a redirect, a substitution, a function, `git -c`, a comment, a quote left open or a carriage return doesn't count as one of these shapes. Two review rounds found 27 ways around earlier versions. The tests now hold each of them.
 - The PR gate also caught too little. It needed a space or the end of the command after `gh pr create` or `gh pr ready`, so `sh -c 'gh pr ready'` and `"$(gh pr create)"` got past it. Now any character that can't continue the word ends the match.
+- `worksheet` no longer makes a plain git repo look set up. Before, every call, `worksheet --help` included, created `.shipinetics/.cache/` and `docs/worksheets/` before it read its arguments. Then the edit guard and the PR gate acted in a repo that nobody had set up.
+  - Help now runs first and creates nothing, also outside a git repo. It no longer prints a line of code.
+  - Only `worksheet new` and `worksheet use` create folders.
+  - In a plain repo, the current worksheet is kept in the git directory (`git rev-parse --git-path shipinetics`), so each worktree has its own. In a set-up project, it stays in `.shipinetics/.cache/`. `evidence` reads it from the same place.
+
+  Steps for each project: none. A repo that isn't set up can have a `.shipinetics/` folder that holds only `.cache/`, from an earlier `worksheet` call. Remove that folder, then run `worksheet use <name>` to make your worksheet current again.
 
 ### Changed
 - ASD-STE100 covers labels too: the text on a Whiteboard or diagram node, an edge, a sequence step, a table cell, a title and a caption. shipinetics:explain has a new "Labels" section:
