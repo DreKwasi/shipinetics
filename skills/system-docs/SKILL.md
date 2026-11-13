@@ -54,11 +54,11 @@ A system whose records, sessions or screens move through states gets a `## State
 ```
 | From | Event | To | Guard (file:line) | Safe to repeat? |
 |---|---|---|---|---|
-| pending | payment webhook | paid | orders.ts:88 `where status = 'pending'` | yes, by event ID |
-| paid | refund request | refunded | refunds.ts:41 | no: see Gotchas |
+| pending | The payment webhook arrives | paid | orders.ts:88 `where status = 'pending'` | Yes, by the event ID |
+| paid | The user asks for a refund | refunded | refunds.ts:41 | No. See Gotchas |
 ```
 
-- **A Mermaid `stateDiagram-v2`** of the same table, below it.
+- **A Mermaid `stateDiagram-v2`** of the same table, below it. The state names are the values in the code. Each edge label is the event from the table, a short sentence with a verb ("The payment webhook arrives"). It has no symbols or made-up tags (shipinetics:explain, "Labels").
 
 Write what the code does, not what it should do. A transition that the code allows and the product doesn't want goes in the table with "BUG: T-NNN" in the Guard column, so the table stays true until the fix lands. Then the fix removes the row.
 
@@ -101,7 +101,7 @@ The `Owner persona` field says which review persona (shipinetics:review) checks 
 
 ## Language
 
-Write system docs, ADRs and the glossary in ASD-STE100 (shipinetics:explain): short sentences, active voice, one word for one thing. A doc that's hard to read gets skipped, and then it stops being true. When a system has a flow (a request path, a pipeline, a state machine), draw it on a Whiteboard and put a Mermaid diagram of it below the header, with node names from the code and a link to the Whiteboard. Without Whiteboard, the Mermaid diagram is enough.
+Write system docs, ADRs and the glossary in ASD-STE100 (shipinetics:explain): short sentences, active voice, one word for one thing. A doc that's hard to read gets skipped, and then it stops being true. When a system has a flow (a request path, a pipeline, a state machine), draw it on a Whiteboard and put a Mermaid diagram of it below the header, with a link to the Whiteboard. Its labels follow shipinetics:explain ("Labels"): real names from the code, inside short sentences or names. Without Whiteboard, the Mermaid diagram is enough.
 
 ## Don'ts
 

@@ -8,7 +8,7 @@ argument-hint: "[research|plan|impl|wrapup|docs] [persona...]"
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 >
-> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
+> Text for people (docs, worksheets, reports, PR descriptions, commit messages, review comments, replies, and each label on a board, diagram or table): write it in ASD-STE100, by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 The author never reviews its own work. A reviewer in a fresh context, with no stake in the work, catches what self-review misses.
 
@@ -21,7 +21,7 @@ Stage and personas from the arguments: `$ARGUMENTS`. If no stage is given, infer
 | **research** | The worksheet's Research section and claims table | The task touches a system you haven't read before, or the research drives a risky plan |
 | **plan** | The spec or plan with acceptance criteria | Anything bigger than a small change (see shipinetics:workflow for sizes) |
 | **impl** | The diff against the base | Always, before the task is done |
-| **wrapup** | The whole task: diff, docs, worksheet, queue | End of a task over size S |
+| **wrapup** | The whole task: diff, docs, worksheet, queue, commit messages | End of a task over size S |
 | **docs** | A system doc, spec or explainer whose factual content changed | Whenever factual claims in docs change, especially external facts |
 | **merge-risk** | The whole PR, after its evidence is recorded | Every PR, just before it opens or is marked ready |
 
@@ -33,7 +33,7 @@ Research and docs reviews return a **claims table** instead of findings: every c
 2. **Claude reviewer.** Spawn the `shipinetics:reviewer` subagent. It runs on Opus at high effort (its frontmatter). Don't pass a model or an effort. Give it the stage, the base ref or file, the acceptance criteria, and a persona if one applies.
 3. **Pick personas and specialist reviewers** (below). Run each through the reviewer in step 2, or the specialist agent named in the table. Don't run every one every time. Run them in parallel where you can.
 4. **Merge, then filter.** When several reviewers ran, put their findings in one table and mark where they agree: a finding two reviewers raised independently goes first. Before acting, filter each finding the way a lead would. A finding must name a concrete input or state that goes wrong: "this could fail if" without one is hypothetical, and you note it rather than fix it. "I'd do it differently" isn't a finding unless the other way removes a defect. Minor findings never block. Record filtered findings as **disagree** with the reason.
-5. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option.
+5. **Respond to every finding.** For each one, in the worksheet's Reviews section: **fixed** (with the commit or change), **disagree** (with a reason a human would accept), or **deferred** (with the task ID you added to the queue). Silence isn't an option. A finding about a commit message is **fixed** when you apply it to the commit messages that are still to come and to the PR summary. Don't rewrite commits to fix a message.
 6. **Re-review** only if your fixes were substantial or a reviewer said `blocked`. Stop after two rounds and flag the disagreement for a human.
 
 ### Independent re-check at wrap-up
@@ -90,9 +90,9 @@ The grade informs the human's decision, it never replaces it. Nothing merges aut
 
 Agent reviewers check the work. The human still has to understand it. For tasks M and up, author a Whiteboard of the change if the Whiteboard MCP tools (from dev.fast) are available:
 
-1. Call `session_capabilities`, then `session_get_instructions` (default topic), and follow those instructions exactly. They change between versions, so don't work from memory.
+1. Call `session_capabilities`, then `session_get_instructions` (default topic), and follow those instructions, with the two additions in shipinetics:explain ("Whiteboard"). They change between versions, so don't work from memory.
 2. Target the task's change: the worktree against the base branch for uncommitted work, or the commit range for committed work.
-3. Put the merge-risk grade, the agent review verdicts and any open findings in a callout near the top, so the human sees what's already been checked. Write all the Whiteboard's text in ASD-STE100 (shipinetics:explain).
+3. Put the merge-risk grade, the agent review verdicts and any open findings in a callout near the top, so the human sees what's already been checked. Write all the Whiteboard's text in ASD-STE100 (shipinetics:explain), the labels, titles and table cells too ("Labels" there).
 4. Add an Evidence section: link the recording, with each criterion's time. Upload the frame of each key criterion (`evidence frames`) with `session_upload` and show it as an image component next to the criterion it proves.
 5. Link the Whiteboard from the worksheet's Reviews section.
 

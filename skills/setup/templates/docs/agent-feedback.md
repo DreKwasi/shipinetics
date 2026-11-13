@@ -6,7 +6,7 @@
 > Gotchas: be specific, and write in ASD-STE100 (short sentences, active voice). "Docs were unclear" is useless. "docs/systems/auth.md does not say that tokens expire after 15 min" is useful
 > Owner persona: maintainability | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
-<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Write the diagram's labels by the same rules. Rules: shipinetics:explain. -->
 
 Entry format (append at the bottom, newest last):
 

@@ -6,7 +6,7 @@
 > Gotchas: a rule marked "enforced: review" is a candidate for a lint rule. Move it when you can (shipinetics:lint-rule).
 > Owner persona: code-quality, ai-smells | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
-<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Write the diagram's labels by the same rules. Rules: shipinetics:explain. -->
 
 Each convention has an ID so reviews can cite it. Keep entries short. If a rule needs a paragraph of explanation, put it in a system doc.
 

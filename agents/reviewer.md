@@ -44,7 +44,14 @@ Work through these in order. Stop going deeper on style if you've found correctn
 6. **Docs and records.** System docs touched by the change still accurate (their first 7 lines especially), test index updated for new tests, worksheet reflects what actually happened.
 7. **AI smells.** Code that exists to look thorough: unused abstractions, defensive checks for impossible states, comments narrating the obvious, duplicate helpers that already exist elsewhere in the repo, invented APIs.
 
-For **plans**, check the acceptance criteria are runnable and the plan meets them, and look for a simpler route. For **wrap-up**, check nothing is half-finished and the records tell the truth, and check the evidence: run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, run `evidence frames` and look at each frame with the Read tool (a recording can't be watched, so each criterion's row gives the time where its result shows, and the frame at that time is what you check). Fallback screenshots you open directly. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Missing, stale or unconvincing evidence is a major finding.
+For **plans**, check the acceptance criteria are runnable and the plan meets them, and look for a simpler route. For **wrap-up**, check nothing is half-finished and the records tell the truth. Read the branch's commit messages (`git log <base>..HEAD`) against the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Each of these is a minor finding:
+
+- The passive voice hides the actor.
+- A placeholder verb ("handles", "supports") stands where the specific verb belongs.
+- The message states intent as a result.
+- The message uses a word that adds nothing and carries no weight.
+
+Then check the evidence: run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, run `evidence frames` and look at each frame with the Read tool (a recording can't be watched, so each criterion's row gives the time where its result shows, and the frame at that time is what you check). Fallback screenshots you open directly. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Missing, stale or unconvincing evidence is a major finding.
 
 You don't drive the app for a **re-check**. `shipinetics:live-tester` does that. If you're asked for one, say so in your first line and review the author's evidence only.
 

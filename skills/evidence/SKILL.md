@@ -8,7 +8,7 @@ argument-hint: "[worksheet]"
 
 > Paths below are Shipinetics's defaults. A project can map them elsewhere in `.shipinetics/config`: run `shipinetics-config` to see this project's actual paths and commands, and use those.
 >
-> Text for people (docs, worksheets, reports, PR bodies, replies): write it in ASD-STE100. Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
+> Text for people (docs, worksheets, reports, PR descriptions, commit messages, review comments, replies, and each label on a board, diagram or table): write it in ASD-STE100, by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
 A PR without proof that it works isn't worth a reviewer's time. Passing tests are necessary, not sufficient: tests can be wrong, and they never show what the user sees. So every PR carries evidence recorded from the real, running app at the PR's code: one recording of the flow for anything visual, and terminal transcripts for CLIs, APIs and jobs.
 
@@ -66,7 +66,15 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 evidence pr-body > "$TMPDIR/pr-body.md"
 ```
 
-Put your summary above the generated `## Evidence` section in that file (what changed, why, how it was verified, anything not verified). Add a `## Merge risk` section after it with the independent grade (shipinetics:review, "Merge risk"). Then:
+Put your summary above the generated `## Evidence` section in that file: what changed and why, how you verified it, and what you did not verify. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). The PR title follows the same guide, and says what changed. In particular:
+
+- Name each actor.
+- Use the specific verb.
+- State results, not intent.
+- Keep identifiers exactly as they are.
+- Cut the words that add nothing, unless they carry weight.
+
+Add a `## Merge risk` section after it with the independent grade (shipinetics:review, "Merge risk"). Then:
 
 ```bash
 gh pr create --title "<title>" --body-file "$TMPDIR/pr-body.md"

@@ -6,7 +6,7 @@
 > Tag: ws/{{NAME}} (applied at wrap-up) | Commits: git log --grep "Worksheet: {{NAME}}"
 > Next step: <the exact next action, always current, so anyone can pick this up>
 
-<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Write the diagram's labels by the same rules. Rules: shipinetics:explain. -->
 
 ## Goal and acceptance criteria
 

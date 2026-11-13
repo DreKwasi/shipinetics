@@ -6,6 +6,32 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Changed
+- ASD-STE100 covers labels too: the text on a Whiteboard or diagram node, an edge, a sequence step, a table cell, a title and a caption. shipinetics:explain has a new "Labels" section:
+  - A node is a short sentence, or a name with its article. An edge says what happens, with a verb. A decision node is a question.
+  - No made-up tags (`[I]`, `INV-2`), no metaphors, no second idea in brackets and no symbols in place of words.
+  - Labels fit the space that Whiteboard shows: 28 characters for a flow edge, about 70 for a flow node. The rest goes in the text below the diagram, because Whiteboard hides the description of a node that has code attached.
+  - A table shows the rules on examples. Before a board is done, the agent reads each label alone and rewrites the ones that make no sense without the diagram.
+- Whiteboard's own guidance names ASD-STE100 only for prose, at about 80%. Shipinetics now applies the same rules as prose to every word of a board.
+- Whiteboard shows `+N` and `−M` under each flow node that has code attached: the added and removed lines of that code that the reader has not viewed yet. Agents can't change these numbers. So each flow diagram with code attached now says what they mean in its description.
+- The same rules are in the shared header of each skill that has it, in pr-review, review, system-docs (state diagrams and their example table), in the comment of each docs template, and in the `AGENTS.md` template.
+- Shipinetics has a plain-language guide, `skills/explain/plain-language.md`. It applies to all text for people, and it is written for PR descriptions first. ASD-STE100 is its baseline, not a compliance target. The guide asks for these points:
+  - the active voice, with the actor named;
+  - one topic in each sentence, and one term for each concept;
+  - the specific verb;
+  - a vertical list for more than one condition or step.
+
+  The guide also lists the words that add nothing, such as "simply", "just" and "robust". Identifiers, commands, established jargon and product names are exempt. The "Prose" rules of shipinetics:explain now match the guide. They keep some rules of Shipinetics's own, for example the 20-word limit for instructions, the terms in `GLOSSARY.md`, evidence for each claim and no hedging.
+  - The shared header of each skill names the guide and its path, for PR descriptions, commit messages and review comments.
+  - The agent writes the PR title and summary by the guide. It reads the summary against the guide before `gh pr create`. The PR gate's messages name the guide.
+  - Commit messages follow the same rules. The first line says what changed, and the body says why.
+  - pr-review writes its comments and its review body by the guide.
+  - At the wrap-up review, the reviewer reads the branch's commit messages against the guide. Each problem is a minor finding. The author applies it to the commits still to come and to the PR summary, and doesn't rewrite commits.
+
+  Steps for each project (optional): copy the new sentences of "Explaining your work" from `templates/AGENTS.md` into the project's `AGENTS.md`.
+
 ## 0.9.2
 
 ### Added

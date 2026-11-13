@@ -6,7 +6,7 @@
 > Gotchas: an entry here does not prove that the test works. The false-confidence audit (shipinetics:test-audit) checks that
 > Owner persona: test-integrity | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
-<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Write the diagram's labels by the same rules. Rules: shipinetics:explain. -->
 
 One row per behaviour, as a sentence a user or caller would recognise, never a function name. Criterion is the acceptance criterion that the test proves (`refund-rounding AC2`): `rg` finds the tests of a criterion by it. Kind is unit, e2e, acceptance, visual or bench. A behaviour appears once, because it is tested at one layer. When a behaviour is removed, remove its row in the same change.
 

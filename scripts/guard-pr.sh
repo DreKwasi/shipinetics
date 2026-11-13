@@ -44,10 +44,11 @@ deny() {
 }
 
 evidence="$(cd "$(dirname "$0")/.." && pwd)/bin/evidence"
+guide="$(cd "$(dirname "$0")/.." && pwd)/skills/explain/plain-language.md"
 if ! out="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" check --branch 2>&1)"; then
   deny "shipinetics: this PR has no complete evidence yet, so it can't be opened.
 $out
-Capture it (shipinetics:evidence): one paced recording of the flow for UI changes, with the time of each acceptance criterion (screenshots only if it can't be recorded), terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section)."
+Capture it (shipinetics:evidence): one paced recording of the flow for UI changes, with the time of each acceptance criterion (screenshots only if it can't be recorded), terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section). Write the summary by the plain-language guide: $guide."
 fi
 case "$out" in *docs-only*) exit 0 ;; esac
 
@@ -78,7 +79,7 @@ elif [[ "$cmd" =~ $text_re ]]; then
   body="$cmd"
 fi
 if ! printf '%s' "$body" | grep -q '## Evidence'; then
-  deny "shipinetics: the PR body needs the '## Evidence' section. Generate it with: evidence pr-body > \$TMPDIR/pr-body.md, put your summary above it, and pass --body-file \$TMPDIR/pr-body.md. Don't use --fill."
+  deny "shipinetics: the PR body needs the '## Evidence' section. Generate it with: evidence pr-body > \$TMPDIR/pr-body.md, put your summary above it, and pass --body-file \$TMPDIR/pr-body.md. Write the summary by the plain-language guide: $guide. Don't use --fill."
 fi
 
 exit 0

@@ -6,7 +6,7 @@
 > Gotchas: {{e.g. "e2e needs the dev server and seeded DB; run the seed first"}}
 > Owner persona: test-integrity | Last verified: {{YYYY-MM-DD}} at {{short commit}}
 
-<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Rules: shipinetics:explain. -->
+<!-- Write this file in ASD-STE100 (Simplified Technical English): short sentences, active voice, one word for one thing. Where it describes structure or flow, add a Mermaid diagram and a link to its Whiteboard. Write the diagram's labels by the same rules. Rules: shipinetics:explain. -->
 
 ## Which test to write
 
