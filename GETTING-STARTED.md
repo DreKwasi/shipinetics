@@ -11,6 +11,8 @@ This guide gives the steps to start with Shipinetics. Do some steps one time on 
    claude plugin install shipinetics@shipinetics
    ```
 
+   If the clone fails because `github.com` in `~/.ssh/config` uses a different account's key, use the SSH URL with your host alias: `claude plugin marketplace add git@<your-ssh-alias>:DreKwasi/shipinetics.git`. Put the `Host` name from your `~/.ssh/config` in place of `<your-ssh-alias>`. If the install stops with `Unrecognized key: "displayName"`, run `claude update` first. The README ("Install") gives the details.
+
 2. Install SkillSpector. Then you can scan each companion before you install it:
 
    ```bash

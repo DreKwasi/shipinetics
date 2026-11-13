@@ -32,6 +32,17 @@ Shipinetics is a plugin for Claude Code. It gives every project the same workflo
    claude plugin install shipinetics@shipinetics
    ```
 
+   If you use more than one GitHub account, `github.com` in your `~/.ssh/config` can point to a key that cannot read this repo. Then the clone fails. Give the full SSH URL with the host alias for your account:
+
+   ```bash
+   claude plugin marketplace add git@<your-ssh-alias>:DreKwasi/shipinetics.git
+   claude plugin install shipinetics@shipinetics
+   ```
+
+   Put the `Host` name from your `~/.ssh/config` in place of `<your-ssh-alias>`.
+
+   If the install stops with `Unrecognized key: "displayName"`, your Claude Code is too old. Run `claude update`, then do the install again.
+
 2. Install the companions. Shipinetics uses them together with its own skills. "Companions" below gives the reason for each one and its SkillSpector result. [GETTING-STARTED.md](GETTING-STARTED.md) gives all the install commands in one block. If you start a session before you install them, the session starts with a list of the missing ones.
 
 To try the plugin for one session without an install, run `claude --plugin-dir <path to a clone of this repo>`.
