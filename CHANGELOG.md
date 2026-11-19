@@ -6,7 +6,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
-## Unreleased
+## 0.9.3
 
 ### Added
 - **`/shipinetics:test-backfill`** adds tests to an existing app in batches of 3 to 5 features, riskiest first. For each batch it drafts acceptance criteria from what users see, asks for one approval round, and runs one test-writer for each feature, in parallel when the tests can run at the same time. `docs/testing/backfill.md` records the progress, so each run continues where the last one stopped. Users said that writing tests during setup was slow and had no clear order: this gives it an order.
