@@ -1,7 +1,7 @@
 ---
 name: review
 description: Cross-agent review at a checkpoint (research, plan, implementation, wrap-up), with a fresh-context Opus reviewer, specialist reviewers and persona lenses. Use when you finish research, a plan or an implementation, before calling a task done, or when the user asks for a review.
-argument-hint: "[research|plan|impl|wrapup|docs] [persona...]"
+argument-hint: "[research|plan|impl|wrapup|docs|merge-risk] [persona...]"
 ---
 
 # Cross-agent review
