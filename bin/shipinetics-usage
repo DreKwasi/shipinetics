@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# shipinetics-usage: the tokens that each Claude Code session used, read from Claude Code's own
-# transcripts on this machine. No model runs, so it costs no tokens.
+# shipinetics-usage: the tokens that each Claude Code and Antigravity session used, read from
+# their transcripts on this machine. No model runs, so it costs no tokens.
 #
 # Usage:
 #   shipinetics-usage                  this project's sessions: tokens by type, and the totals
@@ -11,8 +11,8 @@
 #   shipinetics-usage backfill         record the transcripts that the log doesn't have yet
 # Options: --all (every project, not only this one), --days N (default 30; 0 means all time)
 #
-# The SessionEnd hook records each session when it ends, subagents included. Claude Code deletes
-# transcripts after cleanupPeriodDays (30 by default), but the log keeps the numbers:
+# The SessionEnd hook (Claude Code) and Stop hook (Antigravity) record each session automatically.
+# The log keeps the numbers even after old transcripts are pruned:
 # ${XDG_DATA_HOME:-~/.local/share}/shipinetics/usage.tsv (SHIPINETICS_USAGE_LOG overrides it).
 # Exit codes: 0 success, 1 no session found, 2 bad usage or no python3.
 
@@ -20,4 +20,4 @@ set -uo pipefail
 case "${1:-}" in -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 command -v python3 >/dev/null 2>&1 || { echo "shipinetics-usage: python3 is required" >&2; exit 2; }
-exec python3 "$here/scripts/usage.py" "$@"
+exec python3 -I "$here/scripts/usage.py" "$@"

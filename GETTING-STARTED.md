@@ -21,6 +21,15 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
    Use only one of them at a time: all of them name the marketplace `shipinetics`. Section 6 has the update steps for each way. Before you fork, read "Do you need a fork?" there: most changes belong in the project.
 
+   **Also using Antigravity?** From a clone of this repo, run:
+
+   ```bash
+   ./bin/shipinetics-antigravity install
+   ./bin/shipinetics-antigravity link-skills
+   ```
+
+   Then add `<path to the clone>/bin` to your shell `PATH` (for example in `~/.zshrc`). `install` links the plugin into `~/.gemini/config/plugins/shipinetics` and generates Antigravity-native subagents. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares the companion skills below. Check the setup with `shipinetics-antigravity status`.
+
 2. Install SkillSpector, so that you can scan each companion before you install it:
 
    ```bash

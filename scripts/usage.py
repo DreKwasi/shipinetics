@@ -51,6 +51,153 @@ def claude_dir():
     return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
 
 
+def gemini_home():
+    return os.environ.get("GEMINI_HOME") or os.path.join(os.path.expanduser("~"), ".gemini")
+
+
+def is_antigravity_transcript(path):
+    """True when path is an Antigravity transcript.jsonl (by layout or by its first JSONL entry)."""
+    if os.path.basename(path) == "transcript.jsonl" and os.path.basename(os.path.dirname(path)) == "logs":
+        return True
+    for o in read_jsonl(path):
+        return "step_index" in o or ("created_at" in o and "timestamp" not in o)
+    return False
+
+
+def transcript_sid(path):
+    """Session id for a Claude Code (<id>.jsonl) or Antigravity (brain/<id>/.system_generated/logs/transcript.jsonl) transcript."""
+    if os.path.basename(path) == "transcript.jsonl" and os.path.basename(os.path.dirname(path)) == "logs":
+        parent = os.path.dirname(os.path.dirname(path))
+        if os.path.basename(parent) == ".system_generated":
+            return os.path.basename(os.path.dirname(parent))
+    name = os.path.basename(path)
+    return name[:-len(".jsonl")] if name.endswith(".jsonl") else name
+
+
+def unwrap_arg(val):
+    """Unwrap JSON-encoded string values inside Antigravity transcript tool_calls args."""
+    if not isinstance(val, str):
+        return ""
+    s = val.strip()
+    if len(s) >= 2 and s[0] == '"' and s[-1] == '"':
+        try:
+            u = json.loads(s)
+            if isinstance(u, str):
+                return u
+        except ValueError:
+            pass
+        return s[1:-1]
+    return s
+
+
+def _skip_inferred_path(p):
+    """Ignore agent-internal and OS directories when inferring a session's workspace path."""
+    home = os.path.expanduser("~")
+    prefixes = (
+        gemini_home().rstrip("/") + "/",
+        claude_dir().rstrip("/") + "/",
+        os.path.join(home, ".gemini") + "/",
+        os.path.join(home, ".claude") + "/",
+        "/usr/", "/etc/", "/System/", "/bin/", "/sbin/",
+    )
+    return any(p.startswith(pre) for pre in prefixes)
+
+
+def _resolve_project_from_path(p, git_cache):
+    if not p or not p.startswith("/") or _skip_inferred_path(p):
+        return ""
+    d = p if os.path.isdir(p) else os.path.dirname(p)
+    if not d or not os.path.isdir(d):
+        return ""
+    if d not in git_cache:
+        git_cache[d] = git(d, "rev-parse", "--show-toplevel")
+    return git_cache[d] or d
+
+
+def _antigravity_user_title(content):
+    if not isinstance(content, str) or not content:
+        return ""
+    m = re.search(r"<USER_REQUEST>\s*(.*?)\s*</USER_REQUEST>", content, re.S)
+    text = m.group(1) if m else content
+    for line in text.splitlines():
+        line = line.strip()
+        if line:
+            return line[:120]
+    return ""
+
+
+def _antigravity_entrypoint(path):
+    parts = os.path.abspath(path).split(os.sep)
+    for name in ("antigravity-cli", "antigravity-ide", "antigravity"):
+        if name in parts:
+            return name
+    return "antigravity"
+
+
+def scan_antigravity(path, calls, meta, cwd_override=""):
+    """Collect API calls and metadata from an Antigravity transcript.jsonl."""
+    meta["entrypoint"] = meta["entrypoint"] or _antigravity_entrypoint(path)
+    if cwd_override:
+        meta["cwd"] = cwd_override
+    git_cache = {}
+    fallback_dir = ""
+    for idx, o in enumerate(read_jsonl(path)):
+        ts = o.get("created_at")
+        if isinstance(ts, str) and ts:
+            if not meta["start"] or ts < meta["start"]:
+                meta["start"] = ts
+            if not meta["end"] or ts > meta["end"]:
+                meta["end"] = ts
+        if not meta["cwd"]:
+            ws = o.get("workspacePaths")
+            if o.get("cwd"):
+                meta["cwd"] = str(o["cwd"])
+            elif isinstance(ws, list) and ws:
+                meta["cwd"] = str(ws[0])
+        if o.get("type") == "USER_INPUT" and not meta["title"]:
+            meta["title"] = _antigravity_user_title(o.get("content", ""))
+        if o.get("type") != "PLANNER_RESPONSE":
+            continue
+        if not meta["cwd"]:
+            for tc in o.get("tool_calls") or []:
+                args = tc.get("args") if isinstance(tc, dict) else None
+                if not isinstance(args, dict):
+                    continue
+                for k in ("Cwd", "Path", "TargetFile", "AbsolutePath", "SearchPath", "DirectoryPath"):
+                    p = unwrap_arg(args.get(k))
+                    if not p:
+                        continue
+                    resolved = _resolve_project_from_path(p, git_cache)
+                    if resolved:
+                        # Prefer a git repo root over a plain directory.
+                        d = p if os.path.isdir(p) else os.path.dirname(p)
+                        if git_cache.get(d):
+                            meta["cwd"] = resolved
+                            break
+                        if not fallback_dir:
+                            fallback_dir = resolved
+                if meta["cwd"]:
+                    break
+        key = "step_%s" % o.get("step_index", idx)
+        model = o.get("model") or "unknown"
+        if model == "<synthetic>":
+            continue
+        c = calls.get(key)
+        if c is None:
+            c = calls[key] = {"agent": "main", "model": model, "effort": "",
+                              "input": 0, "cache_write": 0, "cache_read": 0, "output": 0}
+        c["input"] = max(c["input"], num(o.get("input_tokens")))
+        c["cache_write"] = max(c["cache_write"],
+                               num(o.get("cache_write_tokens")) or num(o.get("cache_creation_input_tokens")))
+        c["cache_read"] = max(c["cache_read"],
+                              num(o.get("cache_read_tokens")) or num(o.get("cache_read_input_tokens")))
+        c["output"] = max(c["output"], num(o.get("output_tokens")))
+        if o.get("effort") and not c["effort"]:
+            c["effort"] = str(o["effort"])
+    if not meta["cwd"] and fallback_dir:
+        meta["cwd"] = fallback_dir
+
+
 def clean(s):
     """A TSV field or a line of output: no tabs or new lines, never empty."""
     return re.sub(r"[\t\r\n]+", " ", str(s or "")).strip() or "-"
@@ -124,27 +271,32 @@ def scan(path, agent, calls, meta, own_sid):
             c["effort"] = str(o["effort"])
 
 
-def session_rows(transcript):
+def session_rows(transcript, cwd_override=""):
     """(session id, rows) for one main transcript, its subagents included."""
-    sid = os.path.basename(transcript)[:-len(".jsonl")]
+    sid = transcript_sid(transcript)
     meta = {"start": "", "end": "", "cwd": "", "branch": "", "title": "", "entrypoint": ""}
     calls = {}
-    scan(transcript, None, calls, meta, own_sid=sid)
-    folder = transcript[:-len(".jsonl")]
-    for p in sorted(glob.glob(os.path.join(folder, "subagents", "*.jsonl"))):
-        agent = "subagent"
-        try:
-            with open(p[:-len(".jsonl")] + ".meta.json", encoding="utf-8") as f:
-                agent = json.load(f).get("agentType") or agent
-        except (OSError, ValueError, AttributeError):
-            pass
-        scan(p, agent, calls, meta, own_sid=None)
-    if not meta["title"]:
-        try:
-            with open(os.path.join(folder, "custom-title.json"), encoding="utf-8") as f:
-                meta["title"] = json.load(f).get("customTitle") or ""
-        except (OSError, ValueError, AttributeError):
-            pass
+    if is_antigravity_transcript(transcript):
+        scan_antigravity(transcript, calls, meta, cwd_override=cwd_override)
+    else:
+        scan(transcript, None, calls, meta, own_sid=sid)
+        if not meta["cwd"] and cwd_override:
+            meta["cwd"] = cwd_override
+        folder = transcript[:-len(".jsonl")]
+        for p in sorted(glob.glob(os.path.join(folder, "subagents", "*.jsonl"))):
+            agent = "subagent"
+            try:
+                with open(p[:-len(".jsonl")] + ".meta.json", encoding="utf-8") as f:
+                    agent = json.load(f).get("agentType") or agent
+            except (OSError, ValueError, AttributeError):
+                pass
+            scan(p, agent, calls, meta, own_sid=None)
+        if not meta["title"]:
+            try:
+                with open(os.path.join(folder, "custom-title.json"), encoding="utf-8") as f:
+                    meta["title"] = json.load(f).get("customTitle") or ""
+            except (OSError, ValueError, AttributeError):
+                pass
     acc = {}
     for c in calls.values():
         if not any(c[f] for f, _ in TOKENS):
@@ -167,7 +319,10 @@ def session_rows(transcript):
 
 def peek_cwd(transcript, limit=200):
     """The working folder of a session, from the first lines of its transcript."""
-    sid = os.path.basename(transcript)[:-len(".jsonl")]
+    sid = transcript_sid(transcript)
+    ag = is_antigravity_transcript(transcript)
+    git_cache = {}
+    fallback_dir = ""
     try:
         with open(transcript, encoding="utf-8", errors="replace") as f:
             for i, line in enumerate(f):
@@ -177,11 +332,35 @@ def peek_cwd(transcript, limit=200):
                     o = json.loads(line)
                 except ValueError:
                     continue
-                if isinstance(o, dict) and o.get("cwd") and o.get("sessionId", sid) == sid:
+                if not isinstance(o, dict):
+                    continue
+                if ag:
+                    ws = o.get("workspacePaths")
+                    if o.get("cwd"):
+                        return str(o["cwd"])
+                    if isinstance(ws, list) and ws:
+                        return str(ws[0])
+                    if o.get("type") == "PLANNER_RESPONSE":
+                        for tc in o.get("tool_calls") or []:
+                            args = tc.get("args") if isinstance(tc, dict) else None
+                            if not isinstance(args, dict):
+                                continue
+                            for k in ("Cwd", "Path", "TargetFile", "AbsolutePath", "SearchPath", "DirectoryPath"):
+                                p = unwrap_arg(args.get(k))
+                                if not p:
+                                    continue
+                                resolved = _resolve_project_from_path(p, git_cache)
+                                if resolved:
+                                    d = p if os.path.isdir(p) else os.path.dirname(p)
+                                    if git_cache.get(d):
+                                        return resolved
+                                    if not fallback_dir:
+                                        fallback_dir = resolved
+                elif o.get("cwd") and o.get("sessionId", sid) == sid:
                     return o["cwd"]
     except OSError:
         pass
-    return ""
+    return fallback_dir
 
 
 # ---- the log
@@ -301,10 +480,13 @@ def in_project(project, roots):
 
 
 def transcripts():
-    """Every main transcript under Claude Code's projects folder."""
+    """Every main transcript under Claude Code's projects folder and Antigravity's brain folders."""
     out = []
     for d in sorted(glob.glob(os.path.join(claude_dir(), "projects", "*"))):
         out.extend(sorted(glob.glob(os.path.join(d, "*.jsonl"))))
+    gh = gemini_home()
+    for app in ("antigravity", "antigravity-cli", "antigravity-ide"):
+        out.extend(sorted(glob.glob(os.path.join(gh, app, "brain", "*", ".system_generated", "logs", "transcript.jsonl"))))
     return out
 
 
@@ -317,7 +499,7 @@ def backfill(roots, path):
             ends[r["session_id"]] = r["end"]
     new = {}
     for t in transcripts():
-        sid = os.path.basename(t)[:-len(".jsonl")]
+        sid = transcript_sid(t)
         if sid in ends:
             end = parse_ts(ends[sid])
             mtime = datetime.datetime.fromtimestamp(os.path.getmtime(t), datetime.timezone.utc)
@@ -389,10 +571,10 @@ def cmd_report(args):
     backfill(roots, path)
     rows = [r for r in load_log(path) if in_project(r["project"], roots) and r["start"] >= since(args.days)]
     span = "all time" if not args.days or args.days <= 0 else "last %d days" % args.days
-    print("Token usage: %s, %s. From Claude Code's transcripts; no model ran." % (scope_label(roots), span))
+    print("Token usage: %s, %s. From session transcripts; no model ran." % (scope_label(roots), span))
     sessions = by_session(rows)
     if not sessions:
-        print("No sessions found. Sessions are recorded when they end, and backfill reads the transcripts that Claude Code keeps.")
+        print("No sessions found. Sessions are recorded when they end, and backfill reads Claude Code and Antigravity transcripts.")
         return 0
     out = []
     for s in sessions:
@@ -441,12 +623,12 @@ def print_session(sid, rows, source):
 
 def cmd_session(args):
     if args.id:
-        found = [t for t in transcripts() if os.path.basename(t).startswith(args.id)]
+        found = [t for t in transcripts() if transcript_sid(t).startswith(args.id)]
         logged = collections.OrderedDict()
         for r in load_log(log_path()):
             if r["session_id"].startswith(args.id):
                 logged.setdefault(r["session_id"], []).append(r)
-        ids = sorted({os.path.basename(t)[:-len(".jsonl")] for t in found} | set(logged))
+        ids = sorted({transcript_sid(t) for t in found} | set(logged))
         if len(ids) > 1:
             print("shipinetics-usage: %s matches %d sessions: %s. Give more of the id." % (args.id, len(ids), ", ".join(ids)),
                   file=sys.stderr)
@@ -458,7 +640,7 @@ def cmd_session(args):
                 return 0
         if logged:
             sid = next(iter(logged))
-            print_session(sid, logged[sid], "the usage log (Claude Code deleted the transcript)")
+            print_session(sid, logged[sid], "the usage log (the transcript is no longer on disk)")
             return 0
         print("shipinetics-usage: no session %s in the transcripts or the usage log." % args.id, file=sys.stderr)
         return 1
@@ -532,7 +714,7 @@ def cmd_record(args):
         return 0
     if args.detach:
         detach()
-    sid, rows = session_rows(args.transcript)
+    sid, rows = session_rows(args.transcript, cwd_override=getattr(args, "cwd", "") or "")
     if rows:
         write_sessions(log_path(), {sid: rows})
     return 0
@@ -555,6 +737,7 @@ def main(argv):
     h.add_argument("--out")
     r = sub.add_parser("record", add_help=False)
     r.add_argument("transcript")
+    r.add_argument("--cwd", default="")
     r.add_argument("--detach", action="store_true")
     b = sub.add_parser("backfill", add_help=False)
     for sp in (s, h, r, b):

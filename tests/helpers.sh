@@ -19,7 +19,7 @@ export HOME="$scratch/home" XDG_CONFIG_HOME="$scratch/xdg"
 mkdir -p "$HOME" "$XDG_CONFIG_HOME"
 export GIT_CONFIG_GLOBAL="$scratch/gitconfig" GIT_CONFIG_NOSYSTEM=1
 for v in $(compgen -e); do
-  case "$v" in SHIPINETICS_*|CLAUDE_PROJECT_DIR|CLAUDE_PLUGIN_ROOT|CLAUDECODE|CLAUDE_CODE_*) unset "$v" ;; esac
+  case "$v" in SHIPINETICS_*|CLAUDE_PROJECT_DIR|CLAUDE_PLUGIN_ROOT|CLAUDECODE|CLAUDE_CODE_*|PLUGIN_ROOT|PLUGIN_DATA|GEMINI_CONFIG_DIR|GEMINI_HOME) unset "$v" ;; esac
 done
 tool_dirs="$(dirname "${BASH:-/bin/bash}")"
 for t in git jq python3 perl ffmpeg; do
