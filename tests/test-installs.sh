@@ -19,6 +19,9 @@ asks "adding an MCP server" "claude mcp add sentry https://mcp.sentry.dev"
 has "the question says what to do" "$OUT" "installs or updates agent tooling"
 asks "npx skills check, which can update and remove skills" "npx skills check"
 gate "skills-outdated"; eq "the read-only check doesn't ask" "$OUT" ""
+asks "merging a Shipinetics release into a clone" "shipinetics-update -C ~/src/shipinetics merge v0.9.3"
+asks "merging from inside the clone" "shipinetics-update merge"
+gate "shipinetics-update -C ~/src/shipinetics check"; eq "the update check doesn't ask" "$OUT" ""
 gate "npm install left-pad"; eq "a project dependency doesn't ask" "$OUT" ""
 # ---- the gate judges commands that would run, not the same words in text
 nl=$'\n'

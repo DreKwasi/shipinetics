@@ -20,8 +20,9 @@ else
 fi
 
 # Installs and updates: an update pulls new code too. `skills check` counts: it can update and
-# remove skills while it checks. bin/skills-outdated is the read-only check.
-re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add'
+# remove skills while it checks. bin/skills-outdated is the read-only check. shipinetics-update merge
+# brings a new Shipinetics release, hooks included, into a clone that Claude Code may read from.
+re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add|shipinetics-update([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+merge'
 # Judge only text that can run: an inert heredoc body, a commit message, a search pattern or a
 # comment line can name an install without running it. If perl is missing, judge all of it.
 run="$(printf '%s' "$cmd" | sy_sanitize gate "")" || run="$cmd"

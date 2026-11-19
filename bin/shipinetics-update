@@ -1,0 +1,282 @@
+#!/usr/bin/env bash
+# shipinetics-update: how this machine gets Shipinetics, and how to bring it to the latest release.
+#
+# Usage:
+#   shipinetics-update                     where Shipinetics comes from (GitHub, your fork, or a clone
+#                                          on this machine) and what to do to update. For a clone, it
+#                                          runs check too
+#   shipinetics-update [-C <clone>] check  for a fork or clone: the latest release, how far behind the
+#                                          clone is, the files that a merge would conflict in, and the
+#                                          release notes. It changes no file (it fetches the tags)
+#   shipinetics-update [-C <clone>] merge [<tag>]
+#                                          merge a release (default: the latest) into the clone's
+#                                          current branch, then run the clone's tests. It refuses a
+#                                          tree with changes. On a conflict it stops and lists the files
+#   shipinetics-update steps <from> [<to>] the "Steps for each project" of each release after <from>,
+#                                          up to <to> (default: this plugin's version)
+#
+# The clone is -C <path>, or the current folder when it is a Shipinetics clone. The releases come
+# from SHIPINETICS_UPSTREAM (default https://github.com/DreKwasi/shipinetics.git), through the
+# clone's remote for it when there is one.
+# Exit codes: 0 up to date or done, 1 an update is waiting, a conflict, or failed tests, 2 can't check
+# or bad usage.
+
+set -uo pipefail
+case "${1:-}" in -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+here="$(cd "$(dirname "$0")/.." && pwd)"
+upstream="${SHIPINETICS_UPSTREAM:-https://github.com/DreKwasi/shipinetics.git}"
+die() { echo "shipinetics-update: $*" >&2; exit 2; }
+q() { printf '%q' "$1"; }
+command -v python3 >/dev/null 2>&1 || die "python3 is required"
+
+clone=""
+if [ "${1:-}" = "-C" ]; then
+  [ -n "${2:-}" ] || die "-C needs a path"
+  clone="$2"; shift 2
+fi
+cmd="${1:-status}"; [ $# -gt 0 ] && shift
+
+# repo_key <url or path>: owner/repo in lower case for a GitHub URL, else the path without .git
+repo_key() {
+  printf '%s\n' "$1" | sed -e 's#/*$##' -e 's#\.git$##' -e 's#^git@github\.com:#github.com/#' \
+    -e 's#[#@][^/]*$##' -e 's#^[a-z+]*://##' -e 's#^[^@/]*@##' -e 's#^www\.##' -e 's#^github\.com/##' | tr 'A-Z' 'a-z'
+}
+up_key="$(repo_key "$upstream")"
+
+# is_clone <dir>: a git work tree that holds a Shipinetics plugin
+is_clone() {
+  [ -f "$1/.claude-plugin/plugin.json" ] && git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1 &&
+    python3 -c 'import json,sys; sys.exit(0 if json.load(open(sys.argv[1])).get("name")=="shipinetics" else 1)' \
+      "$1/.claude-plugin/plugin.json" 2>/dev/null
+}
+
+# version_of <plugin.json text on stdin>
+version_of() { python3 -c 'import json,sys; print(json.load(sys.stdin).get("version",""))' 2>/dev/null; }
+
+# latest_tag <dir>: the highest vX.Y.Z tag in the clone (pre-release tags don't count)
+latest_tag() {
+  git -C "$1" tag -l 'v*' | python3 -c '
+import re, sys
+tags = [t.strip() for t in sys.stdin if re.fullmatch(r"v\d+\.\d+\.\d+", t.strip())]
+tags.sort(key=lambda t: tuple(int(x) for x in t[1:].split(".")))
+print(tags[-1] if tags else "")'
+}
+
+# changelog <from> <to> <mode>: from the CHANGELOG text on stdin, the release sections after
+# <from>, up to and including <to>. mode notes prints them whole; mode steps prints each
+# "Steps for each project" paragraph with its release, its entry and whether it is breaking.
+changelog() {
+  python3 -c "$changelog_py" "$1" "$2" "$3"
+}
+changelog_py=$(cat <<'PY'
+import re, sys
+frm, to, mode = sys.argv[1:4]
+def key(v):
+    m = re.match(r"v?(\d+)\.(\d+)\.(\d+)", v or "")
+    return tuple(int(x) for x in m.groups()) if m else None
+lo, hi = key(frm), key(to)
+if lo is None:
+    sys.exit("not a version: %s" % frm)
+step = re.compile(r"Steps? for each project|\*\*Steps?:\*\*")
+out, cur, keep, heading, entry = [], None, False, "", []
+def flush():
+    # steps mode: an entry counts when it is under a breaking heading or names its steps
+    global entry
+    if entry and (("(breaking)" in heading) or step.search("\n".join(entry))):
+        tag = "breaking" if "(breaking)" in heading else "optional"
+        out.append("%s (%s)\n%s\n" % (cur, tag, "\n".join("  " + l for l in entry)))
+    entry = []
+for line in sys.stdin.read().splitlines():
+    m = re.match(r"## (\S+)", line)
+    if m:
+        flush()
+        k = key(m.group(1))
+        cur, keep = m.group(1), bool(k and k > lo and (hi is None or k <= hi))
+        heading = ""
+        if keep and mode == "notes":
+            out.append(line)
+        continue
+    if not keep:
+        continue
+    if mode == "notes":
+        out.append(line)
+    elif line.startswith("### "):
+        flush(); heading = line
+    elif line.startswith("- "):
+        flush(); entry = [line]
+    elif entry:
+        entry.append(line)
+flush()
+print("\n".join(l.rstrip() for l in out).strip() if out else "(none)")
+PY
+)
+
+# fetch_tags <dir>: the release tags from the upstream remote, or from the URL
+fetch_tags() {
+  local r src=""
+  for r in $(git -C "$1" remote); do
+    [ "$(repo_key "$(git -C "$1" remote get-url "$r")")" = "$up_key" ] && { src="$r"; break; }
+  done
+  [ -n "$src" ] || src="$upstream"
+  git -C "$1" fetch --quiet --tags "$src" 2>/dev/null || { echo "shipinetics-update: can't fetch the releases from $src" >&2; return 1; }
+  echo "$src"
+}
+
+find_clone() {
+  if [ -z "$clone" ]; then
+    is_clone "$PWD" && clone="$(git -C "$PWD" rev-parse --show-toplevel)" ||
+      die "no clone given, and this folder isn't a Shipinetics clone. Use -C <path to your clone>"
+  fi
+  is_clone "$clone" || die "$clone isn't a git clone of Shipinetics"
+}
+
+do_check() {
+  find_clone
+  local src tag cur behind mine conflicts rc=0
+  src="$(fetch_tags "$clone")" || exit 2
+  tag="$(latest_tag "$clone")"; [ -n "$tag" ] || die "no release tags (vX.Y.Z) found at $src"
+  cur="$(version_of <"$clone/.claude-plugin/plugin.json")"
+  echo "Clone:          $clone (branch $(git -C "$clone" rev-parse --abbrev-ref HEAD))"
+  echo "Releases from:  $src"
+  echo "Clone version:  $cur"
+  echo "Latest release: ${tag#v}"
+  if git -C "$clone" merge-base --is-ancestor "$tag" HEAD; then
+    echo "Up to date: the clone already holds $tag."
+    return 0
+  fi
+  behind="$(git -C "$clone" rev-list --count "HEAD..$tag")"
+  mine="$(git -C "$clone" rev-list --count "$tag..HEAD")"
+  echo "Behind:         $behind commits of $tag. Your own commits not in $tag: $mine."
+  [ -n "$(git -C "$clone" status --porcelain)" ] && echo "Your clone has uncommitted changes. Commit or stash them before you merge."
+  if conflicts="$(git -C "$clone" merge-tree --write-tree --name-only --no-messages HEAD "$tag" 2>/dev/null)"; then
+    echo "A merge has no conflicts."
+  elif [ $? -eq 1 ]; then
+    echo "A merge conflicts in these files:"
+    printf '%s\n' "$conflicts" | sed '1d' | sed '/^$/d' | sed 's/^/  /'
+  else
+    echo "Can't preview the conflicts (it needs git 2.38 or later)."
+  fi
+  echo
+  echo "Release notes after $cur:"
+  git -C "$clone" show "$tag:CHANGELOG.md" 2>/dev/null | changelog "$cur" "$tag" notes | sed 's/^/  /'
+  echo
+  echo "Next: shipinetics-update -C $(q "$clone") merge $tag"
+  return 1
+}
+
+do_merge() {
+  find_clone
+  local tag="${1:-}" src
+  [ -z "$(git -C "$clone" status --porcelain)" ] || die "$clone has uncommitted changes. Commit or stash them first"
+  git -C "$clone" rev-parse -q --verify MERGE_HEAD >/dev/null && die "$clone is in the middle of a merge. Finish it or run git merge --abort"
+  src="$(fetch_tags "$clone")" || exit 2
+  [ -n "$tag" ] || tag="$(latest_tag "$clone")"
+  git -C "$clone" rev-parse -q --verify "refs/tags/$tag" >/dev/null || die "no tag $tag at $src"
+  if git -C "$clone" merge-base --is-ancestor "$tag" HEAD; then echo "Up to date: the clone already holds $tag."; return 0; fi
+  local err
+  if ! err="$(git -C "$clone" merge --quiet --no-edit -m "Merge Shipinetics $tag" "$tag" 2>&1 >/dev/null)"; then
+    if git -C "$clone" rev-parse -q --verify MERGE_HEAD >/dev/null && [ -n "$(git -C "$clone" diff --name-only --diff-filter=U)" ]; then
+      echo "The merge of $tag stopped on conflicts in:"
+      git -C "$clone" diff --name-only --diff-filter=U | sed 's/^/  /'
+      echo "Keep your change and the release's change in each file, then git add and git commit."
+      echo "To undo the merge: git -C $(q "$clone") merge --abort"
+      return 1
+    fi
+    echo "shipinetics-update: git couldn't merge $tag:" >&2
+    printf '%s\n' "$err" | sed 's/^/  /' >&2
+    git -C "$clone" rev-parse -q --verify MERGE_HEAD >/dev/null && echo "To undo the merge: git -C $(q "$clone") merge --abort" >&2
+    exit 2
+  fi
+  echo "Merged $tag into $(git -C "$clone" rev-parse --abbrev-ref HEAD)."
+  if [ -f "$clone/tests/run.sh" ]; then
+    echo "Running the clone's tests..."
+    if (cd "$clone" && "${BASH:-bash}" tests/run.sh >"${TMPDIR:-/tmp}/shipinetics-update-tests.log" 2>&1); then
+      echo "All tests passed."
+    else
+      echo "Some tests failed. The log: ${TMPDIR:-/tmp}/shipinetics-update-tests.log"
+      echo "Fix them, or undo the merge with: git -C $(q "$clone") reset --hard ORIG_HEAD"
+      return 1
+    fi
+  fi
+  echo "Next: if Claude Code reads the plugin from this folder, run /reload-plugins. If it installs from your"
+  echo "GitHub fork, push, then: claude plugin marketplace update <marketplace>; claude plugin update shipinetics@<marketplace>"
+  echo "Then, in each project: /shipinetics:setup update"
+}
+
+do_status() {
+  if [ -n "$clone" ] || is_clone "$PWD"; then do_check; return; fi
+  command -v claude >/dev/null 2>&1 || die "the claude CLI isn't on the PATH, so this can't tell where Shipinetics comes from. In a clone, run: shipinetics-update check"
+  local info
+  info="$( { claude plugin list --json; echo '@@@'; claude plugin marketplace list --json; } 2>/dev/null | python3 -c '
+import json, sys
+plugins, markets = sys.stdin.read().split("@@@")
+try:
+    plugins, markets = json.loads(plugins), {m.get("name"): m for m in json.loads(markets)}
+except ValueError:
+    sys.exit(1)
+for p in plugins:
+    pid = p.get("id", "")
+    if not pid.startswith("shipinetics@"):
+        continue
+    name = pid.split("@", 1)[1]
+    m = markets.get(name, {})
+    where = p.get("readFromFolder") or ""
+    src = m.get("repo") or m.get("url") or m.get("path") or ""
+    print("\x1f".join([pid, name, p.get("version", ""), m.get("source", "") or "-", src or "-", where or "-"]))
+')" || die "can't read claude plugin list --json"
+  [ -n "$info" ] || { echo "Shipinetics isn't installed. Install it: claude plugin marketplace add DreKwasi/shipinetics; claude plugin install shipinetics@shipinetics"; return 2; }
+  local pid name ver kind src where rc=0
+  while IFS=$'\x1f' read -r pid name ver kind src where; do
+    [ "$where" = - ] && where=""
+    echo "Installed: $pid, version $ver"
+    if [ -n "$where" ]; then
+      echo "Source:    a folder on this machine, $where. Claude Code reads the plugin from it, so an edit there"
+      echo "           takes effect at the next session or after /reload-plugins."
+      if is_clone "$where"; then echo; clone="$where"; do_check || rc=1; clone=""
+      else echo "           The folder isn't a git clone, so there are no releases to merge."; fi
+    elif [ "$(repo_key "$src")" = "$up_key" ]; then
+      local tag
+      tag="$(git ls-remote --tags --refs "$upstream" 2>/dev/null | sed 's#.*refs/tags/##' | python3 -c '
+import re, sys
+t = sorted((x.strip() for x in sys.stdin if re.fullmatch(r"v\d+\.\d+\.\d+", x.strip())), key=lambda t: tuple(int(n) for n in t[1:].split(".")))
+print(t[-1] if t else "")')"
+      echo "Source:    GitHub, $src (the main repo)."
+      if [ -z "$tag" ]; then echo "           Can't read the latest release."; rc=2
+      elif [ "${tag#v}" = "$ver" ]; then echo "           Up to date with the latest release, ${tag#v}."
+      else
+        echo "           The latest release is ${tag#v}. Update, then restart Claude Code:"
+        echo "             claude plugin marketplace update $name"
+        echo "             claude plugin update $pid"
+        echo "           Then read CHANGELOG.md, and run /shipinetics:setup update in each project."
+        rc=1
+      fi
+    elif [ "$kind" = - ]; then
+      echo "Source:    marketplace $name, which claude plugin marketplace list doesn't show."
+      rc=2
+    else
+      echo "Source:    $kind, $src (your fork)."
+      echo "           Claude Code keeps a copy of version $ver. It takes a new copy only when the version in"
+      echo "           .claude-plugin/plugin.json changes. To update:"
+      echo "             1. In your clone of the fork: shipinetics-update -C <clone> merge"
+      echo "             2. Push. If you pushed your own change since the last release, give it a new version"
+      echo "                first, such as ${ver%%-*}-<your name>.1"
+      echo "             3. claude plugin marketplace update $name; claude plugin update $pid; restart Claude Code"
+      echo "             4. In each project: /shipinetics:setup update"
+    fi
+    echo
+  done <<EOF
+$info
+EOF
+  return "$rc"
+}
+
+case "$cmd" in
+  status) do_status ;;
+  check) do_check ;;
+  merge) do_merge "${1:-}" ;;
+  steps)
+    [ -n "${1:-}" ] || die "steps needs the project's version: shipinetics-update steps <from> [<to>]"
+    to="${2:-$(version_of <"$here/.claude-plugin/plugin.json")}"
+    changelog "$1" "$to" steps <"$here/CHANGELOG.md" || exit 2 ;;
+  *) die "unknown command: $cmd (check, merge or steps)" ;;
+esac
