@@ -69,7 +69,7 @@ Write these rules into the README's Launch, Doctor, Isolation and Cleanup sectio
 2. **Write the README sections** above with the real commands. Prefer existing harnesses (the e2e setup, a seed script) over new ones. If a step needs a helper script, make it a `bin/` script (shipinetics:workflow, step 9), not a paragraph of commands.
 3. **Write the first feature files.** For each one, actually drive every entry point while you write it, and put the selectors you used in the file.
 4. **Prove it end to end** before handing off: launch from empty data (with `launch = user`, ask the user to start it), run the doctor, drive one feature through every entry point, capture its proof, clean up, then confirm the evidence survived cleanup and nothing you started is still running. If you proved it in a stand-in environment, list which launch steps are still unproven.
-5. **Point to it.** In `AGENTS.md`, make "Run the app yourself" point at `docs/verification/README.md`. If the harness supports project skills, add a short `.claude/skills/drive-app/SKILL.md` whose description says it launches and drives this app, and whose body points at the README. Claude Code's built-in `run` skill looks for a project skill like that.
+5. **Point to it.** In `AGENTS.md`, make the "Run the app" section point at `docs/verification/README.md`. If the harness supports project skills, add a short `.claude/skills/drive-app/SKILL.md` whose description says it launches and drives this app, and whose body points at the README. Claude Code's built-in `run` skill looks for a project skill like that.
 6. Commit it with the setup or task it belongs to.
 
 ## Maintain

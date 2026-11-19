@@ -25,6 +25,7 @@ This is how every task runs, interactive or autonomous. Skip steps only where th
 - Read the task. If it came from `TODOS.md`, claim it (shipinetics:task-queue).
 - Start or resume a worksheet: `worksheet new <slug> "<title>"` or `worksheet use <name>`. If you're resuming, read the whole worksheet and `git log --grep "Worksheet: <name>"` before touching anything.
 - Find the relevant systems: `head -n 7 docs/systems/*.md`, then read the full doc for each system you'll touch.
+- Give the task a size from the table above, and tell the user the size and what it skips, in one or two lines. The user can choose another size: XS for a small fix, S, or M for the full loop with a spec and a plan review. Only the size table's skips change. Verify, running the app, test-writer and the gates stay for every size. In an autonomous session, take the size and write it in the worksheet.
 - For tasks S and up, offer the user routes for the task, with the companion skills that each route uses, and recommend one ("Choose a route" below).
 - Run `shipinetics-verify` once before changing anything. If it already fails, note that in the worksheet. You're not responsible for pre-existing failures, but you need to know about them.
 

@@ -1,7 +1,7 @@
 ---
 name: setup
-description: Audit a project against the shipinetics setup (17 points plus secrets, independent tests, specialist reviewers and explainers) and scaffold what's missing, one phase at a time. Use when the user runs /shipinetics:setup, asks to set up the agentic workflow in a repo, or asks what's missing from their setup.
-argument-hint: "[audit|1|2|3|4|5|6|7]"
+description: Audit a project against the shipinetics setup (17 points plus secrets, independent tests, specialist reviewers and explainers) and scaffold what's missing, one phase at a time. It fits around an existing CLAUDE.md or AGENTS.md, and `update` brings a set-up project to the plugin's current version. Use when the user runs /shipinetics:setup, asks to set up the agentic workflow in a repo, asks what's missing from their setup, or updated the plugin.
+argument-hint: "[audit|update|1|2|3|4|5|6|7]"
 disable-model-invocation: true
 ---
 
@@ -11,7 +11,20 @@ disable-model-invocation: true
 
 You're installing a working agentic setup into this project. The plugin carries the generic parts (skills, reviewer, hooks, scripts). This skill puts the project-specific parts into the repo so they're committed, visible to every agent and to CI, and work without the plugin.
 
-Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in one message, then run every phase in order in this one run. If `docs/shipinetics-setup.md` shows phases already done, start at the first one that isn't. A number runs just that phase, to redo or repair it. `audit` means audit only.
+Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in one message, then run the phases in the way the user chose ("How to run setup" below). If `docs/shipinetics-setup.md` shows phases already done, start at the first one that isn't. A number runs just that phase, to redo or repair it. `audit` means audit only. `update` brings a project that is already set up to the plugin's current version ("Update a set-up project" below).
+
+## How to run setup
+
+With no argument, offer these four ways in the ask-once message, with the first one recommended. Write the choice in `docs/shipinetics-setup.md`, so that a resumed run keeps it:
+
+| Way | What happens | Good for |
+|---|---|---|
+| **All phases in one run** (recommended) | Every phase in order, without a stop between them. Setup stops early only when a proof fails | Most projects. It is the fastest way to a working setup |
+| **One phase at a time** | After each phase's proof and commit, setup shows what the phase added and asks before the next one | A team that wants to read each phase, or a project where a mistake costs much |
+| **Phase 1 only** | The core loop: verify, the router and the block, the lists, secrets, the testing guide, the smoke test and the verification map. Then setup runs Finish and stops. `/shipinetics:setup` later continues at Phase 2 | A first try, or a busy week |
+| **Audit only** | The audit table and the questions, and no change. The same as `/shipinetics:setup audit` | Seeing what is missing before deciding |
+
+With "one phase at a time" or "Phase 1 only", ask the other questions only when the phase that needs them starts.
 
 ## Rules
 
@@ -19,7 +32,7 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in 
 - **Detect, don't ask, where you can.** Read `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, CI config, lockfiles and existing scripts to find the real commands. Ask only for what you can't find out.
 - **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
-- **Ask once, then run straight through.** After the audit, put every question the phases need in one message: the Unconfirmed list, secret names you couldn't find, where recordings go (an opt-in `evidence_upload_cmd` for the team's store, or attach them to the PR by hand), the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), the smoke test's criterion (which screen it opens and what it must show: test-writer tests only criteria that a human approved), and for Phase 7 which instance Strix may test and whether to run deepsec on the whole repo, with which cost cap. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
+- **Ask once, then run straight through** (with "All phases in one run"). After the audit, put every question the phases need in one message, with the way to run setup first: the Unconfirmed list, secret names you couldn't find, where recordings go (an opt-in `evidence_upload_cmd` for the team's store, or attach them to the PR by hand), the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), the smoke test's criterion (which screen it opens and what it must show: test-writer tests only criteria that a human approved), each disagreement between the project's instruction files and the Shipinetics block ("Projects that already have CLAUDE.md or AGENTS.md", step 3), and for Phase 7 which instance Strix may test and whether to run deepsec on the whole repo, with which cost cap. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
 - **What only the user can do goes on a list, not a pause.** Installing a CLI, logging in, creating a GitHub label they didn't approve: add it to a "For you" list in `docs/shipinetics-setup.md` and carry on.
 - **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. Log each phase's result and proof in `docs/shipinetics-setup.md` as you finish it, so a stopped run can resume. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
@@ -45,9 +58,53 @@ Tell the user this in the Finish summary in one or two sentences, so they don't 
 Many projects already have their own versions of these pieces under other names: a router, worksheet scripts, a validate script, review and testing docs. Shipinetics fits over them instead of replacing them.
 
 - **Map, don't duplicate.** For each point the audit marks in place, set the matching key in `.shipinetics/config` (from `templates/config`) to the existing file or command: `worksheets_dir`, `feedback_file`, `systems_dir`, `conventions_file`, `test_index_file`, `testing_guide_file`, `verify_cmd`, `worksheet_new_cmd`, `worksheet_tag_cmd`, `tag_prefix`, `secrets_runner`. Shipinetics's skills, hooks and tools then use the project's own files. Show the user the mapping, and check it with `shipinetics-config`.
-- **Only add what's missing.** Skip any template that duplicates something the project already has (`bin/verify`, the docs templates, `TODOS.md`). Add the `.shipinetics/` lists and a short Shipinetics section in the existing router that points to the new capabilities.
-- **Leave the router and CLAUDE.md alone** beyond that section. If `CLAUDE.md` is very long, tell the user what it costs (it loads into every session) and suggest trimming, but don't do it during setup.
+- **Only add what's missing.** Skip any template that duplicates something the project already has (`bin/verify`, the docs templates, `TODOS.md`). Add the `.shipinetics/` lists, and the Shipinetics block as "Projects that already have CLAUDE.md or AGENTS.md" describes.
+- **The instruction files** (`CLAUDE.md`, `AGENTS.md` and the files they import) follow "Projects that already have CLAUDE.md or AGENTS.md" below.
 - **Secrets:** match how the project already runs things with secrets. For Infisical, set `secrets_runner = infisical run --env=<env> --` (and `vault = infisical` if the project copies `bin/with-secrets`).
+
+## Projects that already have CLAUDE.md or AGENTS.md
+
+Most projects already have instructions for agents. Shipinetics adds its rules next to them. It never moves or rewrites the project's text without the user's yes.
+
+1. **Find every file that loads.** Look for:
+   - `CLAUDE.md`, `.claude/CLAUDE.md`, `AGENTS.md` and `.claude/AGENTS.md`;
+   - the files that these import with `@path`, and `.claude/rules/` if it exists;
+   - `CLAUDE.md` and `AGENTS.md` in subfolders (`git ls-files '*CLAUDE.md' '*AGENTS.md'`). They load only when the agent works in their folder. Leave them as they are;
+   - symlinks: check `ls -l CLAUDE.md AGENTS.md`.
+
+   `CLAUDE.local.md` belongs to one person and is usually not in git. Count it, but never edit it. Files for other tools (`.cursor/rules/`, `.github/copilot-instructions.md`, `GEMINI.md`) don't load in Claude Code. Leave them. Write each file and its line count in audit row 0.
+2. **Put the Shipinetics block in `AGENTS.md`, and make `CLAUDE.md` load it.** The block is the text between the `shipinetics:begin` and `shipinetics:end` lines of `templates/AGENTS.md`. The skills point to `AGENTS.md`, so the block always goes in the root `AGENTS.md`:
+
+   | The project has | Do this |
+   |---|---|
+   | Neither file | Write both from the templates |
+   | `AGENTS.md` only | Add the block at the end of `AGENTS.md`. Create `CLAUDE.md` from the template |
+   | `CLAUDE.md` only | Create `AGENTS.md` with the block. Add `@AGENTS.md` as the last line of `CLAUDE.md`. An import path is relative to the file that holds it: in `.claude/CLAUDE.md`, the line is `@../AGENTS.md` |
+   | Both, and `CLAUDE.md` imports `AGENTS.md` | Add the block at the end of `AGENTS.md` |
+   | Both, and no import | Add the import line to `CLAUDE.md`. Tell the user first: Claude Code didn't read this `AGENTS.md` before, because it reads only `CLAUDE.md` when both exist, so its text now loads in each session. Show what it says. If the two files say the same things, tell the user which parts, but don't merge them |
+   | One is a symlink to the other | It is one file. Add the block to the real file that the link points to, not to the link, and add no import |
+
+   The template's sections above the block (Run the app, Where to find things, Secrets, fresh clone) go into `AGENTS.md` only when no existing file covers them yet. When a file covers one, leave it there. If it is out of date, tell the user. "Security targets" always goes in `AGENTS.md`, because the block names that section.
+
+   The proof: put on the For you list "In a new session, run `/memory` and check that it lists `AGENTS.md`." An import with a wrong path fails without an error.
+3. **Find the rules that disagree.** Read each file from step 1 and compare it with the block. Put each disagreement in the ask-once message, with both texts. Common ones:
+
+   | The project says | Shipinetics says | What to tell the user |
+   |---|---|---|
+   | "Write tests first", "TDD", "add tests with each change" | test-writer writes the tests | A hook enforces this: in a set-up project, the main agent can't write test files. The project's rule must change |
+   | "Update the snapshots with `-u` when they fail", "regenerate the baseline" | Never regenerate a test, a snapshot or a baseline to get a pass | This rule always holds, and the project's rule must change. A human updates a snapshot or a baseline through `.shipinetics/pending/` |
+   | "One commit at the end", "squash" | A commit for each step, at most 400 lines | The pre-commit hook enforces the size. `max_lines` at the top of `.githooks/pre-commit` changes it, and `0` turns it off. PRs can still be squashed when they merge |
+   | "Never use subagents" | Reviewers and test-writer are subagents | Without them, there is no independent review and no independent tests |
+   | "Run `npm test` before you finish" | `shipinetics-verify` | Not a disagreement: set `verify_cmd` to the project's command ("Projects that already have a harness") |
+   | "Don't start the servers, I run them" | Agents run the app | Not a disagreement: set `launch = user` in `.shipinetics/config` |
+   | A commit format, such as Conventional Commits | The plain-language guide | Not a disagreement: the format sets the shape of the first line, and the guide sets the words |
+
+   For each real disagreement, the user chooses:
+   - **The project's rule.** Write it under "## Where this project differs from Shipinetics", outside the block, with its reason, the block rule that it replaces, and "Approved by <name> on <date>". The block makes that rule win. Two kinds can't go there: a rule that weakens one of the rules that the block says always hold (secrets, protected files, tests, scans, Strix and deepsec approvals), and a rule that a hook enforces. For the second kind, name the setting that changes the hook, or say that no setting does.
+   - **The Shipinetics rule.** Change or remove the project's rule only after the user's yes, and show the diff.
+
+   Rules that the project and the block both state: tell the user, and offer to remove the project's copy. Never change the text inside the block for one project, because `update` replaces it.
+4. **Count what loads in every session.** Add up the lines of the files that load at session start (step 1, without the subfolder files), before and after setup. Write both numbers in the setup log. If the total is over about 300 lines, tell the user that each session pays for it, and suggest what could move into docs that load only when needed. Don't move it during setup.
 
 ## Multi-repo workspaces
 
@@ -68,7 +125,7 @@ Check each point and fill this table. Status is **in place**, **partial** or **m
 
 | # | Point | What to look for |
 |---|---|---|
-| 0 | Router | `AGENTS.md` that routes to docs, skills and tools. `CLAUDE.md` that imports it with `@AGENTS.md` |
+| 0 | Router | `AGENTS.md` that routes to docs, skills and tools, with the Shipinetics block between its `shipinetics:begin` and `shipinetics:end` lines. `CLAUDE.md` that imports it with `@AGENTS.md`, or is a symlink to it. List every instruction file that you found, with its line count ("Projects that already have CLAUDE.md or AGENTS.md") |
 | 1 | Workflow | A workflow doc or skill (`AGENT_WORKFLOW.md`, or rely on `shipinetics:workflow`) |
 | 2 | System docs | `docs/systems/*.md` with 7-line greppable headers, rule in `AGENTS.md` |
 | 3 | Run the app | `AGENTS.md` says exactly how to start the app, seed data and log in. `docs/verification/` holds the verification map: launch, doctor, drive, cleanup, and a file per main feature with every entry point |
@@ -115,8 +172,8 @@ The goal is one loop that works end to end: the agent runs the checks itself, a 
    - Copy `templates/bin/with-secrets` to `bin/with-secrets` and `chmod +x` it. Check it works with a harmless command: `bin/with-secrets true` (it fails clearly if gcloud isn't logged in, which is fine to report).
    - If any `.env` file is tracked in git, stop and tell the user. Don't read it.
    - Build the merged `.claude/settings.json`: the project's current file, if any, plus `templates/claude/settings.json`. It turns on `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` and denies vault reads and credential files. The template's vault rules are for Google Secret Manager. Swap them for the project's vault: for Infisical, deny its `secrets` and `export` subcommands and `Read(~/.infisical/**)`; for others, the command that prints a secret and the CLI's credential folder. Remove rules for vaults the project doesn't use, so the file says what's really protected. Agents can't edit Claude Code's settings files, so write the result to `.shipinetics/pending/.claude/settings.json`, show the user the diff, and put `shipinetics-config apply` on the For you list. If even that write is refused, put the exact JSON on the For you list instead.
-5. **`AGENTS.md`** from the template, filled in for this project. If one exists, merge: keep everything the user wrote and add the missing sections. Keep it under about 120 lines. It routes, it doesn't explain.
-6. **`CLAUDE.md`**: if missing, create it from the template (it imports `@AGENTS.md`). If it exists with real content, move that content into `AGENTS.md` and leave the import, after showing the user.
+5. **`AGENTS.md`** from the template, filled in for this project, with `{{SHIPINETICS_VERSION}}` set to the plugin's version (`version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`). If the project already has instruction files, follow "Projects that already have CLAUDE.md or AGENTS.md" instead. Keep the part outside the block under about 60 lines. It routes, it doesn't explain.
+6. **`CLAUDE.md`**: if missing, create it from the template (it imports `@AGENTS.md`). If it exists, add the import as described in the same section. Never move or rewrite the text in it.
 7. **Testing guide** (point 4). From now on, every task gets tests, so make each test run fast and each request to test-writer predictable. Work from config and test names. Don't read test bodies and don't judge the tests now: shipinetics:test-audit does that later, a few files at a time.
    1. **Runners and folders.** Find each test runner, its config and its test folders (`package.json` scripts, `pyproject.toml`, `pytest.ini`, `go.mod`, `Cargo.toml`, the Playwright or Cypress config) and check them with `git ls-files`. `.shipinetics/test-paths` (step 3) must match them.
    2. **The fastest targeted run.** Find the command that runs one test by file and name. Run it on one fast existing test with `/usr/bin/time -p` and record the wall time (with no tests yet, write "no tests yet" and time the smoke test after step 8): that is the fixed cost that each of test-writer's proof runs pays. If it is over 10 seconds, find the cause in the output (the test database is built again from all migrations, a full build before each run, each worker does its own setup) and put the stack's usual fix on the For you list, with the numbers. Don't change the test config.
@@ -126,7 +183,7 @@ The goal is one loop that works end to end: the agent runs the checks itself, a 
    6. **Proof:** the targeted command and the related-tests command each pass. Record both times in `docs/shipinetics-setup.md`.
 8. **Playwright smoke test** (web projects): if there's no e2e setup, install Playwright and add `templates/e2e/playwright.config.ts` at the repo root, adapted to the app's real start command (through `bin/with-secrets` if it needs secrets) and port. The smoke test itself is a test file, so you don't write it: first write the criterion that the user approved in the questions message to `docs/specs/smoke.md` ("AC1: Given the app started from empty data, when a user opens <the main screen>, then it shows <its heading> and the console has no errors"), with the line "Approved by <name> on <date>, in setup." Then spawn `shipinetics:test-writer` in `backfill` mode (the app exists, so there is no base commit to fail on) with that spec, `templates/e2e/smoke.spec.ts` as the starting point, the app's main screen, and the instruction to make it a single `@smoke` test that fails on console errors. It runs the test, watches it pass, breaks it on purpose (wrong heading text), watches it fail, and restores it. If the project already has an e2e setup, ask test-writer for just the one `@smoke` test in it. For non-web projects, ask test-writer for the equivalent: one end-to-end test through the real entry point (CLI, API, worker).
 
-   Then build the **verification map** (shipinetics:verification-map `create`): `docs/verification/` with how to launch the app from empty data, a read-only doctor check, how to drive it, how to clean up, and the first 3 to 5 features with every entry point. Its end-to-end self-proof (launch, doctor, drive one feature, evidence survives cleanup) is this step's proof. Point "Run the app yourself" in `AGENTS.md` at it.
+   Then build the **verification map** (shipinetics:verification-map `create`): `docs/verification/` with how to launch the app from empty data, a read-only doctor check, how to drive it, how to clean up, and the first 3 to 5 features with every entry point. Its end-to-end self-proof (launch, doctor, drive one feature, evidence survives cleanup) is this step's proof. Point the "Run the app" section of `AGENTS.md` at it.
 9. **Prove the gate.** Run `shipinetics-verify` and `shipinetics-verify quick`, then `shipinetics-verify status`, to show both tiers pass and are recorded. Tell the user how to see the gate: make a small change that breaks a test, ask the agent to open a PR, and watch the PR gate refuse it. After a week of use, `shipinetics-verify times` shows where verify time goes.
 10. **Prove the reviewers.** Run `shipinetics-companions missing` (exit 1 only means that a required companion is missing) and report each missing companion (row R) with why Shipinetics uses it, its SkillSpector result and its install command.
 11. Commit with a message explaining the setup. Update `docs/shipinetics-setup.md`.
@@ -177,7 +234,7 @@ Follow `shipinetics:visual-regression` and `shipinetics:perf` to add one visual 
 
 1. Check for SkillSpector. If it's missing, give the user the install command. Once installed, run `scan-skills` and show the user the summary. Anything `DO_NOT_INSTALL` is the first thing to deal with.
 2. Check for Strix and Docker. If the user wants app security testing and they're missing, put the install on the For you list: install Strix, store its provider key in Secret Manager and add it to `.shipinetics/secrets.list`.
-3. Record the local or staging instance the user said Strix may test in the Secrets or Security section of `AGENTS.md`. Don't run Strix during setup unless they say so.
+3. Record the local or staging instance the user said Strix may test under `## Security targets` in `AGENTS.md`, above the block (never inside it). Don't run Strix during setup unless they say so.
 4. **deepsec** (optional). If the user wants it, put the first run on the For you list with the cap they chose: `npx deepsec init --agent claude --model-auth local --max-cost-usd <cap> --max-duration 2h`, run from the repo root in their own terminal, because it asks questions. With `--agent claude --model-auth local` it uses their Claude Code login and needs no key. Check that `.gitignore` has the `.deepsec/findings/` line from `templates/gitignore-additions`. Tell them the cost first: with Claude Opus, about 25 to 60 US dollars for each 100 files. Don't run it during setup.
 5. Add the weekly security pass to their routine (GETTING-STARTED.md in the plugin repo).
 6. Ask how often to run a full security audit (security-audit's full mode: thorough, and it costs many agent runs): off, weekly, monthly, quarterly or every N days. Set `security_audit_every` in `.shipinetics/config` (`off`, `weekly`, `monthly`, `quarterly` or `<days>d`). The weekly sweep runs it when `shipinetics-config due security-audit` says it's due.
@@ -186,8 +243,43 @@ Follow `shipinetics:visual-regression` and `shipinetics:perf` to add one visual 
 
 Write `.shipinetics/protected-paths` now, with the contents you decided in Phase 1 and Phase 2. If it already exists, write the full new version to `.shipinetics/pending/.shipinetics/protected-paths` (same path under that folder) and a human reviews and applies it with `shipinetics-config apply` instead. Run `shipinetics-config pending`: if anything is waiting, put `shipinetics-config apply` near the top of the For you list, with what each change does.
 
-Update `docs/shipinetics-setup.md` with the new status table and the date. Tell the user, in a few lines (including that the guards cover file tools only, see What the guards cover): what's in place now, what you verified, what failed or was skipped, the For you list, and the gate checks to try themselves (Phase 1 step 9).
+Update `docs/shipinetics-setup.md` with the new status table, the date, and the line "Shipinetics version: <version>" (the plugin's version). `update` reads that line later. Tell the user, in a few lines (including that the guards cover file tools only, see What the guards cover): what's in place now, what you verified, what failed or was skipped, the For you list, and the gate checks to try themselves (Phase 1 step 9).
 
 Setup writes one smoke test, not the tests of the existing app. End the summary with the next step for tests: `/shipinetics:test-backfill`. It adds tests to the existing app a few features at a time, riskiest first, with one approval round for each batch. Give the user the numbers from the testing guide step (the fixed cost of one run, the time of the related tests), because they decide how fast that goes.
 
 Put any row S or V that's still partial or missing at the top of the For you list, with what it leaves unprotected, for example "env scrub off: commands the agent runs still see credentials" or "no CI evidence job in `web`: PRs from it can merge without evidence". These rows are guardrails. Until they're done, the protection is only partly in force, and the user needs to know that rather than assume it. The weekly sweep checks them again (shipinetics:sweep).
+
+## Update a set-up project
+
+`/shipinetics:setup update` brings a project that is already set up to the plugin's current version. A plugin update changes the skills, agents, hooks and tools at once. The files that setup wrote into the project stay as they were. Work on a branch: `shipinetics-update-<version>`.
+
+After step 2, show the user the list of steps and offer these four ways, with the first one recommended:
+
+| Way | What happens |
+|---|---|
+| **All steps** (recommended) | The new block, the steps of breaking changes and the optional steps |
+| **Breaking steps only** | The new block and the steps of breaking changes. The optional steps go on the For you list, so the user can do them later |
+| **Pick the steps** | The new block, and each step that the user chooses from the list |
+| **Preview only** | The list of steps and the diff of the block, and no change |
+
+In an autonomous session, do "Preview only", write the list and the diff in the setup log, and add one task to the Blocked section of the queue: "Choose how to run /shipinetics:setup update".
+
+1. **Find the two versions.** The project's version is the "Shipinetics version:" line in `docs/shipinetics-setup.md`, or the `version=` in the begin line of the block in `AGENTS.md`. The plugin's version is `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. If they are the same, say so and stop. If the project has no version, it was set up before the block existed: ask the user which version they set up with. If they don't know, skip step 2 and use the audit in step 5 instead.
+2. **List the steps.** `shipinetics-update steps <project version>` prints the "Steps for each project" of each release after that version, from `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md`. Show the user the list: the steps of breaking changes first, then the optional steps, each with what it gives the project.
+3. **Replace the block.** In `AGENTS.md`, replace the text between the `shipinetics:begin` and `shipinetics:end` lines with the template's block, with the new version in the begin line. Don't change the text outside. Show the diff. If a project rule outside the block now disagrees with a new rule in it, ask the user about it as in step 3 of "Projects that already have CLAUDE.md or AGENTS.md".
+
+   No begin and end lines (a project set up before the block existed): the old template's sections go to two places. Show both in one diff, and change the file only after the user's yes:
+
+   | Old section | Where it goes |
+   |---|---|
+   | Run the app yourself | The commands go to "Run the app", above the block. The rule is in the block |
+   | Where to find things | Stays as it is, above the block |
+   | Secrets | The vault name and the `secrets.list` sentence go to "Secrets", above the block. The rest is in the block |
+   | Security tools | The Strix targets go to "Security targets", above the block. The rest is in the block |
+   | Setup for a fresh clone | Stays as it is, above the block |
+   | Definition of done, Docs stay true, Every session, Review, Tests come from an independent agent, Every PR carries evidence, Explaining your work, Protected files | Replaced by the block |
+
+   Never drop a value that the project filled in (a command, a vault, a target, a step). Text in a replaced section that the old template didn't have is the user's: ask if it is a real difference (it goes under "Where this project differs from Shipinetics", as in step 3) or if it can go.
+4. **Do the steps** that the way the user chose includes. A step that only the user can do (an install, a login, a GitHub setting) goes on the For you list. A protected file goes through `.shipinetics/pending/`.
+5. **Check.** Run the audit again and compare its table with the one in the setup log. Each row that got worse is a problem to fix or to report. Run the complete `shipinetics-verify`.
+6. **Record.** Set "Shipinetics version:" in the setup log to the new version, and add a dated line with what changed. Commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`, each commit under 400 lines. Tell the user what changed and what is on the For you list.

@@ -10,12 +10,16 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
 ## 1. Install on each machine (one time)
 
-1. Add the marketplace and install the plugin:
+1. Install the plugin. Choose one of these four ways:
 
-   ```bash
-   claude plugin marketplace add DreKwasi/shipinetics
-   claude plugin install shipinetics@shipinetics
-   ```
+   | Way | Commands | How you update | Good for |
+   |---|---|---|---|
+   | **From GitHub** (recommended) | `claude plugin marketplace add DreKwasi/shipinetics`, then `claude plugin install shipinetics@shipinetics` | `claude plugin marketplace update shipinetics` and `claude plugin update shipinetics@shipinetics`, or auto-update in `/plugin` | Most people |
+   | **From your fork on GitHub** | Fork the repo, then `claude plugin marketplace add <you>/shipinetics` and `claude plugin install shipinetics@shipinetics` | Merge each release into the fork (`shipinetics-update merge`), push, then `claude plugin update`. A change of your own needs a new `version` | A team that shares changes to the plugin itself |
+   | **From a clone on this machine** | `git clone https://github.com/DreKwasi/shipinetics.git`, then `claude plugin marketplace add <path to the clone>` and `claude plugin install shipinetics@shipinetics` | `shipinetics-update -C <clone> merge`, then `/reload-plugins`. Your edits load at the next session | One person who changes the plugin |
+   | **For one session** | `claude --plugin-dir <path to a clone>` | Nothing to update: it loads the clone each time | Trying it, or working on Shipinetics |
+
+   Use only one of them at a time: all of them name the marketplace `shipinetics`. Section 6 has the update steps for each way. Before you fork, read "Do you need a fork?" there: most changes belong in the project.
 
 2. Install SkillSpector, so that you can scan each companion before you install it:
 
@@ -53,7 +57,13 @@ Start with one test project. Choose a project that has tests and some small task
 
 1. Open the project in Claude Code, on a clean branch.
 2. Run `/shipinetics:setup`. It audits the project and writes the result to `docs/shipinetics-setup.md`.
-3. Answer its questions. They come in one message. For example, setup asks:
+3. Answer its questions. They come in one message. First, choose how setup runs:
+   - **All phases in one run** (recommended): the fastest way to a working setup.
+   - **One phase at a time:** setup shows what each phase added and asks before the next one.
+   - **Phase 1 only:** the core loop, then a stop. Run `/shipinetics:setup` later for the rest.
+   - **Audit only:** the audit and the questions, and no change.
+
+   For example, setup also asks:
    - about the facts that it couldn't confirm;
    - for the secret names, and which files hold secrets;
    - where recordings go: your team's store, or attached to the PR by hand;
@@ -71,6 +81,12 @@ Start with one test project. Choose a project that has tests and some small task
    | 5 | CI, the evidence store setting, and the `no-evidence` label if you said yes | It validates the workflow file |
    | 6 (optional) | One visual test and one benchmark | Both run in `bin/verify --full` |
    | 7 (optional) | The security tools, and `security_audit_every` | `scan-skills` runs, and you see its summary. Each DO_NOT_INSTALL result is a companion that was checked by hand (the README lists them), or a tool to remove |
+
+   **A project that already has `CLAUDE.md` or `AGENTS.md`.** Setup keeps your text. It adds Shipinetics's rules as one block at the end of `AGENTS.md`, between the lines `<!-- shipinetics:begin ... -->` and `<!-- shipinetics:end -->`. If you have only `CLAUDE.md`, setup creates `AGENTS.md` for the block and adds one line to `CLAUDE.md`: `@AGENTS.md`. Then:
+   - Setup lists each of your rules that disagrees with a Shipinetics rule, with both texts, and you choose. Some Shipinetics rules are enforced by hooks, for example "the main agent doesn't write tests". For those, setup says which setting changes the hook, or that none does.
+   - The rules that you keep go under "Where this project differs from Shipinetics", outside the block, with your name and the date. Only a rule there wins over the block. Some block rules always hold, whatever a file says: secrets stay unseen, protected files change only through `.shipinetics/pending/`, nobody regenerates a test or a snapshot to get a pass, each install is scanned first, and each Strix or deepsec run needs your yes.
+   - Write your own rules outside the block. `/shipinetics:setup update` replaces only the text inside it.
+   - Setup counts the lines that load into every session, before and after, and tells you if the total is high.
 
 5. Read the report. It ends with a "For you" list: the things that only you can do, for example an install, a login or a new GitHub label. The items about secrets and evidence come first. Until you do them, those guardrails work only in part.
 
@@ -98,7 +114,7 @@ Start with one test project. Choose a project that has tests and some small task
 
 Tell the agent what you want, as you do now. The README's "A task, step by step" lists what the agent does. Your part:
 
-1. Choose a route. For tasks of size S and larger, the agent offers two or three, and recommends one.
+1. Choose the size and the route. The agent gives the task a size (XS, S or M) and says which steps that size skips. You can choose another size: XS for a small fix, M for the full loop with a spec and a plan review. Verify, the run of the app, test-writer and the gates stay for every size. For tasks of size S and larger, the agent also offers two or three routes, and recommends one.
 2. Answer the design questions. Each question has a recommended answer. When the code can answer a question, the agent reads the code and doesn't ask you.
 3. Approve the acceptance criteria. Tests are only written for what a criterion states. So when test-writer proposes a new criterion, decide whether the spec needs it.
 4. Decide the design-system change requests in the worksheet, if there are any.
@@ -150,19 +166,58 @@ When the test project has run for two weeks without problems, run `/shipinetics:
 
 ## 6. Update to a new version
 
-If you added the marketplace from a local clone (`claude plugin marketplace add <path to the clone>`), Claude Code reads the plugin from that folder. Edits take effect at the next session, or when you run `/reload-plugins`, and you can skip the steps below.
+An update has two parts: the plugin on your machine, then each project. `shipinetics-update` tells you how your machine gets Shipinetics and what to do next. Run it in the agent's Bash tool, or by its full path in your terminal.
 
-For an install from GitHub:
+### The plugin, if you installed it from GitHub (`DreKwasi/shipinetics`)
 
-1. Update the plugin, then restart Claude Code:
+```bash
+claude plugin marketplace update shipinetics
+claude plugin update shipinetics@shipinetics
+```
 
-   ```bash
-   claude plugin marketplace update shipinetics
-   claude plugin update shipinetics@shipinetics
-   ```
+Then restart Claude Code. To get each release without these commands, turn on auto-update for the marketplace in `/plugin`, under Marketplaces. It is off by default for this marketplace. With auto-update, read `CHANGELOG.md` when a new version arrives, and update each project.
 
-2. Read the new entry in `CHANGELOG.md`. If it has a **breaking** change, do its steps in each project.
-3. Optional: run `/shipinetics:setup audit` in a project. It shows which parts are missing or only partly in place. A plugin update doesn't change the files that setup wrote into the project. `/shipinetics:setup <phase>` does a phase again, and merges into your files.
+### The plugin, if you use your own fork or clone
+
+**Do you need a fork?** Most changes belong in the project, not in the plugin:
+
+| You want to change | Put it in |
+|---|---|
+| A path, a command or a setting | `.shipinetics/config` (README, "Settings") |
+| A rule for the agents | `AGENTS.md`, outside the Shipinetics block |
+| A skill of your own | `.claude/skills/` in the project, or `~/.claude/skills/` for all projects |
+| A companion that you don't want | `companions_skip` |
+
+Fork only to change the plugin itself. Then send the change back as a pull request when it helps other people too. Each change that you keep only in your fork can conflict with the next release.
+
+To keep the merges small:
+
+- Keep your changes as commits on top of a release, in few files. Don't reformat files that you don't change.
+- Name the release remote `upstream`: `git remote add upstream https://github.com/DreKwasi/shipinetics.git`. `shipinetics-update` uses it, or fetches from that URL when there is no such remote.
+
+To update the clone:
+
+1. `shipinetics-update -C <your clone> check` shows the latest release, how far behind your clone is, the files where a merge would conflict, and the release notes since your version. It changes no file.
+2. `shipinetics-update -C <your clone> merge` merges the latest release into your clone's current branch, then runs the tests. It refuses to start when the clone has uncommitted changes. On a conflict, it stops and lists the files: keep your change and the release's change, then `git add` and `git commit`. `git merge --abort` undoes it. When an agent runs `merge`, the install gate asks you first, because a release brings new hooks and tools.
+3. Load the new version:
+   - **Claude Code reads the plugin from your clone** (you ran `claude plugin marketplace add <path to the clone>`): run `/reload-plugins`, or start a new session.
+   - **Claude Code installs from your fork on GitHub** (`claude plugin marketplace add <you>/shipinetics`): push, then run `claude plugin marketplace update <marketplace>` and `claude plugin update shipinetics@<marketplace>`, and restart. Claude Code keeps a copy of each version, and takes a new copy only when `version` in `.claude-plugin/plugin.json` changes. When you push a change of your own between releases, give it a new version first, for example `0.9.3-acme.1`. Without a new version, `claude plugin update` says that the plugin is already at the latest version. Then the `version` line conflicts at each release merge: take the release's version.
+
+Use one Shipinetics marketplace at a time. The fork and the main repo both name their marketplace `shipinetics`. To change from one to the other, run `claude plugin marketplace remove shipinetics`, then add the other one and install the plugin from it again.
+
+To work on Shipinetics itself, `claude --plugin-dir <path to the clone>` loads the clone for one session, and `/reload-plugins` loads each edit.
+
+### Each project
+
+A plugin update changes the skills, agents, hooks and tools at once. The files that setup wrote into each project stay as they were. In each project, on a clean branch, run:
+
+```
+/shipinetics:setup update
+```
+
+It reads the project's Shipinetics version from `docs/shipinetics-setup.md`, and lists the steps for each project from each release since then. The steps of breaking changes come first. Then you choose: all steps (recommended), the breaking steps only, the steps that you pick, or a preview with no change. It replaces the Shipinetics block in `AGENTS.md`, and leaves your text outside the block as it is. It does the steps that you choose, runs the audit and the checks again, and commits. `shipinetics-update steps <version>` prints the same list of steps.
+
+A project set up before the block existed has no `shipinetics:begin` line. The first `update` shows you which sections of `AGENTS.md` came from the template, and puts them in the block only after your yes.
 
 ## Prompts for larger clean-ups
 
@@ -210,5 +265,5 @@ the time and cost again after it.
 | A session starts with a list of missing companions | Install them (step 3 of section 1), or add the ones that you don't want to `companions_skip` in `~/.config/shipinetics/config` |
 | A guard blocks a safe command | Report the command, so that the rule can be fixed. Until then, run the command yourself. To keep agents away from more files, or fewer, write a `secret-paths` list. To turn off one guard for a session, start Claude Code with its variable: `SHIPINETICS_ALLOW_ENV_READ=1` (the whole secrets guard), `SHIPINETICS_ALLOW_INSTALLS=1`, `SHIPINETICS_ALLOW_NO_EVIDENCE=1`, `SHIPINETICS_UNLOCK=1` or `SHIPINETICS_ALLOW_AUTHOR_TESTS=1`. The README lists them |
 | `bin/with-secrets` fails | gcloud isn't installed or isn't logged in, a name in `.shipinetics/secrets.list` isn't in Secret Manager, or the project sets `vault = infisical` and the Infisical CLI isn't installed |
-| The agents still use the old model or rules after a change to the plugin | A session loads the plugin when it starts. Run `/reload-plugins`, or start a new session. For an install from GitHub, update the plugin first (section 6) |
+| The agents still use the old model or rules after a change to the plugin | A session loads the plugin when it starts. Run `/reload-plugins`, or start a new session. Update the plugin first (section 6) |
 | The number of tests grows with each task | Tell the agent to use test-writer's `change` mode after it commits a change. Read the net change in test-writer's report. Run `/shipinetics:test-audit` to delete tests whose code is gone |

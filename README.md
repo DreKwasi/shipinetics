@@ -48,12 +48,14 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 ## Install
 
-1. Install the plugin:
+1. Install the plugin, from GitHub (recommended):
 
    ```bash
    claude plugin marketplace add DreKwasi/shipinetics
    claude plugin install shipinetics@shipinetics
    ```
+
+   You can also install it from your fork on GitHub, or from a clone on this machine. [GETTING-STARTED.md](GETTING-STARTED.md), section 1, compares the four ways and how each one updates.
 
 2. Install the companions: the third-party skills and tools that Shipinetics uses ("Companions" below). [GETTING-STARTED.md](GETTING-STARTED.md) gives all the install commands in one block. Until you install them, each new session starts with a list of the missing ones.
 
@@ -63,21 +65,11 @@ The plugin puts its tools (`bin/`) on the PATH of the agent's Bash tool. In your
 
 ## Update
 
-Each release has a version, and [CHANGELOG.md](CHANGELOG.md) says what changed.
+Each release has a version, and [CHANGELOG.md](CHANGELOG.md) says what changed. An update has two parts: the plugin on your machine, then each project. `shipinetics-update` says how your machine gets Shipinetics and what to do next.
 
-1. Update the plugin:
-
-   ```bash
-   claude plugin marketplace update shipinetics
-   claude plugin update shipinetics@shipinetics
-   ```
-
-2. Restart Claude Code.
-3. Read the changelog entry. If it has a **breaking** change, do its steps in each project.
-
-If you added the marketplace from a local clone (`claude plugin marketplace add <path to the clone>`), Claude Code reads the plugin from that folder. Edits in the folder take effect at the next session, or when you run `/reload-plugins`. The version number matters only for installs from GitHub.
-
-A plugin update changes the skills, agents, hooks and tools. It doesn't change the files that setup wrote into your projects. `/shipinetics:setup audit` shows which parts of a project are missing or only partly in place. `/shipinetics:setup <phase>` does a phase again. Setup merges into the files that exist, shows you the diff, and never overwrites them.
+- **From GitHub:** `claude plugin marketplace update shipinetics`, then `claude plugin update shipinetics@shipinetics`, then restart Claude Code. Auto-update for the marketplace is in `/plugin`, under Marketplaces.
+- **From your own fork or clone:** `shipinetics-update -C <clone> check` shows how far behind the clone is and where a merge would conflict. `shipinetics-update -C <clone> merge` merges the latest release and runs the tests. A clone that Claude Code reads from the folder needs only `/reload-plugins` then. A fork on GitHub needs a push. Claude Code takes a new copy only when `version` in `.claude-plugin/plugin.json` changes, so a change of your own between releases also needs a new version. [GETTING-STARTED.md](GETTING-STARTED.md), section 6, has the steps, and what to put in the project instead of a fork.
+- **Each project:** a plugin update doesn't change the files that setup wrote. `/shipinetics:setup update` lists the steps for each project from each release since the project's version, replaces the Shipinetics block in `AGENTS.md`, and keeps your text outside the block.
 
 ## What setup writes into a project
 
@@ -90,7 +82,7 @@ Only you can start setup: `/shipinetics:setup`. It first audits the project and 
 
 | Files | What they do |
 |---|---|
-| `AGENTS.md`, `CLAUDE.md` | The project's instructions for any agent. `CLAUDE.md` imports `AGENTS.md` |
+| `AGENTS.md`, `CLAUDE.md` | The project's instructions for any agent. `CLAUDE.md` imports `AGENTS.md`. Shipinetics's own rules are one block in `AGENTS.md`, between the `shipinetics:begin` and `shipinetics:end` lines, so that `/shipinetics:setup update` can replace them. In a project that already has these files, setup adds the block and the import line, keeps the rest, and asks you about each rule that disagrees. Only the rules that you approve under "Where this project differs from Shipinetics" win over the block, and some block rules (secrets, protected files, tests, scans, Strix and deepsec approvals) always hold |
 | `bin/verify` | The project's checks, in three tiers: `--quick` (the changed files), complete, and `--full` (for CI) |
 | `bin/with-secrets` | Runs a command with the secrets from the vault set as environment variables |
 | `bin/lint-fix`, `bin/llm-fix` | Fix lint problems: first the linters' own fixes, then a cheaper model for what is left |
@@ -209,6 +201,7 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `scan-skills` | Scans the skills and agent files that can reach your sessions with SkillSpector, and writes a report. It needs `jq` |
 | `skills-outdated` | Shows which installed skills have a newer version upstream. It changes nothing |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
+| `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
 | `shipinetics-usage` | Shows the tokens that each session used, from Claude Code's own transcripts. `html` makes a page with charts |
 
 ## When the checks run
@@ -535,7 +528,8 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 - **`bin/with-secrets` knows two vaults:** Google Secret Manager through gcloud, and Infisical through its CLI. A project with another vault sets `secrets_runner`.
 - **The Strix and deepsec steps are untested.** No Strix or deepsec run was part of building them. The deepsec commands and flags come from its docs and its CLI source on 2026-11-18.
 - **deepsec shows as installed when `npx` is on the PATH.** It runs with `npx` in each project, so there is nothing else to find.
-- **`/shipinetics:test-backfill` has not run on a real project yet.**
+- **`/shipinetics:test-backfill` has not run on a real project yet.** Nor has `/shipinetics:setup update`, or setup in a project that already has `CLAUDE.md` or `AGENTS.md` with the new block.
+- **`shipinetics-update` reads `claude plugin list --json`** to find where the plugin comes from. A change to that output can break the first command. `check`, `merge` and `steps` don't use it.
 - **`design-check` checks fonts, colours, radii and font sizes.** The UI reviewer checks the rest: spacing, unknown `var()` names, new tokens and copied components. Without token frontmatter in `DESIGN.md`, there is nothing to check against.
 
 ## Layout
@@ -546,7 +540,7 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 agents/           reviewer, security-reviewer, ui-reviewer, test-writer, test-plan-reviewer, live-tester
 bin/              the tools, on the agent's PATH: bench-compare, design-check, evidence, known-failing,
                   scan-skills, shipinetics-companions, shipinetics-config, shipinetics-usage,
-                  shipinetics-verify, skills-outdated, worksheet
+                  shipinetics-update, shipinetics-verify, skills-outdated, worksheet
 hooks/            hooks.json: which script runs at which event
 scripts/          the hooks (guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh,
                   companions-notice.sh, usage-record.sh), lib.sh with the shared helpers, and
