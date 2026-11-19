@@ -18,8 +18,11 @@ input="$(cat)"
 sy_flag ALLOW_NO_EVIDENCE && exit 0
 
 cmd="$(sy_json_field "$input" tool_input.command)"
-re='gh[[:space:]]+pr[[:space:]]+(create|ready)([[:space:]]|$)'
-[[ "$cmd" =~ $re ]] || exit 0
+# Judge only text that can run: an inert heredoc body, a commit message, a search pattern or a
+# comment line can name the command without running it. If perl is missing, judge all of it.
+run="$(printf '%s' "$cmd" | sy_sanitize gate "")" || run="$cmd"
+re='(^|[^[:alnum:]_.-])gh[[:space:]]+pr[[:space:]]+(create|ready)([^[:alnum:]_-]|$)'
+[[ "$run" =~ $re ]] || exit 0
 
 cwd="$(sy_json_field "$input" cwd)"
 [ -n "$cwd" ] || cwd="${CLAUDE_PROJECT_DIR:-$PWD}"

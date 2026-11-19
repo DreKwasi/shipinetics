@@ -51,6 +51,21 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
   Steps for each project (optional): copy the new sentences of "Explaining your work" from `templates/AGENTS.md` into the project's `AGENTS.md`.
 
+### Fixed
+- The PR gate and the install gate no longer react to their command words in three common kinds of command. Before, they reacted to the words anywhere, so a commit message, a note or a search that named `gh pr create` or `npx skills add` triggered them. Now they skip the words in:
+  - a note: `cat > <file> <<'EOF'` to a `.md`, `.txt`, `.rst` or `.adoc` file, with a quoted delimiter;
+  - commits: plain `cd` and `git` steps joined by `;`, `&&` or new lines, with commit messages that can't expand. This includes the `-m "$(cat <<'EOF' ... EOF)"` form. The git steps are `add`, `commit`, `push`, `status`, `diff`, `log`, `show`, `fetch` and `pull`, each with a short list of allowed options. Options that write files or run programs, such as `--output`, `--ext-diff` or `--receive-pack`, don't count. A note may come first;
+  - a search: one `grep`, `rg` or `git grep`, piped only into `head`, `tail`, `wc`, `sort`, `uniq`, `cut` or `tr`, with options that only print.
+
+  Any other command is judged whole, as before. A command with a pipe into a program, a redirect, a substitution, a function, `git -c`, a comment, a quote left open or a carriage return doesn't count as one of these shapes. Two review rounds found 27 ways around earlier versions. The tests now hold each of them.
+- The PR gate also caught too little. It needed a space or the end of the command after `gh pr create` or `gh pr ready`, so `sh -c 'gh pr ready'` and `"$(gh pr create)"` got past it. Now any character that can't continue the word ends the match.
+- `worksheet` no longer makes a plain git repo look set up. Before, every call, `worksheet --help` included, created `.shipinetics/.cache/` and `docs/worksheets/` before it read its arguments. Then the edit guard and the PR gate acted in a repo that nobody had set up.
+  - Help now runs first and creates nothing, also outside a git repo. It no longer prints a line of code.
+  - Only `worksheet new` and `worksheet use` create folders.
+  - In a plain repo, the current worksheet is kept in the git directory (`git rev-parse --git-path shipinetics`), so each worktree has its own. In a set-up project, it stays in `.shipinetics/.cache/`. `evidence` reads it from the same place.
+
+  Steps for each project: none. A repo that isn't set up can have a `.shipinetics/` folder that holds only `.cache/`, from an earlier `worksheet` call. Remove that folder, then run `worksheet use <name>` to make your worksheet current again.
+
 ## 0.9.2
 
 ### Added

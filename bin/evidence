@@ -36,6 +36,9 @@ repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a gi
 cd "$repo"
 root="$(sy_env ROOT)"; [ -n "$root" ] || root="$(sy_root "$repo" || echo "$repo")"
 dn="$SY_DIR_NAME"
+# The current worksheet, where worksheet keeps it (sy_state_dir: no .shipinetics/ in a plain repo)
+state_dir="$(sy_state_dir "$root")" || die "can't find where the current worksheet is kept for $root"
+cur_ws_file="$state_dir/current-worksheet"
 ev_base="$(sy_cfg "$root" evidence_dir)"
 wsdir="$root/$(sy_cfg "$root" worksheets_dir)"
 pkg_ws="$(sy_cfg "$root" package_worksheets_dir)"
@@ -55,7 +58,7 @@ media_gitignore='*.[pP][nN][gG]
 *.[mM][oO][vV]'
 
 current_ws() {
-  local f="$root/$dn/.cache/current-worksheet" p
+  local f="$cur_ws_file" p
   [ -f "$f" ] || die "no current worksheet. Name one, or start one with: worksheet new <slug>"
   p="$(cat "$f")"; case "$p" in /*) ;; *) p="$root/$p" ;; esac
   [ -f "$p" ] || die "the current worksheet ($p) no longer exists"
@@ -88,8 +91,8 @@ branch_worksheets() { # branch_worksheets <base>
   {
     git log "$1..HEAD" --format='%(trailers:key=Worksheet,valueonly)' 2>/dev/null
     if [ -n "$pkg_ws" ]; then branch_files "$1" | grep "^$pkg_ws/.*\.md$" | sed 's#.*/##; s#\.md$##'; fi
-    if [ -f "$root/$dn/.cache/current-worksheet" ] && [ -n "$(git status --porcelain)" ]; then
-      basename "$(cat "$root/$dn/.cache/current-worksheet")" .md
+    if [ -f "$cur_ws_file" ] && [ -n "$(git status --porcelain)" ]; then
+      basename "$(cat "$cur_ws_file")" .md
     fi
   } | sed '/^$/d' | sort -u
 }
@@ -103,7 +106,7 @@ changed_files_of() { # changed_files_of <worksheet> <base>: files under that wor
   local by_trailer
   by_trailer="$(git log --grep "Worksheet: $1" --name-only --format= 2>/dev/null | sed '/^$/d')"
   if [ -n "$by_trailer" ]; then printf '%s\n' "$by_trailer"; else branch_files "$2"; fi
-  if [ -f "$root/$dn/.cache/current-worksheet" ] && [ "$(basename "$(cat "$root/$dn/.cache/current-worksheet")" .md)" = "$1" ]; then
+  if [ -f "$cur_ws_file" ] && [ "$(basename "$(cat "$cur_ws_file")" .md)" = "$1" ]; then
     git status --porcelain --untracked-files=all | cut -c4-
   fi
 }
