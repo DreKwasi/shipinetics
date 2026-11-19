@@ -30,6 +30,8 @@ The project's own commands, layout and fixtures are in `docs/testing/how-to-writ
 
 Run test-writer in the foreground and wait for its report before you run verify or report to the user. If the report has "Slow test runs", tell the user the numbers and the suggested fix (shipinetics:workflow, step 5). Don't change the project's test setup without their yes. Its suspected bugs are input to your next step.
 
+**An app that has few tests** gets them in batches, riskiest features first, through `/shipinetics:test-backfill`: criteria from what users see, one approval round for each batch, then one test-writer for each feature in `backfill` mode. Don't try to cover the whole app in one task.
+
 Test-writer runs on Opus at medium effort (its frontmatter). Don't pass a model or an effort when you spawn it. Its independence comes from its fresh context and the spec, not from a different model. Test-plan-reviewer runs on Sonnet at high effort (its frontmatter). Don't pass a model or an effort. It judges a short table against the spec, so it doesn't need Opus.
 
 ## What to give test-writer
@@ -55,6 +57,7 @@ Don't give it your implementation reasoning, your worry list or your expected ou
 - Cases come from the criterion: the values it names, its limit and just over it. An edge that no criterion states is a proposed criterion, not a case.
 - Mock only at system boundaries. Assert outputs and effects, never call counts on internal collaborators.
 - Expected values come from the spec, worked out by hand.
+- A criterion that states a rule for every input (a round trip, an invariant, idempotency, a fast path equal to a simple one) gets a property test, with the project's property-testing library. A rewrite or migration that must not change behaviour gets a differential test: the old and the new code on the same inputs, with a list of the approved differences. Examples catch the cases that someone thought of. These two catch the cases that nobody thought of.
 - Tests that catch nothing unique are deleted.
 - **One test per behaviour, with every check that behaviour needs.** A test has one reason to fail: its behaviour is broken. So it can assert several things about that behaviour (the returned value, the stored state, the message), and its name says the behaviour. Don't split one behaviour into a test for each assertion: that repeats the setup and multiplies the count without catching more bugs. Don't put two behaviours in one test either: the first failure hides the second, and the name can't say what broke.
 - When behaviour changes or is removed, its tests change or go in the same task (test-writer `change` mode). A deleted feature leaves no tests behind, and a changed one never gets a second test beside the old one. The suite grows only with new behaviour.

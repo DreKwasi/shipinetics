@@ -8,22 +8,26 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
-### Fixed
-- The PR gate and the install gate no longer react to their command words in three common kinds of command. Before, they reacted to the words anywhere, so a commit message, a note or a search that named `gh pr create` or `npx skills add` triggered them. Now they skip the words in:
-  - a note: `cat > <file> <<'EOF'` to a `.md`, `.txt`, `.rst` or `.adoc` file, with a quoted delimiter;
-  - commits: plain `cd` and `git` steps joined by `;`, `&&` or new lines, with commit messages that can't expand. This includes the `-m "$(cat <<'EOF' ... EOF)"` form. The git steps are `add`, `commit`, `push`, `status`, `diff`, `log`, `show`, `fetch` and `pull`, each with a short list of allowed options. Options that write files or run programs, such as `--output`, `--ext-diff` or `--receive-pack`, don't count. A note may come first;
-  - a search: one `grep`, `rg` or `git grep`, piped only into `head`, `tail`, `wc`, `sort`, `uniq`, `cut` or `tr`, with options that only print.
-
-  Any other command is judged whole, as before. A command with a pipe into a program, a redirect, a substitution, a function, `git -c`, a comment, a quote left open or a carriage return doesn't count as one of these shapes. Two review rounds found 27 ways around earlier versions. The tests now hold each of them.
-- The PR gate also caught too little. It needed a space or the end of the command after `gh pr create` or `gh pr ready`, so `sh -c 'gh pr ready'` and `"$(gh pr create)"` got past it. Now any character that can't continue the word ends the match.
-- `worksheet` no longer makes a plain git repo look set up. Before, every call, `worksheet --help` included, created `.shipinetics/.cache/` and `docs/worksheets/` before it read its arguments. Then the edit guard and the PR gate acted in a repo that nobody had set up.
-  - Help now runs first and creates nothing, also outside a git repo. It no longer prints a line of code.
-  - Only `worksheet new` and `worksheet use` create folders.
-  - In a plain repo, the current worksheet is kept in the git directory (`git rev-parse --git-path shipinetics`), so each worktree has its own. In a set-up project, it stays in `.shipinetics/.cache/`. `evidence` reads it from the same place.
-
-  Steps for each project: none. A repo that isn't set up can have a `.shipinetics/` folder that holds only `.cache/`, from an earlier `worksheet` call. Remove that folder, then run `worksheet use <name>` to make your worksheet current again.
+### Added
+- **`/shipinetics:test-backfill`** adds tests to an existing app in batches of 3 to 5 features, riskiest first. For each batch it drafts acceptance criteria from what users see, asks for one approval round, and runs one test-writer for each feature, in parallel when the tests can run at the same time. `docs/testing/backfill.md` records the progress, so each run continues where the last one stopped. Users said that writing tests during setup was slow and had no clear order: this gives it an order.
+- **test-writer `backfill` mode** for behaviour that the app has today. It reuses the tests that exist, writes acceptance tests first, and proves each test with mutants (there is no code before a change to fail on). A test that fails on an approved criterion stays out of the tree and comes back as a suspected bug.
+- **Property tests and differential tests.** test-writer writes a property test when a criterion states a rule for every input (a round trip, an invariant, idempotency), and a differential test for a rewrite that must not change behaviour. From the Claude Code team's article on verification.
+- **deepsec** (Vercel) is an optional companion. shipinetics:security-scans has a `repo` scope for it: an agent review of the whole repository, or of one diff with `process --diff`. Each AI run needs the user's yes and has a cost cap, and it can use the Claude Code login (`--agent claude --model-auth local`). Setup's Phase 7 offers it, and the `.gitignore` additions keep its exported findings out of git.
+- GETTING-STARTED.md has "Prompts for larger clean-ups": a test-suite clean-up and a CI time and cost audit, adapted from OpenClaw's CI cost work.
 
 ### Changed
+- Setup's Phase 1 has a "Testing guide" step. It writes `docs/testing/how-to-write-tests.md` and the test index, which the audit checked for but no phase wrote. It measures the time of one targeted test run, finds the related-tests command for `bin/verify --quick`, and finds out if test copies can run in parallel. It reads config and test names only, not test bodies. The setup summary ends with `/shipinetics:test-backfill` as the next step for tests.
+- `bin/verify --quick` runs the tests related to the change with the runner's own selection. When the selection is not sure (test config, fixtures, a lockfile, a shared helper), it runs all unit tests. The template and the testing guide say so.
+- The README and GETTING-STARTED.md are rewritten from the code. The README starts with a task from start to end, and then separates the rules that code enforces from the rules that are only instructions. It lists each skill, agent, tool, setting and variable. Corrections to the old text:
+  - Nothing runs the sweep on a timer. You run it, and the full security audit runs inside it when it is due.
+  - `SHIPINETICS_ALLOW_ENV_READ=1` turns off the whole secrets guard, not only its environment checks.
+  - `/shipinetics:setup audit` shows the missing and partial parts. It doesn't compare files with the templates.
+  - The pre-push hook checks the working tree. CI blocks a merge only if branch protection requires its jobs.
+  - The settings template's deny rules (force push, `git reset --hard`, `gh pr merge`, `npm publish`) are now documented.
+- SkillSpector's full scan can use your Claude Code login: `SKILLSPECTOR_PROVIDER=claude_cli scan-skills --llm`. The README, the security-scans skill and `scan-skills --help` say so.
+- `/shipinetics:setup` no longer offers a phase 8, which never existed.
+- `/shipinetics:review` lists `merge-risk` in its argument hint.
+- The security-scans skill names all three companions that score DO_NOT_INSTALL in static mode and were checked by hand: `security-audit`, Impeccable and tasteskill.
 - ASD-STE100 covers labels too: the text on a Whiteboard or diagram node, an edge, a sequence step, a table cell, a title and a caption. shipinetics:explain has a new "Labels" section:
   - A node is a short sentence, or a name with its article. An edge says what happens, with a verb. A decision node is a question.
   - No made-up tags (`[I]`, `INV-2`), no metaphors, no second idea in brackets and no symbols in place of words.
@@ -46,6 +50,21 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - At the wrap-up review, the reviewer reads the branch's commit messages against the guide. Each problem is a minor finding. The author applies it to the commits still to come and to the PR summary, and doesn't rewrite commits.
 
   Steps for each project (optional): copy the new sentences of "Explaining your work" from `templates/AGENTS.md` into the project's `AGENTS.md`.
+
+### Fixed
+- The PR gate and the install gate no longer react to their command words in three common kinds of command. Before, they reacted to the words anywhere, so a commit message, a note or a search that named `gh pr create` or `npx skills add` triggered them. Now they skip the words in:
+  - a note: `cat > <file> <<'EOF'` to a `.md`, `.txt`, `.rst` or `.adoc` file, with a quoted delimiter;
+  - commits: plain `cd` and `git` steps joined by `;`, `&&` or new lines, with commit messages that can't expand. This includes the `-m "$(cat <<'EOF' ... EOF)"` form. The git steps are `add`, `commit`, `push`, `status`, `diff`, `log`, `show`, `fetch` and `pull`, each with a short list of allowed options. Options that write files or run programs, such as `--output`, `--ext-diff` or `--receive-pack`, don't count. A note may come first;
+  - a search: one `grep`, `rg` or `git grep`, piped only into `head`, `tail`, `wc`, `sort`, `uniq`, `cut` or `tr`, with options that only print.
+
+  Any other command is judged whole, as before. A command with a pipe into a program, a redirect, a substitution, a function, `git -c`, a comment, a quote left open or a carriage return doesn't count as one of these shapes. Two review rounds found 27 ways around earlier versions. The tests now hold each of them.
+- The PR gate also caught too little. It needed a space or the end of the command after `gh pr create` or `gh pr ready`, so `sh -c 'gh pr ready'` and `"$(gh pr create)"` got past it. Now any character that can't continue the word ends the match.
+- `worksheet` no longer makes a plain git repo look set up. Before, every call, `worksheet --help` included, created `.shipinetics/.cache/` and `docs/worksheets/` before it read its arguments. Then the edit guard and the PR gate acted in a repo that nobody had set up.
+  - Help now runs first and creates nothing, also outside a git repo. It no longer prints a line of code.
+  - Only `worksheet new` and `worksheet use` create folders.
+  - In a plain repo, the current worksheet is kept in the git directory (`git rev-parse --git-path shipinetics`), so each worktree has its own. In a set-up project, it stays in `.shipinetics/.cache/`. `evidence` reads it from the same place.
+
+  Steps for each project: none. A repo that isn't set up can have a `.shipinetics/` folder that holds only `.cache/`, from an earlier `worksheet` call. Remove that folder, then run `worksheet use <name>` to make your worksheet current again.
 
 ## 0.9.2
 

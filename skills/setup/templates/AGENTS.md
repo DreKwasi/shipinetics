@@ -61,7 +61,7 @@ Before a PR opens, record proof it works from the real running app: for UI chang
 
 ## Security tools
 
-Scan any skill, plugin or MCP server with SkillSpector before installing it, and run `scan-skills` weekly. Strix security testing runs only against {{STRIX_TARGETS: e.g. "the local app on localhost:3000 and staging.example.com"}}, and only when the user approves the run. Details: shipinetics:security-scans.
+Scan any skill, plugin or MCP server with SkillSpector before installing it, and run `scan-skills` weekly. Strix security testing runs only against {{STRIX_TARGETS: e.g. "the local app on localhost:3000 and staging.example.com"}}, and only when the user approves the run. deepsec (if the project uses it) runs only after the user approves the scope and a cost cap for that run. Details: shipinetics:security-scans.
 
 ## Explaining your work
 
