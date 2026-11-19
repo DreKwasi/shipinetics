@@ -188,15 +188,42 @@ sy_companions_file() { printf '%s/companions.tsv\n' "$(cd "$(dirname "${BASH_SOU
 # sy_claude_dir: Claude Code's own settings folder
 sy_claude_dir() { printf '%s\n' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
 
+# sy_gemini_dir: Antigravity's global config folder
+sy_gemini_dir() { printf '%s\n' "${GEMINI_CONFIG_DIR:-$HOME/.gemini/config}"; }
+
 # sy_companion_installed <kind> <id> [project dir]: true if the companion is installed. A skill is
-# in Claude Code's skills, the skills CLI's global folder, or the project's .claude/skills. A plugin
-# is in Claude Code's installed_plugins.json. A cli is on the PATH.
+# in Claude Code's skills, Antigravity's skills or plugins, the skills CLI's global folder, or the
+# project's .claude/skills or .agents/skills. A plugin is in Claude Code's installed_plugins.json
+# or Antigravity's plugins folder. A cli is on the PATH.
 sy_companion_installed() {
-  local c; c="$(sy_claude_dir)"
+  local c g f pname
+  c="$(sy_claude_dir)"
+  g="$(sy_gemini_dir)"
   case "$1" in
-    skill)  [ -f "$c/skills/$2/SKILL.md" ] || [ -f "$HOME/.agents/skills/$2/SKILL.md" ] ||
-              { [ -n "${3:-}" ] && [ -f "$3/.claude/skills/$2/SKILL.md" ]; } ;;
-    plugin) [ -f "$c/plugins/installed_plugins.json" ] && grep -qF "\"$2\"" "$c/plugins/installed_plugins.json" ;;
+    skill)
+      [ -f "$c/skills/$2/SKILL.md" ] && return 0
+      [ -f "$HOME/.agents/skills/$2/SKILL.md" ] && return 0
+      [ -f "$g/skills/$2/SKILL.md" ] && return 0
+      if [ -n "${3:-}" ]; then
+        [ -f "$3/.claude/skills/$2/SKILL.md" ] && return 0
+        [ -f "$3/.agents/skills/$2/SKILL.md" ] && return 0
+      fi
+      for f in "$g"/plugins/*/skills/"$2"/SKILL.md; do
+        [ -f "$f" ] && return 0
+      done
+      return 1
+      ;;
+    plugin)
+      if [ -f "$c/plugins/installed_plugins.json" ] && grep -qF "\"$2\"" "$c/plugins/installed_plugins.json"; then
+        return 0
+      fi
+      pname="${2%%@*}"
+      [ -f "$g/plugins/$pname/plugin.json" ] && return 0
+      for f in "$g"/plugins/*/plugin.json; do
+        [ -f "$f" ] && grep -qE "\"name\"[[:space:]]*:[[:space:]]*\"$pname\"" "$f" && return 0
+      done
+      return 1
+      ;;
     cli)    command -v "$2" >/dev/null 2>&1 ;;
     *)      return 1 ;;
   esac
@@ -628,13 +655,151 @@ sy_list_match() {
 # sy_json_field <json> <dotted.path>: a value from hook input, with a python fallback when jq is missing
 sy_json_field() {
   if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$1" | jq -r ".$2 // empty"
+    printf '%s' "$1" | jq -r ".$2 // empty" 2>/dev/null || true
   else
     printf '%s' "$1" | python3 -c 'import json,sys
-v = json.load(sys.stdin)
+try: v = json.load(sys.stdin)
+except Exception: sys.exit(0)
 for p in sys.argv[1].split("."):
     v = v.get(p) if isinstance(v, dict) else None
-sys.stdout.write("" if v is None else str(v))' "$2"
+sys.stdout.write("" if v is None else str(v))' "$2" 2>/dev/null || true
+  fi
+}
+
+# ---------------------------------------------------------------- hook protocol (Claude Code & Antigravity)
+# Claude Code sends snake_case fields (tool_name, tool_input.*) and reads hookSpecificOutput.
+# Antigravity sends camelCase protojson (toolCall.name, toolCall.args.*, workspacePaths) and reads
+# top-level decision/reason (PreToolUse) or injectSteps (SessionStart). Empty pass-through is ""
+# for both harnesses (never "decision":"allow", which would bypass prompts, and never "{}" on
+# PreToolUse, which Antigravity parses as an empty decision and denies).
+
+# sy_hook_harness <json>: "antigravity" or "claude"
+sy_hook_harness() {
+  local h=""
+  if [ -n "$1" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      h="$(printf '%s' "$1" | jq -r 'if (type == "object") and (has("toolCall") or has("hookEventName") or has("workspacePaths") or has("conversationId")) then "antigravity" else "" end' 2>/dev/null || true)"
+    else
+      h="$(printf '%s' "$1" | python3 -c 'import json,sys
+try: v = json.load(sys.stdin)
+except Exception: v = None
+if isinstance(v, dict) and any(k in v for k in ("toolCall", "hookEventName", "workspacePaths", "conversationId")):
+    sys.stdout.write("antigravity")' 2>/dev/null || true)"
+    fi
+  fi
+  if [ -z "$h" ] && [ -n "${PLUGIN_ROOT:-}" ] && [ -z "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+    h="antigravity"
+  fi
+  printf '%s\n' "${h:-claude}"
+}
+
+# sy_hook_cwd <json>: workspace directory from hook stdin, falling back to CLAUDE_PROJECT_DIR or PWD
+sy_hook_cwd() {
+  local d=""
+  if [ -n "$1" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      d="$(printf '%s' "$1" | jq -r '(.cwd // .workspacePaths[0]) // empty' 2>/dev/null || true)"
+    else
+      d="$(printf '%s' "$1" | python3 -c 'import json,sys
+try: v = json.load(sys.stdin)
+except Exception: v = {}
+if isinstance(v, dict):
+    ws = v.get("workspacePaths")
+    d = v.get("cwd") or (ws[0] if isinstance(ws, list) and ws else "")
+    sys.stdout.write("" if d is None else str(d))' 2>/dev/null || true)"
+    fi
+  fi
+  [ -n "$d" ] || d="${CLAUDE_PROJECT_DIR:-$PWD}"
+  printf '%s\n' "$d"
+}
+
+# sy_hook_tool <json>: tool name from Claude Code or Antigravity PreToolUse input
+sy_hook_tool() {
+  local v
+  v="$(sy_json_field "$1" tool_name)"
+  [ -n "$v" ] || v="$(sy_json_field "$1" toolCall.name)"
+  printf '%s\n' "$v"
+}
+
+# sy_hook_command <json>: shell command from Bash (Claude Code) or run_command (Antigravity)
+sy_hook_command() {
+  local v
+  v="$(sy_json_field "$1" tool_input.command)"
+  [ -n "$v" ] || v="$(sy_json_field "$1" toolCall.args.CommandLine)"
+  printf '%s\n' "$v"
+}
+
+# sy_hook_file_path <json>: target file path from file tools in Claude Code or Antigravity
+sy_hook_file_path() {
+  local v k
+  for k in tool_input.file_path tool_input.notebook_path toolCall.args.Path toolCall.args.TargetFile toolCall.args.AbsolutePath toolCall.args.NotebookPath; do
+    v="$(sy_json_field "$1" "$k")"
+    if [ -n "$v" ]; then printf '%s\n' "$v"; return 0; fi
+  done
+  return 0
+}
+
+# sy_hook_agent_type <json>: subagent type when provided by the harness
+sy_hook_agent_type() {
+  local v
+  v="$(sy_json_field "$1" agent_type)"
+  [ -n "$v" ] || v="$(sy_json_field "$1" agentType)"
+  printf '%s\n' "$v"
+}
+
+# sy_hook_has_agent_type <json>: true if agent_type or agentType is present (non-null) in input
+sy_hook_has_agent_type() {
+  local ok=""
+  if command -v jq >/dev/null 2>&1; then
+    ok="$(printf '%s' "$1" | jq -r 'if (type == "object") and ((.agent_type != null) or (.agentType != null)) then "1" else "" end' 2>/dev/null || true)"
+  else
+    ok="$(printf '%s' "$1" | python3 -c 'import json,sys
+try: v = json.load(sys.stdin)
+except Exception: v = None
+if isinstance(v, dict) and (v.get("agent_type") is not None or v.get("agentType") is not None):
+    sys.stdout.write("1")' 2>/dev/null || true)"
+  fi
+  [ "$ok" = "1" ]
+}
+
+# sy_hook_noop <harness>: pass-through output (no opinion; leaves normal permission prompts intact)
+sy_hook_noop() {
+  return 0
+}
+
+# sy_hook_pretool_reply <harness> <decision> <reason>: PreToolUse deny or ask output
+sy_hook_pretool_reply() {
+  local harness="$1" decision="$2" reason="$3"
+  if [ "$harness" = "antigravity" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      jq -n --arg d "$decision" --arg r "$reason" '{decision: $d, reason: $r}'
+    else
+      python3 -c 'import json,sys; print(json.dumps({"decision": sys.argv[1], "reason": sys.argv[2]}))' "$decision" "$reason"
+    fi
+  else
+    if command -v jq >/dev/null 2>&1; then
+      jq -n --arg d "$decision" --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: $d, permissionDecisionReason: $r}}'
+    else
+      python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": sys.argv[1], "permissionDecisionReason": sys.argv[2]}}))' "$decision" "$reason"
+    fi
+  fi
+}
+
+# sy_hook_session_start_reply <harness> <user_msg> <model_ctx>: SessionStart output
+sy_hook_session_start_reply() {
+  local harness="$1" msg="$2" ctx="$3"
+  if [ "$harness" = "antigravity" ]; then
+    if command -v jq >/dev/null 2>&1; then
+      jq -n --arg m "$msg" --arg c "$ctx" '{injectSteps: [{systemMessage: {systemMessage: $c, metadata: {user_markdown: $m}}}]}'
+    else
+      python3 -c 'import json,sys; print(json.dumps({"injectSteps": [{"systemMessage": {"systemMessage": sys.argv[2], "metadata": {"user_markdown": sys.argv[1]}}}]}))' "$msg" "$ctx"
+    fi
+  else
+    if command -v jq >/dev/null 2>&1; then
+      jq -n --arg m "$msg" --arg c "$ctx" '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
+    else
+      python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1], "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$msg" "$ctx"
+    fi
   fi
 }
 

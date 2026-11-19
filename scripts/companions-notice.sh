@@ -10,14 +10,16 @@
 
 set -uo pipefail
 
-cat >/dev/null
+input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-root="$(sy_root 2>/dev/null)" || root=""
-sy_hook_off companions "$root" && exit 0
+harness="$(sy_hook_harness "$input")"
+noop() { sy_hook_noop "$harness"; exit 0; }
+project="$(sy_hook_cwd "$input")"
+root="$(sy_root "$project" 2>/dev/null)" || root=""
+sy_hook_off companions "$root" && noop
 file="$(sy_companions_file)"
-[ -f "$file" ] || exit 0
-project="${CLAUDE_PROJECT_DIR:-$PWD}"
+[ -f "$file" ] || noop
 
 n=0 req=0 lines="" names=""
 while IFS=$'\t' read -r name kind id level why install scan; do
@@ -33,7 +35,7 @@ while IFS=$'\t' read -r name kind id level why install scan; do
   Install: $install"
   names="$names${names:+, }$name"
 done <"$file"
-[ "$req" -gt 0 ] || exit 0
+[ "$req" -gt 0 ] || noop
 
 if [ "$n" = 1 ]; then head="1 Shipinetics companion is missing."; else head="$n Shipinetics companions are missing."; fi
 msg="$head Shipinetics works without them, but the steps that use them are weaker or skipped.$lines
@@ -42,9 +44,5 @@ Scan each one with SkillSpector before you install it. To see the list again: sh
 ctx="Shipinetics companions that are missing on this machine: $names. The user saw this list at session start: $lines
 When a task needs one of these companions, or the user asks about them, say why Shipinetics uses it, give its SkillSpector result and its install command, and offer a route without it. Never install one without the user's yes. The install gate also asks the user."
 
-if command -v jq >/dev/null 2>&1; then
-  jq -n --arg m "$msg" --arg c "$ctx" '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
-else
-  python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1], "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$msg" "$ctx"
-fi
+sy_hook_session_start_reply "$harness" "$msg" "$ctx"
 exit 0
