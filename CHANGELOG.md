@@ -8,7 +8,26 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Added
+- **`/shipinetics:test-backfill`** adds tests to an existing app in batches of 3 to 5 features, riskiest first. For each batch it drafts acceptance criteria from what users see, asks for one approval round, and runs one test-writer for each feature, in parallel when the tests can run at the same time. `docs/testing/backfill.md` records the progress, so each run continues where the last one stopped. Users said that writing tests during setup was slow and had no clear order: this gives it an order.
+- **test-writer `backfill` mode** for behaviour that the app has today. It reuses the tests that exist, writes acceptance tests first, and proves each test with mutants (there is no code before a change to fail on). A test that fails on an approved criterion stays out of the tree and comes back as a suspected bug.
+- **Property tests and differential tests.** test-writer writes a property test when a criterion states a rule for every input (a round trip, an invariant, idempotency), and a differential test for a rewrite that must not change behaviour. From the Claude Code team's article on verification.
+- **deepsec** (Vercel) is an optional companion. shipinetics:security-scans has a `repo` scope for it: an agent review of the whole repository, or of one diff with `process --diff`. Each AI run needs the user's yes and has a cost cap, and it can use the Claude Code login (`--agent claude --model-auth local`). Setup's Phase 7 offers it, and the `.gitignore` additions keep its exported findings out of git.
+- GETTING-STARTED.md has "Prompts for larger clean-ups": a test-suite clean-up and a CI time and cost audit, adapted from OpenClaw's CI cost work.
+
 ### Changed
+- Setup's Phase 1 has a "Testing guide" step. It writes `docs/testing/how-to-write-tests.md` and the test index, which the audit checked for but no phase wrote. It measures the time of one targeted test run, finds the related-tests command for `bin/verify --quick`, and finds out if test copies can run in parallel. It reads config and test names only, not test bodies. The setup summary ends with `/shipinetics:test-backfill` as the next step for tests.
+- `bin/verify --quick` runs the tests related to the change with the runner's own selection. When the selection is not sure (test config, fixtures, a lockfile, a shared helper), it runs all unit tests. The template and the testing guide say so.
+- The README and GETTING-STARTED.md are rewritten from the code. The README starts with a task from start to end, and then separates the rules that code enforces from the rules that are only instructions. It lists each skill, agent, tool, setting and variable. Corrections to the old text:
+  - Nothing runs the sweep on a timer. You run it, and the full security audit runs inside it when it is due.
+  - `SHIPINETICS_ALLOW_ENV_READ=1` turns off the whole secrets guard, not only its environment checks.
+  - `/shipinetics:setup audit` shows the missing and partial parts. It doesn't compare files with the templates.
+  - The pre-push hook checks the working tree. CI blocks a merge only if branch protection requires its jobs.
+  - The settings template's deny rules (force push, `git reset --hard`, `gh pr merge`, `npm publish`) are now documented.
+- SkillSpector's full scan can use your Claude Code login: `SKILLSPECTOR_PROVIDER=claude_cli scan-skills --llm`. The README, the security-scans skill and `scan-skills --help` say so.
+- `/shipinetics:setup` no longer offers a phase 8, which never existed.
+- `/shipinetics:review` lists `merge-risk` in its argument hint.
+- The security-scans skill names all three companions that score DO_NOT_INSTALL in static mode and were checked by hand: `security-audit`, Impeccable and tasteskill.
 - ASD-STE100 covers labels too: the text on a Whiteboard or diagram node, an edge, a sequence step, a table cell, a title and a caption. shipinetics:explain has a new "Labels" section:
   - A node is a short sentence, or a name with its article. An edge says what happens, with a verb. A decision node is a question.
   - No made-up tags (`[I]`, `INV-2`), no metaphors, no second idea in brackets and no symbols in place of words.

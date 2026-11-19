@@ -68,6 +68,10 @@ step() { # step <step function>: one step on its own, for anything that can't ru
 #   files="$(changed '\.(ts|tsx|js|jsx|vue)$')"
 #   [ -z "$files" ] && return 0
 #   if [ "$files" = __all__ ]; then npx eslint --cache .; else printf '%s\n' "$files" | xargs npx eslint --cache; fi
+# Related tests: use the runner's own selection (vitest related, jest --findRelatedTests,
+# pytest --testmon, go test of the changed packages). If a changed file can affect tests that the
+# tool can't see (test config, fixtures, a lockfile, a shared test helper), run all unit tests.
+# Doubt makes the run bigger, never smaller.
 check_typecheck_quick() { {{TYPECHECK_QUICK_CMD}}; }
 check_lint_changed_files() { {{LINT_CHANGED_CMD}}; }
 check_unit_tests_related_to_changes() { {{UNIT_RELATED_CMD}}; }

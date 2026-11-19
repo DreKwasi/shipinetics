@@ -7,6 +7,8 @@
 .env.*
 test-results/
 playwright-report/
+# deepsec findings: one file for each vulnerability. Never commit them.
+.deepsec/findings/
 
 # impeccable-ignore-start
 # Ephemeral output, runtime state, and per-dev overrides.

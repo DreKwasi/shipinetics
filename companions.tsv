@@ -1,7 +1,8 @@
 # companions.tsv: the tools that Shipinetics uses with its own skills. One row for each companion,
 # with tab-separated fields:
 #   name  kind (skill, plugin or cli)  id  level (required or optional)  why  install  skillspector
-# id: the skill folder name, plugin@marketplace, or the command name. No field is empty.
+# id: the skill folder name, plugin@marketplace, or the command name (npx for a CLI that runs with npx).
+# No field is empty.
 # shipinetics-companions, the session-start notice, setup and the README read this file.
 # SkillSpector results: SkillSpector 2.12.0, static mode (--no-llm), 2026-10-28 (tasteskill 2026-11-08). The README lists
 # the version of each companion that was scanned. Scan again before you install a newer version.
@@ -19,3 +20,4 @@ tasteskill	plugin	taste-skill@taste-skill	optional	Builds or redesigns a page or
 Whiteboard	plugin	whiteboard@devfast	required	Shows changes and systems to you on a whiteboard, for reviews and explanations. Without it, the agent uses Mermaid diagrams. It also needs the dev.fast Whiteboard app.	claude plugin marketplace add devdotfast/whiteboard && claude plugin install whiteboard@devfast	SAFE for the plugin. The plugin only starts the Whiteboard app (~/.local/bin/whiteboard), and SkillSpector does not scan the app.
 SkillSpector	cli	skillspector	required	NVIDIA's scanner for skills, plugins and MCP servers. scan-skills and the install gate use it. Scan each companion with it before you install it.	uv tool install git+https://github.com/NVIDIA/skillspector.git	Not scanned: it is the scanner.
 Strix	cli	strix	optional	Security tests of your running app. It runs only after you approve each run. It needs Docker (running) and an LLM provider key in your vault.	curl -sSL https://strix.ai/install | bash	Not scanned: it is a CLI, not a skill.
+deepsec	cli	npx	optional	Vercel's agent review of the whole repository. Coding agents follow the security-sensitive code paths and check each finding again, so it finds old bugs that a review of one change cannot see. It runs only after you approve each run, always with a cost cap: with Claude Opus, about 25 to 60 US dollars for each 100 files. It runs with npx. With --agent claude --model-auth local it uses your Claude Code login, so it needs no key.	See shipinetics:security-scans. Nothing to install: it needs Node.js, and you run npx deepsec init in a project after you choose a cost cap	Not scanned: it is a CLI, not a skill.
