@@ -1,6 +1,6 @@
 # Shipinetics
 
-Shipinetics is a plugin for Claude Code. It gives the agent one way to work in every project, and it checks the most important rules with code.
+Shipinetics is a plugin for Claude Code and Antigravity. It gives the agent one way to work in every project, and it checks the most important rules with code.
 
 In a project that Shipinetics has set up, a task goes like this:
 
@@ -211,9 +211,10 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `bench-compare` | Runs a benchmark several times and fails on a slowdown against this machine's baseline |
 | `scan-skills` | Scans the skills and agent files that can reach your sessions with SkillSpector, and writes a report. It needs `jq` |
 | `skills-outdated` | Shows which installed skills have a newer version upstream. It changes nothing |
+| `shipinetics-antigravity` | `install`, `link-skills` and `status`: links this repo into Antigravity's plugins folder, generates Antigravity-native subagents, and shares companion skills through `skills.json` |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
 | `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
-| `shipinetics-usage` | Shows the tokens that each session used, from Claude Code's own transcripts. `html` makes a page with charts |
+| `shipinetics-usage` | Shows the tokens that each session used, from Claude Code and Antigravity transcripts. `html` makes a page with charts |
 
 ## When the checks run
 
@@ -436,11 +437,11 @@ You can use other skills with Shipinetics. The edit guard applies to all of them
 
 ### Token usage
 
-`shipinetics-usage` shows the tokens that each session used. It reads Claude Code's own transcripts, so no model runs and it costs no tokens. Each API call counts once, and subagents are included.
+`shipinetics-usage` shows the tokens that each session used. It reads Claude Code and Antigravity transcripts, so no model runs and it costs no tokens. Each API call counts once, and subagents are included.
 
 ```mermaid
 flowchart LR
-  T["The session transcripts in ~/.claude/projects"] -->|"is read when a session ends"| H["usage-record.sh"]
+  T["Session transcripts (~/.claude/projects and ~/.gemini/antigravity*/brain)"] -->|"is read at SessionEnd or Stop"| H["usage-record.sh"]
   H -->|"appends a row"| L["The usage log, usage.tsv"]
   T -->|"provides the new sessions"| U["shipinetics-usage"]
   L -->|"provides its rows"| U
@@ -533,7 +534,7 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 - **The install gate asks you.** In a run with no person, nobody is there to answer it.
 - **No hook runs the checks when the agent stops.** The workflow tells the agent to run them, and the push and PR gates refuse code without a pass.
 - **The usage log reads Claude Code and Antigravity transcript files.** Their formats are internal to each harness, and they can change. If a session stops early, `shipinetics-usage` records it later from its transcript. The log needs `python3`.
-- **The companion check is simple.** A plugin counts as installed when Claude Code's `installed_plugins.json` names it, even when it is disabled. A skill counts only in `~/.claude/skills`, `~/.agents/skills` or the project's `.claude/skills`. A skill that comes inside another plugin shows as missing: add it to `companions_skip`.
+- **The companion check is simple.** A plugin counts as installed when Claude Code's `installed_plugins.json` names it or `~/.gemini/config/plugins/` holds its `plugin.json`, even when it is disabled. A skill counts in `~/.claude/skills`, `~/.agents/skills`, `~/.gemini/config/skills`, `~/.gemini/config/plugins/*/skills`, or the project's `.claude/skills` and `.agents/skills`. A skill that comes inside another Claude Code plugin shows as missing: add it to `companions_skip`.
 - **SkillSpector's static mode gives false positives** on skills that discuss security or that hold templates with comments. "SkillSpector results" lists each one that was checked by hand.
 - **Without a store, a person attaches the recording.** `evidence pr-body` links the terminal logs on the pushed branch, so push before you open the PR.
 - **CI has no plugin.** If `bin/verify --full` uses `known-failing` or `bench-compare`, copy them from the plugin's `bin/` into the project's `bin/`.
