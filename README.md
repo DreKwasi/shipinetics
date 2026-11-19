@@ -48,12 +48,14 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 ## Install
 
-1. Install the plugin:
+1. Install the plugin, from GitHub (recommended):
 
    ```bash
    claude plugin marketplace add DreKwasi/shipinetics
    claude plugin install shipinetics@shipinetics
    ```
+
+   You can also install it from your fork on GitHub, or from a clone on this machine. [GETTING-STARTED.md](GETTING-STARTED.md), section 1, compares the four ways and how each one updates.
 
 2. Install the companions: the third-party skills and tools that Shipinetics uses ("Companions" below). [GETTING-STARTED.md](GETTING-STARTED.md) gives all the install commands in one block. Until you install them, each new session starts with a list of the missing ones.
 

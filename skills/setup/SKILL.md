@@ -11,7 +11,20 @@ disable-model-invocation: true
 
 You're installing a working agentic setup into this project. The plugin carries the generic parts (skills, reviewer, hooks, scripts). This skill puts the project-specific parts into the repo so they're committed, visible to every agent and to CI, and work without the plugin.
 
-Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in one message, then run every phase in order in this one run. If `docs/shipinetics-setup.md` shows phases already done, start at the first one that isn't. A number runs just that phase, to redo or repair it. `audit` means audit only. `update` brings a project that is already set up to the plugin's current version ("Update a set-up project" below).
+Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in one message, then run the phases in the way the user chose ("How to run setup" below). If `docs/shipinetics-setup.md` shows phases already done, start at the first one that isn't. A number runs just that phase, to redo or repair it. `audit` means audit only. `update` brings a project that is already set up to the plugin's current version ("Update a set-up project" below).
+
+## How to run setup
+
+With no argument, offer these four ways in the ask-once message, with the first one recommended. Write the choice in `docs/shipinetics-setup.md`, so that a resumed run keeps it:
+
+| Way | What happens | Good for |
+|---|---|---|
+| **All phases in one run** (recommended) | Every phase in order, without a stop between them. Setup stops early only when a proof fails | Most projects. It is the fastest way to a working setup |
+| **One phase at a time** | After each phase's proof and commit, setup shows what the phase added and asks before the next one | A team that wants to read each phase, or a project where a mistake costs much |
+| **Phase 1 only** | The core loop: verify, the router and the block, the lists, secrets, the testing guide, the smoke test and the verification map. Then setup runs Finish and stops. `/shipinetics:setup` later continues at Phase 2 | A first try, or a busy week |
+| **Audit only** | The audit table and the questions, and no change. The same as `/shipinetics:setup audit` | Seeing what is missing before deciding |
+
+With "one phase at a time" or "Phase 1 only", ask the other questions only when the phase that needs them starts.
 
 ## Rules
 
@@ -19,7 +32,7 @@ Argument: `$ARGUMENTS`. No argument means: run the audit, ask every question in 
 - **Detect, don't ask, where you can.** Read `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, CI config, lockfiles and existing scripts to find the real commands. Ask only for what you can't find out.
 - **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
-- **Ask once, then run straight through.** After the audit, put every question the phases need in one message: the Unconfirmed list, secret names you couldn't find, where recordings go (an opt-in `evidence_upload_cmd` for the team's store, or attach them to the PR by hand), the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), the smoke test's criterion (which screen it opens and what it must show: test-writer tests only criteria that a human approved), each disagreement between the project's instruction files and the Shipinetics block ("Projects that already have CLAUDE.md or AGENTS.md", step 3), and for Phase 7 which instance Strix may test and whether to run deepsec on the whole repo, with which cost cap. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
+- **Ask once, then run straight through** (with "All phases in one run"). After the audit, put every question the phases need in one message, with the way to run setup first: the Unconfirmed list, secret names you couldn't find, where recordings go (an opt-in `evidence_upload_cmd` for the team's store, or attach them to the PR by hand), the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), the smoke test's criterion (which screen it opens and what it must show: test-writer tests only criteria that a human approved), each disagreement between the project's instruction files and the Shipinetics block ("Projects that already have CLAUDE.md or AGENTS.md", step 3), and for Phase 7 which instance Strix may test and whether to run deepsec on the whole repo, with which cost cap. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
 - **What only the user can do goes on a list, not a pause.** Installing a CLI, logging in, creating a GitHub label they didn't approve: add it to a "For you" list in `docs/shipinetics-setup.md` and carry on.
 - **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. Log each phase's result and proof in `docs/shipinetics-setup.md` as you finish it, so a stopped run can resume. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)
@@ -240,6 +253,17 @@ Put any row S or V that's still partial or missing at the top of the For you lis
 
 `/shipinetics:setup update` brings a project that is already set up to the plugin's current version. A plugin update changes the skills, agents, hooks and tools at once. The files that setup wrote into the project stay as they were. Work on a branch: `shipinetics-update-<version>`.
 
+After step 2, show the user the list of steps and offer these four ways, with the first one recommended:
+
+| Way | What happens |
+|---|---|
+| **All steps** (recommended) | The new block, the steps of breaking changes and the optional steps |
+| **Breaking steps only** | The new block and the steps of breaking changes. The optional steps go on the For you list, so the user can do them later |
+| **Pick the steps** | The new block, and each step that the user chooses from the list |
+| **Preview only** | The list of steps and the diff of the block, and no change |
+
+In an autonomous session, do "Preview only", write the list and the diff in the setup log, and add one task to the Blocked section of the queue: "Choose how to run /shipinetics:setup update".
+
 1. **Find the two versions.** The project's version is the "Shipinetics version:" line in `docs/shipinetics-setup.md`, or the `version=` in the begin line of the block in `AGENTS.md`. The plugin's version is `version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. If they are the same, say so and stop. If the project has no version, it was set up before the block existed: ask the user which version they set up with. If they don't know, skip step 2 and use the audit in step 5 instead.
 2. **List the steps.** `shipinetics-update steps <project version>` prints the "Steps for each project" of each release after that version, from `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md`. Show the user the list: the steps of breaking changes first, then the optional steps, each with what it gives the project.
 3. **Replace the block.** In `AGENTS.md`, replace the text between the `shipinetics:begin` and `shipinetics:end` lines with the template's block, with the new version in the begin line. Don't change the text outside. Show the diff. If a project rule outside the block now disagrees with a new rule in it, ask the user about it as in step 3 of "Projects that already have CLAUDE.md or AGENTS.md".
@@ -256,6 +280,6 @@ Put any row S or V that's still partial or missing at the top of the For you lis
    | Definition of done, Docs stay true, Every session, Review, Tests come from an independent agent, Every PR carries evidence, Explaining your work, Protected files | Replaced by the block |
 
    Never drop a value that the project filled in (a command, a vault, a target, a step). Text in a replaced section that the old template didn't have is the user's: ask if it is a real difference (it goes under "Where this project differs from Shipinetics", as in step 3) or if it can go.
-4. **Do the steps.** Do the steps of breaking changes, and the optional steps that the user chose. A step that only the user can do (an install, a login, a GitHub setting) goes on the For you list. A protected file goes through `.shipinetics/pending/`.
+4. **Do the steps** that the way the user chose includes. A step that only the user can do (an install, a login, a GitHub setting) goes on the For you list. A protected file goes through `.shipinetics/pending/`.
 5. **Check.** Run the audit again and compare its table with the one in the setup log. Each row that got worse is a problem to fix or to report. Run the complete `shipinetics-verify`.
 6. **Record.** Set "Shipinetics version:" in the setup log to the new version, and add a dated line with what changed. Commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`, each commit under 400 lines. Tell the user what changed and what is on the For you list.

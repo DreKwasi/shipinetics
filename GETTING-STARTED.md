@@ -10,12 +10,16 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
 ## 1. Install on each machine (one time)
 
-1. Add the marketplace and install the plugin:
+1. Install the plugin. Choose one of these four ways:
 
-   ```bash
-   claude plugin marketplace add DreKwasi/shipinetics
-   claude plugin install shipinetics@shipinetics
-   ```
+   | Way | Commands | How you update | Good for |
+   |---|---|---|---|
+   | **From GitHub** (recommended) | `claude plugin marketplace add DreKwasi/shipinetics`, then `claude plugin install shipinetics@shipinetics` | `claude plugin marketplace update shipinetics` and `claude plugin update shipinetics@shipinetics`, or auto-update in `/plugin` | Most people |
+   | **From your fork on GitHub** | Fork the repo, then `claude plugin marketplace add <you>/shipinetics` and `claude plugin install shipinetics@shipinetics` | Merge each release into the fork (`shipinetics-update merge`), push, then `claude plugin update`. A change of your own needs a new `version` | A team that shares changes to the plugin itself |
+   | **From a clone on this machine** | `git clone https://github.com/DreKwasi/shipinetics.git`, then `claude plugin marketplace add <path to the clone>` and `claude plugin install shipinetics@shipinetics` | `shipinetics-update -C <clone> merge`, then `/reload-plugins`. Your edits load at the next session | One person who changes the plugin |
+   | **For one session** | `claude --plugin-dir <path to a clone>` | Nothing to update: it loads the clone each time | Trying it, or working on Shipinetics |
+
+   Use only one of them at a time: all of them name the marketplace `shipinetics`. Section 6 has the update steps for each way. Before you fork, read "Do you need a fork?" there: most changes belong in the project.
 
 2. Install SkillSpector, so that you can scan each companion before you install it:
 
@@ -53,7 +57,13 @@ Start with one test project. Choose a project that has tests and some small task
 
 1. Open the project in Claude Code, on a clean branch.
 2. Run `/shipinetics:setup`. It audits the project and writes the result to `docs/shipinetics-setup.md`.
-3. Answer its questions. They come in one message. For example, setup asks:
+3. Answer its questions. They come in one message. First, choose how setup runs:
+   - **All phases in one run** (recommended): the fastest way to a working setup.
+   - **One phase at a time:** setup shows what each phase added and asks before the next one.
+   - **Phase 1 only:** the core loop, then a stop. Run `/shipinetics:setup` later for the rest.
+   - **Audit only:** the audit and the questions, and no change.
+
+   For example, setup also asks:
    - about the facts that it couldn't confirm;
    - for the secret names, and which files hold secrets;
    - where recordings go: your team's store, or attached to the PR by hand;
@@ -104,7 +114,7 @@ Start with one test project. Choose a project that has tests and some small task
 
 Tell the agent what you want, as you do now. The README's "A task, step by step" lists what the agent does. Your part:
 
-1. Choose a route. For tasks of size S and larger, the agent offers two or three, and recommends one.
+1. Choose the size and the route. The agent gives the task a size (XS, S or M) and says which steps that size skips. You can choose another size: XS for a small fix, M for the full loop with a spec and a plan review. Verify, the run of the app, test-writer and the gates stay for every size. For tasks of size S and larger, the agent also offers two or three routes, and recommends one.
 2. Answer the design questions. Each question has a recommended answer. When the code can answer a question, the agent reads the code and doesn't ask you.
 3. Approve the acceptance criteria. Tests are only written for what a criterion states. So when test-writer proposes a new criterion, decide whether the spec needs it.
 4. Decide the design-system change requests in the worksheet, if there are any.
@@ -169,7 +179,7 @@ Then restart Claude Code. To get each release without these commands, turn on au
 
 ### The plugin, if you use your own fork or clone
 
-First check if you need a fork. Most changes belong in the project, not in the plugin:
+**Do you need a fork?** Most changes belong in the project, not in the plugin:
 
 | You want to change | Put it in |
 |---|---|
@@ -205,7 +215,7 @@ A plugin update changes the skills, agents, hooks and tools at once. The files t
 /shipinetics:setup update
 ```
 
-It reads the project's Shipinetics version from `docs/shipinetics-setup.md`, and lists the steps for each project from each release since then. The steps of breaking changes come first. It replaces the Shipinetics block in `AGENTS.md`, and leaves your text outside the block as it is. It does the steps that you choose, runs the audit and the checks again, and commits. `shipinetics-update steps <version>` prints the same list of steps.
+It reads the project's Shipinetics version from `docs/shipinetics-setup.md`, and lists the steps for each project from each release since then. The steps of breaking changes come first. Then you choose: all steps (recommended), the breaking steps only, the steps that you pick, or a preview with no change. It replaces the Shipinetics block in `AGENTS.md`, and leaves your text outside the block as it is. It does the steps that you choose, runs the audit and the checks again, and commits. `shipinetics-update steps <version>` prints the same list of steps.
 
 A project set up before the block existed has no `shipinetics:begin` line. The first `update` shows you which sections of `AGENTS.md` came from the template, and puts them in the block only after your yes.
 
