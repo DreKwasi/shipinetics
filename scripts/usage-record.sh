@@ -16,9 +16,9 @@ command -v python3 >/dev/null 2>&1 || exit 0
 transcript="$(sy_json_field "$input" transcript_path)"
 [ -n "$transcript" ] || transcript="$(sy_json_field "$input" transcriptPath)"
 [ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
-if [ -n "$cwd" ]; then
-  python3 -I "$(dirname "$0")/usage.py" record "$transcript" --cwd "$cwd" --detach >/dev/null 2>&1
-else
-  python3 -I "$(dirname "$0")/usage.py" record "$transcript" --detach >/dev/null 2>&1
-fi
+conv_id="$(sy_json_field "$input" conversationId)"
+args=(record "$transcript" --detach)
+[ -n "$cwd" ] && args+=(--cwd "$cwd")
+[ -n "$conv_id" ] && args+=(--session-id "$conv_id")
+python3 -I "$(dirname "$0")/usage.py" "${args[@]}" >/dev/null 2>&1
 exit 0

@@ -199,7 +199,7 @@ def gemini_home():
 
 def is_antigravity_transcript(path):
     """True when path is an Antigravity transcript.jsonl (by layout or by its first JSONL entry)."""
-    if os.path.basename(path) == "transcript.jsonl" and os.path.basename(os.path.dirname(path)) == "logs":
+    if os.path.basename(path) in ("transcript.jsonl", "transcript_full.jsonl") and os.path.basename(os.path.dirname(path)) == "logs":
         return True
     for o in read_jsonl(path):
         return "step_index" in o or ("created_at" in o and "timestamp" not in o)
@@ -207,12 +207,15 @@ def is_antigravity_transcript(path):
 
 
 def transcript_sid(path):
-    """Session id for a Claude Code (<id>.jsonl) or Antigravity (brain/<id>/.system_generated/logs/transcript.jsonl) transcript."""
-    if os.path.basename(path) == "transcript.jsonl" and os.path.basename(os.path.dirname(path)) == "logs":
-        parent = os.path.dirname(os.path.dirname(path))
-        if os.path.basename(parent) == ".system_generated":
-            return os.path.basename(os.path.dirname(parent))
+    """Session id for a Claude Code (<id>.jsonl) or Antigravity (*/<id>/.../transcript.jsonl) transcript."""
     name = os.path.basename(path)
+    if name in ("transcript.jsonl", "transcript_full.jsonl"):
+        d = os.path.dirname(os.path.abspath(path))
+        while d and d != "/":
+            base = os.path.basename(d)
+            if base not in ("logs", ".system_generated", "brain", "antigravity", "antigravity-cli", "antigravity-ide", ""):
+                return base
+            d = os.path.dirname(d)
     return name[:-len(".jsonl")] if name.endswith(".jsonl") else name
 
 
@@ -416,9 +419,9 @@ def scan(path, agent, calls, meta, own_sid):
             c["effort"] = str(o["effort"])
 
 
-def session_rows(transcript, cwd_override=""):
+def session_rows(transcript, cwd_override="", sid_override=""):
     """(session id, rows) for one main transcript, its subagents included."""
-    sid = transcript_sid(transcript)
+    sid = sid_override or transcript_sid(transcript)
     meta = {"start": "", "end": "", "cwd": "", "branch": "", "title": "", "entrypoint": ""}
     calls = {}
     if is_antigravity_transcript(transcript):
@@ -1080,7 +1083,11 @@ def cmd_record(args):
         return 0
     if args.detach:
         detach()
-    sid, rows = session_rows(args.transcript, cwd_override=getattr(args, "cwd", "") or "")
+    sid, rows = session_rows(
+        args.transcript,
+        cwd_override=getattr(args, "cwd", "") or "",
+        sid_override=getattr(args, "session_id", "") or "",
+    )
     if rows:
         write_sessions(log_path(), {sid: rows})
     return 0
@@ -1111,6 +1118,7 @@ def main(argv):
     r = sub.add_parser("record", add_help=False)
     r.add_argument("transcript")
     r.add_argument("--cwd", default="")
+    r.add_argument("--session-id", default="")
     r.add_argument("--detach", action="store_true")
     b = sub.add_parser("backfill", add_help=False)
     for sp in (s, h, sv, r, b):

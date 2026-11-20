@@ -245,11 +245,19 @@ with open(out, "w") as f:
     f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "created_at": t0, "model": "gemini-4-neon-high",
                         "input_tokens": 500, "cache_read_tokens": 100, "output_tokens": 50}) + "\n")
 PY
-(cd "$SY" && printf '{"hookEventName":"Stop","transcriptPath":"%s","workspacePaths":["%s"]}' "$ag_tdir2/transcript.jsonl" "$p" |
+(cd "$SY" && printf '{"hookEventName":"Stop","conversationId":"%s","transcriptPath":"%s","workspacePaths":["%s"]}' "$ag_sid2" "$ag_tdir2/transcript.jsonl" "$p" |
   GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" bash "$SY/scripts/usage-record.sh" >/dev/null 2>&1)
 i=0
 while [ "$i" -lt 50 ] && ! grep -q "^$ag_sid2	" "$ag_log" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
 has "Antigravity Stop hook records session into usage log with workspace path" "$(grep "^$ag_sid2	" "$ag_log" 2>/dev/null || true)" "$p"
+
+# Antigravity Stop hook with flat transcript.jsonl path (no .system_generated/logs) still uses real conversationId, never "transcript"
+ag_flat="$scratch/flat-session-id/transcript.jsonl"; mkdir -p "$(dirname "$ag_flat")"
+cp "$ag_tdir2/transcript.jsonl" "$ag_flat"
+eq "transcript_sid extracts conversation id from flat <id>/transcript.jsonl" "$(python3 -I - "$SY/scripts" "$ag_flat" <<'PY'
+import sys; sys.path.insert(0, sys.argv[1]); import usage; print(usage.transcript_sid(sys.argv[2]))
+PY
+)" "flat-session-id"
 
 # ---- CLI filters (--harness, --model), upgraded HTML dashboard and live backfill/serve
 ag_flt="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage --harness antigravity --model neon 2>&1)"
