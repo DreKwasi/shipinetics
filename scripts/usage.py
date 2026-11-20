@@ -938,6 +938,7 @@ def cmd_html(args):
 
 def cmd_serve(args):
     import http.server
+    import socketserver
     import threading
     import urllib.parse
 
@@ -1009,9 +1010,19 @@ def cmd_serve(args):
             self.end_headers()
             self.wfile.write(body)
 
-    server_cls = getattr(http.server, "ThreadingHTTPServer", http.server.HTTPServer)
+    base_cls = getattr(http.server, "ThreadingHTTPServer", http.server.HTTPServer)
+
+    class LocalServer(base_cls):
+        allow_reuse_address = True
+
+        def server_bind(self):
+            # Skip HTTPServer's socket.getfqdn("127.0.0.1") reverse DNS lookup, which can stall on macOS.
+            socketserver.TCPServer.server_bind(self)
+            self.server_name = "127.0.0.1"
+            self.server_port = self.server_address[1]
+
     try:
-        srv = server_cls(("127.0.0.1", getattr(args, "port", 8765)), Handler)
+        srv = LocalServer(("127.0.0.1", getattr(args, "port", 8765)), Handler)
     except OSError as exc:
         print("shipinetics-usage: could not bind 127.0.0.1:%d: %s" % (getattr(args, "port", 8765), exc), file=sys.stderr)
         return 2
