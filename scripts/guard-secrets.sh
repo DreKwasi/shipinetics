@@ -29,22 +29,20 @@ set -uo pipefail
 input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-sy_flag ALLOW_ENV_READ && exit 0
-root="$(sy_root 2>/dev/null)" || root=""
-sy_hook_off secrets "$root" && exit 0
+harness="$(sy_hook_harness "$input")"
+noop() { sy_hook_noop "$harness"; exit 0; }
 
-jget() { sy_json_field "$input" "$1"; }
+sy_flag ALLOW_ENV_READ && noop
+cwd="$(sy_hook_cwd "$input")"
+root="$(sy_root "$cwd" 2>/dev/null)" || root=""
+sy_hook_off secrets "$root" && noop
 
 runner="bin/with-secrets"
 [ -n "$root" ] && runner="$(sy_cfg "$root" secrets_runner)"
 
 deny() {
-  local reason="shipinetics: blocked because this would $1. Secrets here live in a vault and reach the app as environment variables, so agents never read their values. To run something that needs secrets, use $runner <command>. To check a variable is set without seeing it: [ -n \"\${NAME+x}\" ] && echo set. If the user really wants this, they can run it themselves or start Claude Code with SHIPINETICS_ALLOW_ENV_READ=1."
-  if command -v jq >/dev/null 2>&1; then
-    jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
-  else
-    python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": sys.argv[1]}}))' "$reason"
-  fi
+  local reason="shipinetics: blocked because this would $1. Secrets here live in a vault and reach the app as environment variables, so agents never read their values. To run something that needs secrets, use $runner <command>. To check a variable is set without seeing it: [ -n \"\${NAME+x}\" ] && echo set. If the user really wants this, they can run it themselves or start the session with SHIPINETICS_ALLOW_ENV_READ=1."
+  sy_hook_pretool_reply "$harness" deny "$reason"
   exit 0
 }
 
@@ -56,15 +54,17 @@ secret_file() {
     deny "$2 a secret file ($1 matches '$SY_MATCHED' in the secret-paths list)"
 }
 
-tool="$(jget tool_name)"
+tool="$(sy_hook_tool "$input")"
 
-if [ "$tool" = "Read" ]; then
-  secret_file "$(jget tool_input.file_path)" "read"
-  exit 0
-fi
+case "$tool" in
+  Read|read_file|view_file)
+    secret_file "$(sy_hook_file_path "$input")" "read"
+    noop
+    ;;
+esac
 
-cmd="$(jget tool_input.command)"
-[ -n "$cmd" ] || exit 0
+cmd="$(sy_hook_command "$input")"
+[ -n "$cmd" ] || noop
 # Judge only what would run. If perl is missing, judge the whole command.
 clean="$(printf '%s' "$cmd" | sy_sanitize cmd "$(sy_safe_env_names "$root")")" && cmd="$clean"
 
@@ -100,4 +100,4 @@ while IFS= read -r w; do
   [ -n "$w" ] && secret_file "$w" "touch"
 done < <(printf '%s\n' "$cmd" | tr -s " \t;&|()<>=\"'\`" '\n')
 
-exit 0
+noop

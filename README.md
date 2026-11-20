@@ -1,6 +1,6 @@
 # Shipinetics
 
-Shipinetics is a plugin for Claude Code. It gives the agent one way to work in every project, and it checks the most important rules with code.
+Shipinetics is a plugin for Claude Code and Antigravity. It gives the agent one way to work in every project, and it checks the most important rules with code.
 
 In a project that Shipinetics has set up, a task goes like this:
 
@@ -61,7 +61,18 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 To try the plugin for one session without an install, run `claude --plugin-dir <path to a clone of this repo>`.
 
-The plugin puts its tools (`bin/`) on the PATH of the agent's Bash tool. In your own terminal, run them by their full path, or add the plugin's `bin/` folder to your PATH.
+The plugin puts its tools (`bin/`) on the PATH of Claude Code's Bash tool. In your own terminal, run them by their full path, or add the plugin's `bin/` folder to your PATH.
+
+### Antigravity
+
+Shipinetics also runs as an Antigravity plugin. From a clone of this repo:
+
+```bash
+./bin/shipinetics-antigravity install
+./bin/shipinetics-antigravity link-skills
+```
+
+Then add `<path to this clone>/bin` to your shell `PATH` (`~/.zshrc` or `~/.bashrc`). `install` links `skills/`, `scripts/`, `bin/`, `plugin.json`, `hooks.json` and `companions.tsv` into `~/.gemini/config/plugins/shipinetics` and generates Antigravity-native subagents in `agents/`. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares companions installed with the `skills` CLI. Re-run `./bin/shipinetics-antigravity install` when `agents/*.md` changes. Run `shipinetics-antigravity status` to check the setup.
 
 ## Update
 
@@ -200,9 +211,10 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `bench-compare` | Runs a benchmark several times and fails on a slowdown against this machine's baseline |
 | `scan-skills` | Scans the skills and agent files that can reach your sessions with SkillSpector, and writes a report. It needs `jq` |
 | `skills-outdated` | Shows which installed skills have a newer version upstream. It changes nothing |
+| `shipinetics-antigravity` | `install`, `link-skills` and `status`: links this repo into Antigravity's plugins folder, generates Antigravity-native subagents, and shares companion skills through `skills.json` |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
 | `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
-| `shipinetics-usage` | Shows the tokens that each session used, from Claude Code's own transcripts. `html` makes a page with charts |
+| `shipinetics-usage` | Shows the tokens that each session used, from Claude Code and Antigravity transcripts. `html` makes a page with charts |
 
 ## When the checks run
 
@@ -425,11 +437,11 @@ You can use other skills with Shipinetics. The edit guard applies to all of them
 
 ### Token usage
 
-`shipinetics-usage` shows the tokens that each session used. It reads Claude Code's own transcripts, so no model runs and it costs no tokens. Each API call counts once, and subagents are included.
+`shipinetics-usage` shows the tokens that each session used. It reads Claude Code and Antigravity transcripts, so no model runs and it costs no tokens. Each API call counts once, and subagents are included.
 
 ```mermaid
 flowchart LR
-  T["The session transcripts in ~/.claude/projects"] -->|"is read when a session ends"| H["usage-record.sh"]
+  T["Session transcripts (~/.claude/projects and ~/.gemini/antigravity*/brain)"] -->|"is read at SessionEnd or Stop"| H["usage-record.sh"]
   H -->|"appends a row"| L["The usage log, usage.tsv"]
   T -->|"provides the new sessions"| U["shipinetics-usage"]
   L -->|"provides its rows"| U
@@ -514,14 +526,15 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 
 - **The guards read command text.** They see the text of each command and the paths in Claude's file tools, not what a script does when it runs. So an agent can write a file or print a variable through a script that it writes and runs. The credential scrub and the reviewers are the layers behind the guards.
 - **The guards match words, not intent.** The PR gate and the install gate react to their command words anywhere in a command: in a heredoc, a quoted string, a comment or a commit message. The secrets guard skips a heredoc only in the case that "Secrets" describes.
-- **Each guard watches some tools only.** The edit guard watches Edit, Write and NotebookEdit. The secrets guard watches Bash and Read, not Grep or Glob.
+- **Each guard watches some tools only.** The edit guard watches Edit, Write and NotebookEdit in Claude Code (`edit_file`, `write_file`, `replace_file_content`, `multi_replace_file_content`, `write_to_file` and `notebook_edit` in Antigravity). The secrets guard watches Bash and Read (`run_command`, `read_file` and `view_file` in Antigravity), not Grep or Glob.
+- **Antigravity omits subagent identity on `PreToolUse`.** The edit guard still enforces `.shipinetics/protected-paths` in Antigravity, and skips the `.shipinetics/test-paths` owner check unless the hook payload includes `agentType` (otherwise `test-writer` would be blocked too). The reviewer's `test-integrity` persona still checks test diffs.
 - **The install gate knows some install commands only.** It doesn't see `uv tool install`, `npm install -g`, `curl ... | bash` or an edit of `.mcp.json`.
 - **Bash can write.** The reviewers have no Edit or Write tool, but they have Bash. Claude Code ignores the `hooks` field in a plugin agent's frontmatter, and no hook checks what a reviewer writes through Bash.
 - **Some changes need a person.** When a baseline or the list of known failures exists, `bench-compare --init` and `known-failing init` write a proposal to `.shipinetics/pending/`. Only `shipinetics-config apply` applies a proposal, and it needs a terminal, so an agent's Bash tool can't run it by accident. This slows an agent down. It isn't a lock.
 - **The install gate asks you.** In a run with no person, nobody is there to answer it.
 - **No hook runs the checks when the agent stops.** The workflow tells the agent to run them, and the push and PR gates refuse code without a pass.
-- **The usage log reads Claude Code's transcript files.** Their format is internal to Claude Code, and it can change. If Claude Code is killed, the hook may not run, but `shipinetics-usage` records the session later from its transcript. The log needs `python3`.
-- **The companion check is simple.** A plugin counts as installed when Claude Code's `installed_plugins.json` names it, even when it is disabled. A skill counts only in `~/.claude/skills`, `~/.agents/skills` or the project's `.claude/skills`. A skill that comes inside another plugin shows as missing: add it to `companions_skip`.
+- **The usage log reads Claude Code and Antigravity transcript files.** Their formats are internal to each harness, and they can change. If a session stops early, `shipinetics-usage` records it later from its transcript. The log needs `python3`.
+- **The companion check is simple.** A plugin counts as installed when Claude Code's `installed_plugins.json` names it or `~/.gemini/config/plugins/` holds its `plugin.json`, even when it is disabled. A skill counts in `~/.claude/skills`, `~/.agents/skills`, `~/.gemini/config/skills`, `~/.gemini/config/plugins/*/skills`, or the project's `.claude/skills` and `.agents/skills`. A skill that comes inside another Claude Code plugin shows as missing: add it to `companions_skip`.
 - **SkillSpector's static mode gives false positives** on skills that discuss security or that hold templates with comments. "SkillSpector results" lists each one that was checked by hand.
 - **Without a store, a person attaches the recording.** `evidence pr-body` links the terminal logs on the pushed branch, so push before you open the PR.
 - **CI has no plugin.** If `bin/verify --full` uses `known-failing` or `bench-compare`, copy them from the plugin's `bin/` into the project's `bin/`.
@@ -535,13 +548,15 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 ## Layout
 
 ```
-.claude-plugin/   plugin.json and marketplace.json
+.claude-plugin/   plugin.json and marketplace.json (Claude Code)
 .github/          the CI workflow of this repo (test.yml)
 agents/           reviewer, security-reviewer, ui-reviewer, test-writer, test-plan-reviewer, live-tester
 bin/              the tools, on the agent's PATH: bench-compare, design-check, evidence, known-failing,
-                  scan-skills, shipinetics-companions, shipinetics-config, shipinetics-usage,
-                  shipinetics-update, shipinetics-verify, skills-outdated, worksheet
-hooks/            hooks.json: which script runs at which event
+                  scan-skills, shipinetics-antigravity, shipinetics-companions, shipinetics-config,
+                  shipinetics-usage, shipinetics-update, shipinetics-verify, skills-outdated, worksheet
+hooks/            hooks.json: which script runs at which event (Claude Code)
+hooks.json        root lifecycle hooks for Antigravity
+plugin.json       root plugin manifest for Antigravity
 scripts/          the hooks (guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh,
                   companions-notice.sh, usage-record.sh), lib.sh with the shared helpers, and
                   usage.py with usage-page.html for the token usage
@@ -560,7 +575,7 @@ tests/            the tests of the hooks and tools
 - **Try a change** in one session with `claude --plugin-dir <path to this repo>`, or add the marketplace from your clone. Then `/reload-plugins` loads each edit.
 - **Release a change:**
   1. Choose the version by the rules at the top of [CHANGELOG.md](CHANGELOG.md). Before 1.0.0, a breaking change increases the minor number (0.7.0 to 0.8.0). Other changes increase the last number (0.7.0 to 0.7.1).
-  2. Set the version in `.claude-plugin/plugin.json`.
+  2. Set the version in `.claude-plugin/plugin.json` and `plugin.json`.
   3. Write the entry in `CHANGELOG.md`. For a breaking change, give the steps for each project.
   4. Commit, and tag the commit `vX.Y.Z`.
   5. Push the commit and the tag.

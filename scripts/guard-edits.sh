@@ -23,31 +23,24 @@ set -uo pipefail
 input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-root="$(sy_root 2>/dev/null)" || root=""
+harness="$(sy_hook_harness "$input")"
+cwd="$(sy_hook_cwd "$input")"
+root="$(sy_root "$cwd" 2>/dev/null)" || root=""
 
-jget() { sy_json_field "$input" "$1"; }
+noop() { sy_hook_noop "$harness"; exit 0; }
+deny() { sy_hook_pretool_reply "$harness" deny "$1"; exit 0; }
 
-deny() {
-  if command -v jq >/dev/null 2>&1; then
-    jq -n --arg r "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
-  else
-    python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": sys.argv[1]}}))' "$1"
-  fi
-  exit 0
-}
-
-path="$(jget tool_input.file_path)"
-[ -n "$path" ] || path="$(jget tool_input.notebook_path)"
-[ -n "$path" ] || exit 0
-case "$path" in /*) ;; *) path="${root:-${CLAUDE_PROJECT_DIR:-$PWD}}/$path" ;; esac
+path="$(sy_hook_file_path "$input")"
+[ -n "$path" ] || noop
+case "$path" in /*) ;; *) path="${root:-$cwd}/$path" ;; esac
 path="$(sy_norm_path "$path")"   # so .. can't step out of the pending folder past the rules
 
-[ -n "$root" ] || exit 0
-sy_hook_off edits "$root" && exit 0
+[ -n "$root" ] || noop
+sy_hook_off edits "$root" && noop
 dir="$(sy_dir "$root")"
 dn="$SY_DIR_NAME"
 rel="$(sy_rel "$root" "$path")"
-agent="$(jget agent_type)"
+agent="$(sy_hook_agent_type "$input")"
 is_test_writer=0
 case "$agent" in *test-writer) is_test_writer=1 ;; esac
 # A proposal in the pending folder is never protected itself, and the other rules check it as the
@@ -63,7 +56,13 @@ if ! sy_flag UNLOCK && [ -e "$path" ] && sy_list_match "$root" protected-paths "
 fi
 
 # ---- 2. test ownership ----
-if ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
+# Antigravity's PreToolUse payload omits agentType for both main agents and subagents, so enforce
+# test ownership there only when an agent type is present (otherwise test-writer is blocked too).
+check_test_owner=1
+if [ "$harness" = "antigravity" ] && ! sy_hook_has_agent_type "$input"; then
+  check_test_owner=0
+fi
+if [ "$check_test_owner" = 1 ] && ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
   if sy_list_match "$root" test-paths "$rel"; then
     if [ "$is_test_writer" != 1 ]; then
       deny "$rel is a test file (matches '$SY_MATCHED' in $dn/test-paths). The agent that writes the code doesn't write its tests. Spawn the shipinetics:test-writer subagent with the spec or acceptance criteria and the files under test, and let it write or change tests in its own context. If an existing test looks wrong, give test-writer your reasoning and the spec, and it decides."
@@ -76,4 +75,4 @@ if ! sy_flag ALLOW_AUTHOR_TESTS && [ -f "$dir/test-paths" ]; then
   fi
 fi
 
-exit 0
+noop

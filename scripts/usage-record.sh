@@ -9,10 +9,16 @@ set -uo pipefail
 input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-root="$(sy_root 2>/dev/null)" || root=""
+cwd="$(sy_hook_cwd "$input")"
+root="$(sy_root "$cwd" 2>/dev/null)" || root=""
 sy_hook_off usage "$root" && exit 0
 command -v python3 >/dev/null 2>&1 || exit 0
 transcript="$(sy_json_field "$input" transcript_path)"
+[ -n "$transcript" ] || transcript="$(sy_json_field "$input" transcriptPath)"
 [ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
-python3 "$(dirname "$0")/usage.py" record "$transcript" --detach >/dev/null 2>&1
+if [ -n "$cwd" ]; then
+  python3 -I "$(dirname "$0")/usage.py" record "$transcript" --cwd "$cwd" --detach >/dev/null 2>&1
+else
+  python3 -I "$(dirname "$0")/usage.py" record "$transcript" --detach >/dev/null 2>&1
+fi
 exit 0

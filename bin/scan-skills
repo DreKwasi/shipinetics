@@ -38,13 +38,16 @@ plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
 root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null || true)"
 
 if [ "${#targets[@]}" -eq 0 ]; then
+  gdir="$(sy_gemini_dir)"
   for d in "$HOME/.claude/skills"/*/ "$HOME/.agents/skills"/*/ \
+           "$gdir/skills"/*/ "$gdir/plugins"/*/skills/*/ \
            "$HOME/.claude/plugins/cache"/*/*/*/skills/*/ \
            ${root:+"$root/.claude/skills"/*/ "$root/.agents/skills"/*/} "$plugin_root/skills"/*/; do
     [ -f "$d/SKILL.md" ] && targets+=("${d%/}")
   done
   for f in "$HOME/.claude/agents"/*.md "$HOME/.claude/plugins/cache"/*/*/*/agents/*.md \
-           ${root:+"$root/.claude/agents"/*.md} "$plugin_root/agents"/*.md; do
+           "$gdir/plugins"/*/agents/*.md \
+           ${root:+"$root/.claude/agents"/*.md "$root/.agents/agents"/*.md} "$plugin_root/agents"/*.md; do
     [ -f "$f" ] && targets+=("$f")
   done
 fi

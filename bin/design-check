@@ -33,11 +33,16 @@ prefix=""; [ "$root" != "$repo" ] && prefix="$(sy_rel "$root" "$repo")/"
 command -v python3 >/dev/null 2>&1 || die "python3 is required"
 
 engine() { # the Impeccable launcher or binary, wherever it's installed
-  local c
+  local c g
+  g="$(sy_gemini_dir)"
   [ -n "${IMPECCABLE_BIN:-}" ] && [ -x "$IMPECCABLE_BIN" ] && { echo "$IMPECCABLE_BIN"; return; }
   for c in "$repo/.claude/skills/impeccable/scripts/impeccable" \
+           "$repo/.agents/skills/impeccable/scripts/impeccable" \
            "$HOME/.claude/skills/impeccable/scripts/impeccable" \
            "$HOME/.agents/skills/impeccable/scripts/impeccable" \
+           "$g/skills/impeccable/scripts/impeccable" \
+           "$g/plugins/impeccable/skills/impeccable/scripts/impeccable" \
+           "$g"/plugins/*/skills/impeccable/scripts/impeccable \
            $(ls -d "$HOME"/.claude/plugins/cache/impeccable/impeccable/*/skills/impeccable/scripts/impeccable 2>/dev/null | sort -V -r); do
     [ -x "$c" ] && { echo "$c"; return; }
   done

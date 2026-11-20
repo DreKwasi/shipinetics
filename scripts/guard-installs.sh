@@ -10,23 +10,22 @@ set -uo pipefail
 input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-sy_flag ALLOW_INSTALLS && exit 0
-sy_hook_off installs "$(sy_root 2>/dev/null)" && exit 0
+harness="$(sy_hook_harness "$input")"
+noop() { sy_hook_noop "$harness"; exit 0; }
+sy_flag ALLOW_INSTALLS && noop
+cwd="$(sy_hook_cwd "$input")"
+sy_hook_off installs "$(sy_root "$cwd" 2>/dev/null)" && noop
 
-if command -v jq >/dev/null 2>&1; then
-  cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
-else
-  cmd="$(printf '%s' "$input" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("tool_input", {}).get("command", ""))')"
-fi
+cmd="$(sy_hook_command "$input")"
 
 # Installs and updates: an update pulls new code too. `skills check` counts: it can update and
 # remove skills while it checks. bin/skills-outdated is the read-only check. shipinetics-update merge
-# brings a new Shipinetics release, hooks included, into a clone that Claude Code may read from.
-re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add|shipinetics-update([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+merge'
+# brings a new Shipinetics release, hooks included, into a clone that Claude Code or Antigravity may read from.
+re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add|agy[[:space:]]+plugin[[:space:]]+(install|update|import)|shipinetics-update([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+merge'
 # Judge only text that can run: an inert heredoc body, a commit message, a search pattern or a
 # comment line can name an install without running it. If perl is missing, judge all of it.
 run="$(printf '%s' "$cmd" | sy_sanitize gate "")" || run="$cmd"
-[[ "$run" =~ $re ]] || exit 0
+[[ "$run" =~ $re ]] || noop
 
 if command -v skillspector >/dev/null 2>&1; then
   advice="Scan the source first with: skillspector scan <source> --no-llm. Approve only if the result is SAFE, or CAUTION after reading the findings."
@@ -35,9 +34,5 @@ else
 fi
 reason="shipinetics: this installs or updates agent tooling that will run with your permissions. $advice For a Shipinetics companion, shipinetics-companions shows the result recorded for the scanned version. Three companions (security-audit, Impeccable, tasteskill) score DO_NOT_INSTALL in static mode, and their findings were checked by hand as false positives. See shipinetics:security-scans."
 
-if command -v jq >/dev/null 2>&1; then
-  jq -n --arg r "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: $r}}'
-else
-  python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "ask", "permissionDecisionReason": sys.argv[1]}}))' "$reason"
-fi
+sy_hook_pretool_reply "$harness" ask "$reason"
 exit 0

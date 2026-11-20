@@ -15,17 +15,18 @@ set -uo pipefail
 input="$(cat)"
 # shellcheck source=lib.sh
 . "$(dirname "$0")/lib.sh"
-sy_flag ALLOW_NO_EVIDENCE && exit 0
+harness="$(sy_hook_harness "$input")"
+noop() { sy_hook_noop "$harness"; exit 0; }
+sy_flag ALLOW_NO_EVIDENCE && noop
 
-cmd="$(sy_json_field "$input" tool_input.command)"
+cmd="$(sy_hook_command "$input")"
 # Judge only text that can run: an inert heredoc body, a commit message, a search pattern or a
 # comment line can name the command without running it. If perl is missing, judge all of it.
 run="$(printf '%s' "$cmd" | sy_sanitize gate "")" || run="$cmd"
 re='(^|[^[:alnum:]_.-])gh[[:space:]]+pr[[:space:]]+(create|ready)([^[:alnum:]_-]|$)'
-[[ "$run" =~ $re ]] || exit 0
+[[ "$run" =~ $re ]] || noop
 
-cwd="$(sy_json_field "$input" cwd)"
-[ -n "$cwd" ] || cwd="${CLAUDE_PROJECT_DIR:-$PWD}"
+cwd="$(sy_hook_cwd "$input")"
 # A leading "cd <dir> &&" decides where gh runs. Follow it when it's a plain path.
 cd_re='^[[:space:]]*cd[[:space:]]+([^[:space:];&|]+)[[:space:]]*&&'
 if [[ "$cmd" =~ $cd_re ]]; then
@@ -33,18 +34,11 @@ if [[ "$cmd" =~ $cd_re ]]; then
   case "$d" in /*) ;; *) d="$cwd/$d" ;; esac
   [ -d "$d" ] && cwd="$d"
 fi
-repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || exit 0
-root="$(sy_root "$repo")" || exit 0
-sy_hook_off pr "$root" && exit 0
+repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || noop
+root="$(sy_root "$repo")" || noop
+sy_hook_off pr "$root" && noop
 
-deny() {
-  if command -v jq >/dev/null 2>&1; then
-    jq -n --arg r "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
-  else
-    python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": sys.argv[1]}}))' "$1"
-  fi
-  exit 0
-}
+deny() { sy_hook_pretool_reply "$harness" deny "$1"; exit 0; }
 
 evidence="$(cd "$(dirname "$0")/.." && pwd)/bin/evidence"
 guide="$(cd "$(dirname "$0")/.." && pwd)/skills/explain/plain-language.md"
@@ -53,7 +47,7 @@ if ! out="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" check --branch 2>
 $out
 Capture it (shipinetics:evidence): one paced recording of the flow for UI changes, with the time of each acceptance criterion (screenshots only if it can't be recorded), terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section). Write the summary by the plain-language guide: $guide."
 fi
-case "$out" in *docs-only*) exit 0 ;; esac
+case "$out" in *docs-only*) noop ;; esac
 
 # The complete verify must have passed on exactly this code. The agent may only have run the
 # quick tier, so this is where the complete tier is guaranteed. A recorded pass is reused, so
@@ -85,4 +79,4 @@ if ! printf '%s' "$body" | grep -q '## Evidence'; then
   deny "shipinetics: the PR body needs the '## Evidence' section. Generate it with: evidence pr-body > \$TMPDIR/pr-body.md, put your summary above it, and pass --body-file \$TMPDIR/pr-body.md. Write the summary by the plain-language guide: $guide. Don't use --fill."
 fi
 
-exit 0
+noop
