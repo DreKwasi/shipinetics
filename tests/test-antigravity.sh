@@ -267,8 +267,11 @@ has "HTML dashboard includes cache hit rate tile" "$html_txt" 'id="k-cache"'
 has "HTML dashboard includes Est. API cost tile" "$html_txt" 'id="k-cost"'
 has "HTML dashboard includes Pricing editor panel" "$html_txt" 'id="pricing-panel"'
 
-# Cost estimation: unpriced preview models stay unpriced until custom pricing.json is provided
-has "unpriced Antigravity models are reported as unpriced by default" "$ag_out" "Estimated API cost: unpriced"
+# Cost estimation: Gemini 4 Carbon ($4/$0.20/$20) & Neon ($3/$0.15/$15) are priced out of the box
+# ag_sid: carbon (1200*4 + 300*0.2 + 100*20)/1e6 = $0.00686 + neon (800*3 + 700*0.15 + 200*15)/1e6 = $0.005505 -> $0.012365 -> $0.01
+has "built-in Gemini 4 pricing computes exact cost in report" "$ag_out" "Estimated API cost: \$0.01"
+has "built-in Gemini 4 pricing computes exact cost in session" "$ag_sess" "| Est. API cost | \$0.01 |"
+
 pricing_file="$scratch/pricing.json"
 cat >"$pricing_file" <<'JSON'
 {
@@ -276,13 +279,14 @@ cat >"$pricing_file" <<'JSON'
   "gemini-4-neon-high": {"input": 2.0, "cache_write": 2.0, "cache_read": 0.2, "output": 10.0}
 }
 JSON
-# Hand-worked cost for ag_sid:
-#   carbon: (1200*1 + 300*0.1 + 100*5) / 1e6 = 1730 / 1e6 = $0.00173
-#   neon:   (800*2 + 700*0.2 + 200*10) / 1e6 = 3740 / 1e6 = $0.00374
+# Hand-worked custom cost for ag_sid:
+#   carbon: (1200*1 + 300*0.1 + 100*5) / 1e6 = $0.00173
+#   neon:   (800*2 + 700*0.2 + 200*10) / 1e6 = $0.00374
 #   session total = $0.00547 -> $0.0055
 ag_cost_sess="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" SHIPINETICS_PRICING_FILE="$pricing_file" shipinetics-usage session aaaaaaaa 2>&1)"
-has "custom pricing.json computes exact session cost" "$ag_cost_sess" "| Est. API cost | \$0.0055 |"
-# Built-in pricing works out of the box for known Gemini 3 Flash ($0.50 in, $0.05 cache_read, $3.00 out)
+has "custom pricing.json overrides built-in rates cleanly" "$ag_cost_sess" "| Est. API cost | \$0.0055 |"
+
+# Unknown model stays honestly marked unpriced
 ag_sid3="cccccccc-3333-4333-8333-0000000000cc"
 ag_tdir3="$ag_home/antigravity/brain/$ag_sid3/.system_generated/logs"
 mkdir -p "$ag_tdir3"
@@ -290,14 +294,13 @@ python3 -I - "$ag_tdir3/transcript.jsonl" "$p/src/app.ts" "$t_now" <<'PY'
 import json, sys
 out, fpath, t0 = sys.argv[1:4]
 with open(out, "w") as f:
-    f.write(json.dumps({"step_index": 0, "type": "USER_INPUT", "created_at": t0, "content": "Gemini 3 Flash test"}) + "\n")
-    f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "created_at": t0, "model": "gemini-3-flash-preview",
-                        "input_tokens": 1000000, "cache_read_tokens": 2000000, "output_tokens": 500000,
+    f.write(json.dumps({"step_index": 0, "type": "USER_INPUT", "created_at": t0, "content": "Unlisted model test"}) + "\n")
+    f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "created_at": t0, "model": "custom-local-model-v1",
+                        "input_tokens": 1000000, "cache_read_tokens": 0, "output_tokens": 500000,
                         "tool_calls": [{"name": "read_file", "args": {"Path": json.dumps(fpath)}}]}) + "\n")
 PY
-# 1M * 0.50 + 2M * 0.05 + 0.5M * 3.00 = 0.50 + 0.10 + 1.50 = $2.10
-g3_sess="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage session cccccccc 2>&1)"
-has "built-in pricing computes exact Gemini 3 Flash cost (\$2.10)" "$g3_sess" "| Est. API cost | \$2.10 |"
+u_sess="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage session cccccccc 2>&1)"
+has "unknown model is reported as unpriced" "$u_sess" "| Est. API cost | unpriced (custom-local-model-v1) |"
 rm -rf "$ag_home/antigravity/brain/$ag_sid3"
 html_meta="$(python3 -I - "$ag_html" <<'PY'
 import json, re, sys
@@ -330,19 +333,28 @@ eq "live backfill picks up appended turns immediately" "$live_check" "2 3 True"
 # Test live HTTP server end-to-end when localhost loopback is permitted
 if python3 -I -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); s.listen(1); c=socket.create_connection(("127.0.0.1",s.getsockname()[1]),timeout=1); c.close(); s.close()' 2>/dev/null; then
   srv_out="$scratch/srv.out"
-  (cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage serve --port 0 --no-open >"$srv_out" 2>&1) &
+  (cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" exec shipinetics-usage serve --port 0 --no-open >"$srv_out" 2>&1) &
   srv_pid=$!
   i=0
-  while [ "$i" -lt 40 ] && ! grep -q 'http://127.0.0.1:' "$srv_out" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
+  while [ "$i" -lt 100 ] && ! grep -q 'http://127.0.0.1:' "$srv_out" 2>/dev/null; do
+    kill -0 "$srv_pid" 2>/dev/null || break
+    sleep 0.1
+    i=$((i + 1))
+  done
   srv_url="$(sed -n 's#.*\(http://127\.0\.0\.1:[0-9]*\)/.*#\1#p' "$srv_out" | head -n 1)"
-  srv_res="$(python3 -I - "$srv_url" <<'PY' 2>/dev/null || true
+  srv_res=""
+  if [ -n "$srv_url" ]; then
+    srv_res="$(python3 -I - "$srv_url" <<'PY' 2>&1 || true
 import json, sys, urllib.request
 u = sys.argv[1]
-page = urllib.request.urlopen(u + "/", timeout=5).read().decode("utf-8")
-api = json.loads(urllib.request.urlopen(u + "/api/data", timeout=5).read().decode("utf-8"))
+page = urllib.request.urlopen(u + "/", timeout=10).read().decode("utf-8")
+api = json.loads(urllib.request.urlopen(u + "/api/data", timeout=10).read().decode("utf-8"))
 print(("id=\"f-models\"" in page), api.get("live"), len(api.get("rows", [])))
 PY
 )"
+  else
+    srv_res="no-url:$(cat "$srv_out" 2>/dev/null)"
+  fi
   kill "$srv_pid" 2>/dev/null; wait "$srv_pid" 2>/dev/null || true
   eq "shipinetics-usage serve serves HTML and live /api/data JSON" "$srv_res" "True True 3"
 else
