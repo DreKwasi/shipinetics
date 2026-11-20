@@ -472,9 +472,15 @@ def project_roots():
 def in_project(project, roots):
     if roots is None:
         return True
+    if not project or project == "-":
+        return False
+    p_real = os.path.realpath(project)
     for root in roots:
-        root = root.rstrip("/")
-        if project == root or project.startswith(root + "/"):
+        r = root.rstrip("/")
+        if project == r or project.startswith(r + "/"):
+            return True
+        rr = os.path.realpath(r).rstrip("/")
+        if p_real == rr or p_real.startswith(rr + "/"):
             return True
     return False
 
@@ -565,11 +571,25 @@ def scope_label(roots):
     return roots[0] + (" and %d worktree%s" % (len(roots) - 1, "" if len(roots) == 2 else "s") if len(roots) > 1 else "")
 
 
+def row_harness(r):
+    return "antigravity" if str(r.get("entrypoint", "")).lower().startswith("antigravity") else "claude"
+
+
+def matches_filters(r, harness="all", model=""):
+    if harness and harness != "all" and row_harness(r) != harness:
+        return False
+    if model and model.lower() not in str(r.get("model", "")).lower():
+        return False
+    return True
+
+
 def cmd_report(args):
     path = log_path()
     roots = None if args.all else project_roots()
     backfill(roots, path)
-    rows = [r for r in load_log(path) if in_project(r["project"], roots) and r["start"] >= since(args.days)]
+    rows = [r for r in load_log(path)
+            if in_project(r["project"], roots) and r["start"] >= since(args.days)
+            and matches_filters(r, getattr(args, "harness", "all"), getattr(args, "model", ""))]
     span = "all time" if not args.days or args.days <= 0 else "last %d days" % args.days
     print("Token usage: %s, %s. From session transcripts; no model ran." % (scope_label(roots), span))
     sessions = by_session(rows)
@@ -667,20 +687,76 @@ def shipinetics_root(start):
         d = parent
 
 
-def cmd_html(args):
-    path = log_path()
-    roots = None if args.all else project_roots()
-    backfill(roots, path)
+def backfill_live(roots, path, stat_cache):
+    """Incremental backfill for `serve`: re-parse only transcripts whose (mtime_ns, size) changed."""
+    if not stat_cache:
+        backfill(roots, path)
+        for t in transcripts():
+            try:
+                st = os.stat(t)
+                stat_cache[t] = (st.st_mtime_ns, st.st_size)
+            except OSError:
+                pass
+        return
+    new = {}
+    for t in transcripts():
+        try:
+            st = os.stat(t)
+        except OSError:
+            continue
+        sig = (st.st_mtime_ns, st.st_size)
+        if stat_cache.get(t) == sig:
+            continue
+        stat_cache[t] = sig
+        if roots is not None and not in_project(peek_cwd(t), roots):
+            continue
+        sid, rows = session_rows(t)
+        if rows and in_project(rows[0]["project"], roots):
+            new[sid] = rows
+    if new:
+        write_sessions(path, new, only_if_newer=False)
+
+
+def build_page_data(roots, path, days, harness="all", model="", live=False, refresh_ms=5000, stat_cache=None):
+    if stat_cache is not None:
+        backfill_live(roots, path, stat_cache)
+    else:
+        backfill(roots, path)
     rows = [r for r in load_log(path) if in_project(r["project"], roots)]
     data = [{k: r[k] for k in FIELDS} for r in rows]
     name = "all projects" if roots is None else os.path.basename(roots[0]) or roots[0]
+    payload = {
+        "scope": name,
+        "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S" if live else "%Y-%m-%d %H:%M"),
+        "days": days if days and days > 0 else 0,
+        "harness": harness or "all",
+        "model": model or "",
+        "rows": data,
+    }
+    if live:
+        payload["live"] = True
+        payload["refresh_ms"] = refresh_ms
+    return payload, rows
+
+
+def render_html(payload):
     with open(os.path.join(HERE, "usage-page.html"), encoding="utf-8") as f:
         page = f.read()
     # The data goes in a JSON script block. Escape < so no value (a session title) can close it.
     # The title goes in first, so no value in the data can be mistaken for its placeholder.
-    blob = json.dumps({"scope": name, "generated": datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                       "days": args.days if args.days and args.days > 0 else 0, "rows": data})
-    page = page.replace("__USAGE_TITLE__", html.escape(name)).replace("__USAGE_DATA__", blob.replace("<", "\\u003c"))
+    blob = json.dumps(payload)
+    return page.replace("__USAGE_TITLE__", html.escape(payload["scope"])).replace("__USAGE_DATA__", blob.replace("<", "\\u003c"))
+
+
+def cmd_html(args):
+    path = log_path()
+    roots = None if args.all else project_roots()
+    payload, rows = build_page_data(
+        roots, path, args.days,
+        harness=getattr(args, "harness", "all"),
+        model=getattr(args, "model", ""),
+    )
+    page = render_html(payload)
     out = args.out
     if not out:
         today = datetime.date.today().isoformat()
@@ -694,6 +770,76 @@ def cmd_html(args):
         f.write(page)
     print(out)
     print("%d sessions. Open it with: open %s" % (len({r["session_id"] for r in rows}), out))
+    if getattr(args, "open", False):
+        import webbrowser
+        webbrowser.open("file://" + os.path.abspath(out))
+    return 0
+
+
+def cmd_serve(args):
+    import http.server
+    import threading
+    import urllib.parse
+
+    path = log_path()
+    roots = None if args.all else project_roots()
+    days = args.days
+    harness = getattr(args, "harness", "all")
+    model = getattr(args, "model", "")
+    refresh_ms = max(1, getattr(args, "interval", 5)) * 1000
+    lock = threading.Lock()
+    stat_cache = {}
+
+    def current_payload():
+        with lock:
+            payload, _ = build_page_data(
+                roots, path, days, harness=harness, model=model,
+                live=True, refresh_ms=refresh_ms, stat_cache=stat_cache,
+            )
+            return payload
+
+    # Warm initial cache before binding so the first page load is instant.
+    current_payload()
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, fmt, *a):
+            pass
+
+        def do_GET(self):
+            req_path = urllib.parse.urlsplit(self.path).path
+            if req_path in ("/", "/index.html"):
+                body = render_html(current_payload()).encode("utf-8")
+                ctype = "text/html; charset=utf-8"
+            elif req_path == "/api/data":
+                body = json.dumps(current_payload()).encode("utf-8")
+                ctype = "application/json; charset=utf-8"
+            else:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+    server_cls = getattr(http.server, "ThreadingHTTPServer", http.server.HTTPServer)
+    try:
+        srv = server_cls(("127.0.0.1", getattr(args, "port", 8765)), Handler)
+    except OSError as exc:
+        print("shipinetics-usage: could not bind 127.0.0.1:%d: %s" % (getattr(args, "port", 8765), exc), file=sys.stderr)
+        return 2
+    url = "http://127.0.0.1:%d/" % srv.server_address[1]
+    print("Serving token usage at %s (Ctrl+C to stop)" % url, flush=True)
+    if not getattr(args, "no_open", False):
+        import webbrowser
+        webbrowser.open(url)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        srv.server_close()
     return 0
 
 
@@ -730,24 +876,33 @@ def main(argv):
     p = argparse.ArgumentParser(prog="shipinetics-usage", add_help=False)
     p.add_argument("--all", action="store_true")
     p.add_argument("--days", type=int, default=30)
+    p.add_argument("--harness", choices=("all", "antigravity", "claude"), default="all")
+    p.add_argument("--model", default="")
     sub = p.add_subparsers(dest="cmd")
     s = sub.add_parser("session", add_help=False)
     s.add_argument("id", nargs="?")
     h = sub.add_parser("html", add_help=False)
     h.add_argument("--out")
+    h.add_argument("--open", action="store_true")
+    sv = sub.add_parser("serve", add_help=False)
+    sv.add_argument("--port", type=int, default=8765)
+    sv.add_argument("--interval", type=int, default=5)
+    sv.add_argument("--no-open", action="store_true")
     r = sub.add_parser("record", add_help=False)
     r.add_argument("transcript")
     r.add_argument("--cwd", default="")
     r.add_argument("--detach", action="store_true")
     b = sub.add_parser("backfill", add_help=False)
-    for sp in (s, h, r, b):
+    for sp in (s, h, sv, r, b):
         sp.add_argument("--all", action="store_true", default=argparse.SUPPRESS)
         sp.add_argument("--days", type=int, default=argparse.SUPPRESS)
+        sp.add_argument("--harness", choices=("all", "antigravity", "claude"), default=argparse.SUPPRESS)
+        sp.add_argument("--model", default=argparse.SUPPRESS)
     try:
         args = p.parse_args(argv)
     except SystemExit:
         return 2
-    cmd = {"session": cmd_session, "html": cmd_html, "record": cmd_record, "backfill": cmd_backfill}.get(args.cmd, cmd_report)
+    cmd = {"session": cmd_session, "html": cmd_html, "serve": cmd_serve, "record": cmd_record, "backfill": cmd_backfill}.get(args.cmd, cmd_report)
     return cmd(args)
 
 

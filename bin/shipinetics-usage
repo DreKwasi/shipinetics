@@ -6,10 +6,13 @@
 #   shipinetics-usage                  this project's sessions: tokens by type, and the totals
 #   shipinetics-usage session [id]     one session (default: this project's newest), by agent and
 #                                      model, with the rows for the worksheet Metrics
-#   shipinetics-usage html [--out f]   an HTML page with charts of the tokens, and a table view. Prints
-#                                      its path (.shipinetics/explainers/ in a set-up project)
+#   shipinetics-usage html [--out f]   an HTML page with charts and filters by harness, model and
+#                                      date (--open opens it in your browser)
+#   shipinetics-usage serve            live auto-refreshing local dashboard on 127.0.0.1 (--port N,
+#                                      --interval S, --no-open)
 #   shipinetics-usage backfill         record the transcripts that the log doesn't have yet
-# Options: --all (every project, not only this one), --days N (default 30; 0 means all time)
+# Options: --all (every project), --days N (default 30; 0 means all time),
+#          --harness all|antigravity|claude, --model <name>
 #
 # The SessionEnd hook (Claude Code) and Stop hook (Antigravity) record each session automatically.
 # The log keeps the numbers even after old transcripts are pruned:
@@ -17,7 +20,7 @@
 # Exit codes: 0 success, 1 no session found, 2 bad usage or no python3.
 
 set -uo pipefail
-case "${1:-}" in -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+case "${1:-}" in -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 command -v python3 >/dev/null 2>&1 || { echo "shipinetics-usage: python3 is required" >&2; exit 2; }
 exec python3 -I "$here/scripts/usage.py" "$@"

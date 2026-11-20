@@ -454,10 +454,11 @@ flowchart LR
 |---|---|
 | `shipinetics-usage` | This project's sessions in the last 30 days: new input, cache write, cache read and output tokens, with the totals |
 | `shipinetics-usage session [id]` | One session (by default the newest), for each agent and model, with the rows for the worksheet Metrics |
-| `shipinetics-usage html` | A page with charts of the tokens for each session and each agent, with a table view. In a set-up project, the page goes in `.shipinetics/explainers/`. `--out` sets another path |
-| `shipinetics-usage backfill` | Records the transcripts that the log doesn't have yet. The report and the page do this themselves |
+| `shipinetics-usage html` | A self-contained HTML dashboard with charts and filters by date, harness, model and project. In a set-up project, the page goes in `.shipinetics/explainers/`. `--out` sets another path, and `--open` opens it in your browser |
+| `shipinetics-usage serve` | A live local dashboard on `127.0.0.1` that refreshes automatically as sessions run (`--port`, `--interval`, `--no-open`) |
+| `shipinetics-usage backfill` | Records the transcripts that the log doesn't have yet. The report, the page and `serve` do this themselves |
 
-Use `--all` for every project, and `--days N` for another range. Claude Code deletes old transcripts after `cleanupPeriodDays` (30 days by default), but the log in `~/.local/share/shipinetics/usage.tsv` keeps the numbers. The log shows tokens, not money: use `/usage` in Claude Code for the cost.
+Use `--all` for every project, `--days N` for another range, `--harness antigravity` (or `claude`) for one harness, and `--model <name>` to filter by model. Claude Code deletes old transcripts after `cleanupPeriodDays` (30 days by default), but the log in `~/.local/share/shipinetics/usage.tsv` keeps the numbers. The log shows tokens, not money: use `/usage` in Claude Code for the cost.
 
 Each worksheet's Metrics block records the model, the effort, the plugin version, the tokens, the API calls, the time, the merge-risk grade, the review rounds and the bugs that test-writer suspected. It has a cost row that no tool fills: fill it in from `/usage` if you want it. Three fields are for you: the corrections that you needed, your review time, and whether you accepted the work. `/shipinetics:feedback ingest` summarises them for the accepted tasks.
 
@@ -581,3 +582,8 @@ tests/            the tests of the hooks and tools
   5. Push the commit and the tag.
 
   If the version doesn't change, `claude plugin update` does nothing for installs from GitHub.
+
+## Contributors
+
+- **Andrews Asamoah Boateng** — Creator and maintainer.
+- **Joel Anaman** — Product Management thinking and expertise for the subagents.

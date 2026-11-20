@@ -251,4 +251,67 @@ i=0
 while [ "$i" -lt 50 ] && ! grep -q "^$ag_sid2	" "$ag_log" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
 has "Antigravity Stop hook records session into usage log with workspace path" "$(grep "^$ag_sid2	" "$ag_log" 2>/dev/null || true)" "$p"
 
+# ---- CLI filters (--harness, --model), upgraded HTML dashboard and live backfill/serve
+ag_flt="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage --harness antigravity --model neon 2>&1)"
+has "shipinetics-usage --harness antigravity --model neon filters to neon rows" "$(printf '%s\n' "$ag_flt" | tr -s ' ')" "1 800 0 700 200 1.7K"
+ag_cc="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage --harness claude 2>&1)"
+has "shipinetics-usage --harness claude excludes Antigravity sessions" "$ag_cc" "No sessions found"
+
+ag_html="$scratch/ag-dash.html"
+(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage html --harness antigravity --model neon --out "$ag_html" >/dev/null 2>&1)
+html_txt="$(cat "$ag_html")"
+has "HTML dashboard includes model filter control" "$html_txt" 'id="model-filter"'
+has "HTML dashboard includes harness filter controls" "$html_txt" 'id="harness-filters"'
+has "HTML dashboard includes Tokens by model figure" "$html_txt" 'id="f-models"'
+has "HTML dashboard includes cache hit rate tile" "$html_txt" 'id="k-cache"'
+html_meta="$(python3 -I - "$ag_html" <<'PY'
+import json, re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+d = json.loads(re.search(r'<script type="application/json" id="usage-data">(.*?)</script>', s, re.S).group(1))
+print(d.get("harness"), d.get("model"), d.get("live", False), len(d.get("rows", [])))
+PY
+)"
+eq "HTML dashboard embeds initial harness/model filters, non-live mode, and all rows" "$html_meta" "antigravity neon False 3"
+
+# Live incremental backfill picks up new turns immediately without waiting 2 minutes
+live_check="$(GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" python3 -I - "$SY/scripts" "$p" "$ag_t" "$t_end" <<'PY'
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+import usage
+proj, tpath, t1 = sys.argv[2:5]
+cache = {}
+p1, _ = usage.build_page_data([proj], usage.log_path(), 30, live=True, stat_cache=cache)
+calls1 = sum(r["api_calls"] for r in p1["rows"] if r["session_id"].startswith("aaaaaaaa"))
+with open(tpath, "a", encoding="utf-8") as f:
+    f.write(json.dumps({"step_index": 4, "type": "PLANNER_RESPONSE", "created_at": t1,
+                        "model": "gemini-4-neon-high", "input_tokens": 400, "cache_read_tokens": 100, "output_tokens": 50}) + "\n")
+p2, _ = usage.build_page_data([proj], usage.log_path(), 30, live=True, stat_cache=cache)
+calls2 = sum(r["api_calls"] for r in p2["rows"] if r["session_id"].startswith("aaaaaaaa"))
+print(calls1, calls2, p2.get("live"))
+PY
+)"
+eq "live backfill picks up appended turns immediately" "$live_check" "2 3 True"
+
+# Test live HTTP server end-to-end when localhost loopback is permitted
+if python3 -I -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); s.listen(1); c=socket.create_connection(("127.0.0.1",s.getsockname()[1]),timeout=1); c.close(); s.close()' 2>/dev/null; then
+  srv_out="$scratch/srv.out"
+  (cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage serve --port 0 --no-open >"$srv_out" 2>&1) &
+  srv_pid=$!
+  i=0
+  while [ "$i" -lt 40 ] && ! grep -q 'http://127.0.0.1:' "$srv_out" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
+  srv_url="$(sed -n 's#.*\(http://127\.0\.0\.1:[0-9]*\)/.*#\1#p' "$srv_out" | head -n 1)"
+  srv_res="$(python3 -I - "$srv_url" <<'PY' 2>/dev/null || true
+import json, sys, urllib.request
+u = sys.argv[1]
+page = urllib.request.urlopen(u + "/", timeout=5).read().decode("utf-8")
+api = json.loads(urllib.request.urlopen(u + "/api/data", timeout=5).read().decode("utf-8"))
+print(("id=\"f-models\"" in page), api.get("live"), len(api.get("rows", [])))
+PY
+)"
+  kill "$srv_pid" 2>/dev/null; wait "$srv_pid" 2>/dev/null || true
+  eq "shipinetics-usage serve serves HTML and live /api/data JSON" "$srv_res" "True True 3"
+else
+  printf '  skip  shipinetics-usage serve HTTP bind (localhost bind blocked in sandbox)\n'
+fi
+
 done_testing
