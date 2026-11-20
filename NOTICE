@@ -1,0 +1,13 @@
+Shipinetics
+Copyright (c) 2026 Andrews Asamoah Boateng and Joel Anaman
+
+Licensed under the MIT License (see LICENSE).
+
+Contributors and attribution:
+- Andrews Asamoah Boateng — Creator and maintainer.
+- Joel Anaman — Product Management thinking and expertise for the subagents.
+
+Third-party companions:
+Shipinetics does not vendor third-party code. External skills, plugins and
+CLI tools listed in companions.tsv are installed separately by users and remain
+governed by their respective open-source licenses (MIT or Apache-2.0).

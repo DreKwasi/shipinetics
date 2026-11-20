@@ -567,6 +567,10 @@ skills/           the 22 skills. setup/templates/ holds the files that setup wri
                   evidence/record-template.mjs the Playwright recording template
 companions.tsv    the companions: why Shipinetics uses each one, how to install it, its SkillSpector result
 CHANGELOG.md      what changed in each release, and the versioning rules
+CONTRIBUTING.md   how to run checks, follow repo guidelines, and open pull requests
+LICENSE           the MIT License
+NOTICE            contributor attribution and third-party companion notice
+SECURITY.md       how to report vulnerabilities privately and what is in scope
 tests/            the tests of the hooks and tools
 ```
 
@@ -575,11 +579,11 @@ tests/            the tests of the hooks and tools
 - **Run the tests** with `bash tests/run.sh`. Also run `/bin/bash tests/run.sh` on macOS: the scripts must work in bash 3.2. CI runs both, on Linux and on macOS.
 - **Try a change** in one session with `claude --plugin-dir <path to this repo>`, or add the marketplace from your clone. Then `/reload-plugins` loads each edit.
 - **Release a change:**
-  1. Choose the version by the rules at the top of [CHANGELOG.md](CHANGELOG.md). Before 1.0.0, a breaking change increases the minor number (0.7.0 to 0.8.0). Other changes increase the last number (0.7.0 to 0.7.1).
-  2. Set the version in `.claude-plugin/plugin.json` and `plugin.json`.
-  3. Write the entry in `CHANGELOG.md`. For a breaking change, give the steps for each project.
-  4. Commit, and tag the commit `vX.Y.Z`.
-  5. Push the commit and the tag.
+  1. Choose the version by the rules at the top of [CHANGELOG.md](CHANGELOG.md). Before 1.0.0, a breaking change increases the minor number (0.9.0 to 0.10.0). Other changes increase the patch number (0.9.3 to 0.9.4).
+  2. Preview the commits since the last tag with `scripts/release.sh patch --dry-run` (or `minor` / `major`).
+  3. Add the `## X.Y.Z` entry in `CHANGELOG.md`. For a breaking change, give the steps for each project.
+  4. Run `scripts/release.sh patch` (or `minor` / `major` / `X.Y.Z`). It runs `tests/run.sh`, updates `.claude-plugin/plugin.json` and `plugin.json`, commits `Release X.Y.Z`, and creates the annotated tag `vX.Y.Z`.
+  5. Push the commit and tag: `git push origin main vX.Y.Z`. Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which verifies the manifests and publishes the GitHub Release from `CHANGELOG.md`.
 
   If the version doesn't change, `claude plugin update` does nothing for installs from GitHub.
 
