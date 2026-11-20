@@ -47,28 +47,32 @@ body { margin: 0; }
   font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 32px 24px 48px; }
 .wrap { max-width: 1080px; margin: 0 auto; }
 header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+header > div:first-child { flex: 1 1 360px; min-width: 0; }
 h1 { font-size: 22px; font-weight: 600; margin: 0 0 4px; }
 h2 { font-size: 15px; font-weight: 600; margin: 0; }
 p { margin: 0; }
 .sub, .cap, .note { color: var(--text-secondary); }
-.hdr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hdr-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
 .live-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
   background: var(--surface-1); border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); }
 .live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); display: inline-block; }
-.toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin: 20px 0 16px; }
+.toolbar { display: flex; gap: 8px 10px; flex-wrap: wrap; align-items: center; margin: 18px 0 16px; }
 .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.select-group { display: inline-flex; align-items: center; gap: 6px; }
 .sep { width: 1px; height: 22px; background: var(--grid); margin: 0 2px; }
 .tt { white-space: nowrap; }
 .filters button, .tt, .hdr-actions button, .toolbar select { font: inherit; font-size: 13px; color: var(--text-primary);
   background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
-.toolbar select { max-width: 240px; }
+.toolbar select { max-width: 190px; }
 .filters button[aria-pressed="true"] { font-weight: 600; box-shadow: inset 0 0 0 1px var(--text-primary); }
 .filters button:hover, .tt:hover, .hdr-actions button:hover, .toolbar select:hover { background: var(--surface-2); }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpis { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 960px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .tile, figure { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; }
-.tile { padding: 14px 16px; }
+.tile { padding: 14px; }
 .tile .label { color: var(--text-secondary); font-size: 13px; }
-.tile .value { font-size: 26px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.tile .value { font-size: 24px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .tile .hint { color: var(--muted); font-size: 12px; margin-top: 2px; }
 figure { margin: 0 0 16px; padding: 16px 16px 12px; }
 figcaption { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
@@ -144,10 +148,14 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
       <button type="button" data-harness="claude">Claude Code</button>
     </div>
     <span class="sep" aria-hidden="true"></span>
-    <label for="model-filter" class="sub" style="font-size:13px">Model:</label>
-    <select id="model-filter" aria-label="Filter by model"><option value="">All models</option></select>
-    <label for="project-filter" id="project-label" class="sub" style="font-size:13px" hidden>Project:</label>
-    <select id="project-filter" aria-label="Filter by project" hidden><option value="">All projects</option></select>
+    <span class="select-group">
+      <label for="model-filter" class="sub" style="font-size:13px">Model:</label>
+      <select id="model-filter" aria-label="Filter by model"><option value="">All models</option></select>
+    </span>
+    <span class="select-group">
+      <label for="project-filter" id="project-label" class="sub" style="font-size:13px" hidden>Project:</label>
+      <select id="project-filter" aria-label="Filter by project" hidden><option value="">All projects</option></select>
+    </span>
   </div>
 
   <section id="pricing-panel" class="pricing-panel" hidden aria-label="Model pricing">
