@@ -325,10 +325,20 @@ with open(tpath, "a", encoding="utf-8") as f:
                         "model": "gemini-4-neon-high", "input_tokens": 400, "cache_read_tokens": 100, "output_tokens": 50}) + "\n")
 p2, _ = usage.build_page_data([proj], usage.log_path(), 30, live=True, stat_cache=cache)
 calls2 = sum(r["api_calls"] for r in p2["rows"] if r["session_id"].startswith("aaaaaaaa"))
-print(calls1, calls2, p2.get("live"))
+out2 = sum(r["output"] for r in p2["rows"] if r["session_id"].startswith("aaaaaaaa"))
+# Simulate a truncated/reverted transcript: recorded tokens and calls must stay monotonic (never drop)
+with open(tpath, "w", encoding="utf-8") as f:
+    f.write(json.dumps({"step_index": 0, "type": "USER_INPUT", "created_at": t1, "content": "Short"}) + "\n")
+    f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "created_at": t1,
+                        "model": "gemini-4-neon-high", "input_tokens": 100, "cache_read_tokens": 0, "output_tokens": 10,
+                        "tool_calls": [{"name": "read_file", "args": {"Path": json.dumps(os.path.join(proj, "deleted-dir", "gone.ts"))}}]}) + "\n")
+p3, _ = usage.build_page_data([proj], usage.log_path(), 30, live=True, stat_cache=cache)
+calls3 = sum(r["api_calls"] for r in p3["rows"] if r["session_id"].startswith("aaaaaaaa"))
+out3 = sum(r["output"] for r in p3["rows"] if r["session_id"].startswith("aaaaaaaa"))
+print(calls1, calls2, calls3, out2 == out3, p2.get("live"))
 PY
 )"
-eq "live backfill picks up appended turns immediately" "$live_check" "2 3 True"
+eq "live backfill picks up appended turns and never shrinks tokens on truncation/revert" "$live_check" "2 3 3 True True"
 
 # Test live HTTP server end-to-end when localhost loopback is permitted
 if python3 -I -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); s.listen(1); c=socket.create_connection(("127.0.0.1",s.getsockname()[1]),timeout=1); c.close(); s.close()' 2>/dev/null; then

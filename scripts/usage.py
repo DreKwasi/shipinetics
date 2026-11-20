@@ -249,7 +249,10 @@ def _resolve_project_from_path(p, git_cache):
     if not p or not p.startswith("/") or _skip_inferred_path(p):
         return ""
     d = p if os.path.isdir(p) else os.path.dirname(p)
-    if not d or not os.path.isdir(d):
+    # Walk up if a file or its folder was deleted so the enclosing git repo is still found.
+    while d and d != "/" and not os.path.isdir(d):
+        d = os.path.dirname(d)
+    if not d or d == "/" or _skip_inferred_path(d + "/"):
         return ""
     if d not in git_cache:
         git_cache[d] = git(d, "rev-parse", "--show-toplevel")
@@ -558,8 +561,28 @@ def write_sessions(path, sessions, only_if_newer=False):
             old = current.get(sid, [])
             if only_if_newer and old and max(r["end"] for r in old) >= max(r["end"] for r in new):
                 continue
-            keys = {(r["agent"], r["model"]) for r in new}
-            current[sid] = list(new) + [r for r in old if (r["agent"], r["model"]) not in keys]
+            old_by_key = {(r["agent"], r["model"]): r for r in old}
+            old_project = next((r["project"] for r in old if r.get("project") and r["project"] != "-"), "")
+            old_title = next((r["title"] for r in old if r.get("title") and r["title"] != "-"), "")
+            merged_new = []
+            for r in new:
+                m = dict(r)
+                prev = old_by_key.get((m["agent"], m["model"]))
+                if prev:
+                    # API tokens already spent never decrease (guards against mid-write reads or reverts).
+                    for k in NUM:
+                        m[k] = max(prev[k], m[k])
+                    if prev.get("start") and (not m.get("start") or prev["start"] < m["start"]):
+                        m["start"] = prev["start"]
+                    if prev.get("end") and (not m.get("end") or prev["end"] > m["end"]):
+                        m["end"] = prev["end"]
+                if (not m.get("project") or m["project"] == "-") and old_project:
+                    m["project"] = old_project
+                if (not m.get("title") or m["title"] == "-") and old_title:
+                    m["title"] = old_title
+                merged_new.append(m)
+            keys = {(r["agent"], r["model"]) for r in merged_new}
+            current[sid] = merged_new + [r for r in old if (r["agent"], r["model"]) not in keys]
             changed = True
         if not changed:
             return
