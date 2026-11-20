@@ -38,6 +38,26 @@ TOKENS = (("input", "input_tokens"), ("cache_write", "cache_creation_input_token
 HERE = os.path.dirname(os.path.abspath(__file__))
 CHANGED_AFTER = datetime.timedelta(minutes=2)
 
+# Built-in API list rates in USD per 1M tokens: input, cache_write (5m), cache_read, output.
+# Matched by exact key first, then longest case-insensitive prefix. Preview/unlisted models stay
+# unpriced until you add them in ~/.config/shipinetics/pricing.json (or the dashboard Pricing panel).
+DEFAULT_PRICING = {
+    "claude-opus-5":        {"input": 4.00, "cache_write": 5.00, "cache_read": 0.20,  "output": 20.00},
+    "claude-opus-4":        {"input": 5.00, "cache_write": 6.25, "cache_read": 0.50,  "output": 25.00},
+    "claude-opus":          {"input": 5.00, "cache_write": 6.25, "cache_read": 0.50,  "output": 25.00},
+    "claude-sonnet-5":      {"input": 2.00, "cache_write": 2.50, "cache_read": 0.10,  "output": 10.00},
+    "claude-sonnet-4":      {"input": 3.00, "cache_write": 3.75, "cache_read": 0.30,  "output": 15.00},
+    "claude-sonnet":        {"input": 3.00, "cache_write": 3.75, "cache_read": 0.30,  "output": 15.00},
+    "claude-haiku-4":       {"input": 1.00, "cache_write": 1.25, "cache_read": 0.10,  "output": 5.00},
+    "claude-haiku":         {"input": 1.00, "cache_write": 1.25, "cache_read": 0.10,  "output": 5.00},
+    "gemini-3-pro":         {"input": 2.00, "cache_write": 2.00, "cache_read": 0.20,  "output": 12.00},
+    "gemini-3-flash":       {"input": 0.50, "cache_write": 0.50, "cache_read": 0.05,  "output": 3.00},
+    "gemini-2.5-pro":       {"input": 1.25, "cache_write": 1.25, "cache_read": 0.125, "output": 10.00},
+    "gemini-2.5-flash-lite": {"input": 0.10, "cache_write": 0.10, "cache_read": 0.01, "output": 0.40},
+    "gemini-2.5-flash":     {"input": 0.30, "cache_write": 0.30, "cache_read": 0.03,  "output": 2.50},
+    "gemini-2.0-flash":     {"input": 0.10, "cache_write": 0.10, "cache_read": 0.025, "output": 0.40},
+}
+
 
 def log_path():
     p = os.environ.get("SHIPINETICS_USAGE_LOG")
@@ -45,6 +65,122 @@ def log_path():
         return p
     base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
     return os.path.join(base, "shipinetics", "usage.tsv")
+
+
+def pricing_path():
+    p = os.environ.get("SHIPINETICS_PRICING_FILE")
+    if p:
+        return p
+    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    return os.path.join(base, "shipinetics", "pricing.json")
+
+
+def _clean_rate(obj):
+    if not isinstance(obj, dict):
+        return None
+    out = {}
+    for k in ("input", "cache_write", "cache_read", "output"):
+        v = obj.get(k, 0)
+        if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 0:
+            return None
+        out[k] = float(v)
+    return out
+
+
+def load_user_pricing():
+    p = pricing_path()
+    if not os.path.isfile(p):
+        return {}
+    try:
+        raw = json.load(open(p, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    out = {}
+    for k, v in raw.items():
+        if isinstance(k, str) and k.strip():
+            r = _clean_rate(v)
+            if r is not None:
+                out[k.strip().lower()] = r
+    return out
+
+
+def save_user_pricing(overrides):
+    cleaned = {}
+    if isinstance(overrides, dict):
+        for k, v in overrides.items():
+            if isinstance(k, str) and k.strip():
+                r = _clean_rate(v)
+                if r is not None:
+                    cleaned[k.strip().lower()] = r
+    p = pricing_path()
+    os.makedirs(os.path.dirname(os.path.abspath(p)), exist_ok=True)
+    tmp = "%s.%d.tmp" % (p, os.getpid())
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cleaned, f, indent=2, sort_keys=True)
+        f.write("\n")
+    os.replace(tmp, p)
+    return cleaned
+
+
+def load_pricing():
+    merged = {k.lower(): dict(v) for k, v in DEFAULT_PRICING.items()}
+    merged.update(load_user_pricing())
+    return merged
+
+
+def lookup_rate(model, pricing):
+    m = str(model or "").strip().lower()
+    if not m:
+        return None
+    if m in pricing:
+        return pricing[m]
+    best = ""
+    for k in pricing:
+        if m.startswith(k) and (len(m) == len(k) or m[len(k)] in "-_.:/@"):
+            if len(k) > len(best):
+                best = k
+    return pricing[best] if best else None
+
+
+def row_cost(r, pricing):
+    rate = lookup_rate(r.get("model"), pricing)
+    if rate is None:
+        return None
+    return (
+        r["input"] * rate["input"]
+        + r["cache_write"] * rate["cache_write"]
+        + r["cache_read"] * rate["cache_read"]
+        + r["output"] * rate["output"]
+    ) / 1_000_000.0
+
+
+def sum_cost(rows, pricing):
+    """(total_usd_or_None, sorted_unpriced_models)."""
+    total_usd = 0.0
+    priced_any = False
+    unpriced = set()
+    for r in rows:
+        c = row_cost(r, pricing)
+        if c is None:
+            unpriced.add(str(r.get("model") or "unknown"))
+        else:
+            total_usd += c
+            priced_any = True
+    return (total_usd if priced_any else None), sorted(unpriced)
+
+
+def fmt_cost(v):
+    if v is None:
+        return "-"
+    if v == 0:
+        return "$0.00"
+    if v < 0.01:
+        return "$%.4f" % v
+    if v < 1000:
+        return "$%.2f" % v
+    return "$%s" % format(v, ",.2f")
 
 
 def claude_dir():
@@ -607,6 +743,14 @@ def cmd_report(args):
                 compact(t["cache_write"]), compact(t["cache_read"]), compact(t["output"]), compact(total(t))])
     table(["Date", "Session", "Title", "Calls", "Input", "Cache write", "Cache read", "Output", "Total"], out,
           right={3, 4, 5, 6, 7, 8})
+    usd, unpriced = sum_cost(rows, load_pricing())
+    if usd is not None and not unpriced:
+        print("Estimated API cost: %s (from list rates; override in %s)" % (fmt_cost(usd), pricing_path()))
+    elif usd is not None:
+        print("Estimated API cost: %s (+ %d unpriced model%s: %s; set rates in %s)" % (
+            fmt_cost(usd), len(unpriced), "" if len(unpriced) == 1 else "s", ", ".join(unpriced), pricing_path()))
+    elif unpriced:
+        print("Estimated API cost: unpriced (%s; set rates in %s)" % (", ".join(unpriced), pricing_path()))
     print("Input: new input tokens. Cache write: input written to the prompt cache. Cache read: input read from it. "
           "Output: tokens the model wrote. Details of one session: shipinetics-usage session <id>")
     return 0
@@ -639,6 +783,13 @@ def print_session(sid, rows, source):
         format(t[k], ",") for k in ("input", "cache_write", "cache_read", "output")))
     print("| API calls | %d |" % t["api_calls"])
     print("| Session span (first to last message) | %s |" % duration(r0["start"], end))
+    usd, unpriced = sum_cost(rows, load_pricing())
+    if usd is not None and not unpriced:
+        print("| Est. API cost | %s |" % fmt_cost(usd))
+    elif usd is not None:
+        print("| Est. API cost | %s (+ unpriced: %s) |" % (fmt_cost(usd), ", ".join(unpriced)))
+    elif unpriced:
+        print("| Est. API cost | unpriced (%s) |" % ", ".join(unpriced))
 
 
 def cmd_session(args):
@@ -731,6 +882,9 @@ def build_page_data(roots, path, days, harness="all", model="", live=False, refr
         "days": days if days and days > 0 else 0,
         "harness": harness or "all",
         "model": model or "",
+        "pricing": load_pricing(),
+        "default_pricing": DEFAULT_PRICING,
+        "user_pricing": load_user_pricing(),
         "rows": data,
     }
     if live:
@@ -818,6 +972,32 @@ def cmd_serve(args):
                 return
             self.send_response(200)
             self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self):
+            req_path = urllib.parse.urlsplit(self.path).path
+            if req_path != "/api/pricing":
+                self.send_error(404)
+                return
+            try:
+                length = int(self.headers.get("Content-Length") or "0")
+                if length < 0 or length > 262144:
+                    raise ValueError("invalid length")
+                raw = self.rfile.read(length).decode("utf-8")
+                obj = json.loads(raw) if raw else {}
+                if not isinstance(obj, dict):
+                    raise ValueError("expected JSON object")
+            except (ValueError, UnicodeDecodeError):
+                self.send_error(400)
+                return
+            with lock:
+                save_user_pricing(obj)
+            body = json.dumps(current_payload()).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
             self.send_header("Cache-Control", "no-store")
             self.end_headers()

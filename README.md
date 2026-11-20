@@ -458,7 +458,7 @@ flowchart LR
 | `shipinetics-usage serve` | A live local dashboard on `127.0.0.1` that refreshes automatically as sessions run (`--port`, `--interval`, `--no-open`) |
 | `shipinetics-usage backfill` | Records the transcripts that the log doesn't have yet. The report, the page and `serve` do this themselves |
 
-Use `--all` for every project, `--days N` for another range, `--harness antigravity` (or `claude`) for one harness, and `--model <name>` to filter by model. Claude Code deletes old transcripts after `cleanupPeriodDays` (30 days by default), but the log in `~/.local/share/shipinetics/usage.tsv` keeps the numbers. The log shows tokens, not money: use `/usage` in Claude Code for the cost.
+Use `--all` for every project, `--days N` for another range, `--harness antigravity` (or `claude`) for one harness, and `--model <name>` to filter by model. Claude Code deletes old transcripts after `cleanupPeriodDays` (30 days by default), but the log in `~/.local/share/shipinetics/usage.tsv` keeps the numbers. `shipinetics-usage` estimates API cost from built-in list rates; override or add preview model rates in `~/.config/shipinetics/pricing.json` (or from the dashboard's **Pricing** panel, which saves straight to `pricing.json` in `serve` mode).
 
 Each worksheet's Metrics block records the model, the effort, the plugin version, the tokens, the API calls, the time, the merge-risk grade, the review rounds and the bugs that test-writer suspected. It has a cost row that no tool fills: fill it in from `/usage` if you want it. Three fields are for you: the corrections that you needed, your review time, and whether you accepted the work. `/shipinetics:feedback ingest` summarises them for the accepted tasks.
 

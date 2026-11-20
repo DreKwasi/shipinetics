@@ -264,6 +264,41 @@ has "HTML dashboard includes model filter control" "$html_txt" 'id="model-filter
 has "HTML dashboard includes harness filter controls" "$html_txt" 'id="harness-filters"'
 has "HTML dashboard includes Tokens by model figure" "$html_txt" 'id="f-models"'
 has "HTML dashboard includes cache hit rate tile" "$html_txt" 'id="k-cache"'
+has "HTML dashboard includes Est. API cost tile" "$html_txt" 'id="k-cost"'
+has "HTML dashboard includes Pricing editor panel" "$html_txt" 'id="pricing-panel"'
+
+# Cost estimation: unpriced preview models stay unpriced until custom pricing.json is provided
+has "unpriced Antigravity models are reported as unpriced by default" "$ag_out" "Estimated API cost: unpriced"
+pricing_file="$scratch/pricing.json"
+cat >"$pricing_file" <<'JSON'
+{
+  "gemini-4-carbon-medium": {"input": 1.0, "cache_write": 1.0, "cache_read": 0.1, "output": 5.0},
+  "gemini-4-neon-high": {"input": 2.0, "cache_write": 2.0, "cache_read": 0.2, "output": 10.0}
+}
+JSON
+# Hand-worked cost for ag_sid:
+#   carbon: (1200*1 + 300*0.1 + 100*5) / 1e6 = 1730 / 1e6 = $0.00173
+#   neon:   (800*2 + 700*0.2 + 200*10) / 1e6 = 3740 / 1e6 = $0.00374
+#   session total = $0.00547 -> $0.0055
+ag_cost_sess="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" SHIPINETICS_PRICING_FILE="$pricing_file" shipinetics-usage session aaaaaaaa 2>&1)"
+has "custom pricing.json computes exact session cost" "$ag_cost_sess" "| Est. API cost | \$0.0055 |"
+# Built-in pricing works out of the box for known Gemini 3 Flash ($0.50 in, $0.05 cache_read, $3.00 out)
+ag_sid3="cccccccc-3333-4333-8333-0000000000cc"
+ag_tdir3="$ag_home/antigravity/brain/$ag_sid3/.system_generated/logs"
+mkdir -p "$ag_tdir3"
+python3 -I - "$ag_tdir3/transcript.jsonl" "$p/src/app.ts" "$t_now" <<'PY'
+import json, sys
+out, fpath, t0 = sys.argv[1:4]
+with open(out, "w") as f:
+    f.write(json.dumps({"step_index": 0, "type": "USER_INPUT", "created_at": t0, "content": "Gemini 3 Flash test"}) + "\n")
+    f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "created_at": t0, "model": "gemini-3-flash-preview",
+                        "input_tokens": 1000000, "cache_read_tokens": 2000000, "output_tokens": 500000,
+                        "tool_calls": [{"name": "read_file", "args": {"Path": json.dumps(fpath)}}]}) + "\n")
+PY
+# 1M * 0.50 + 2M * 0.05 + 0.5M * 3.00 = 0.50 + 0.10 + 1.50 = $2.10
+g3_sess="$(cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" shipinetics-usage session cccccccc 2>&1)"
+has "built-in pricing computes exact Gemini 3 Flash cost (\$2.10)" "$g3_sess" "| Est. API cost | \$2.10 |"
+rm -rf "$ag_home/antigravity/brain/$ag_sid3"
 html_meta="$(python3 -I - "$ag_html" <<'PY'
 import json, re, sys
 s = open(sys.argv[1], encoding="utf-8").read()

@@ -92,6 +92,16 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
 .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 999px; white-space: nowrap; }
 .badge-ag { background: var(--badge-ag-bg); color: var(--badge-ag-fg); }
 .badge-cc { background: var(--badge-cc-bg); color: var(--badge-cc-fg); }
+.badge-muted { background: var(--surface-2); color: var(--text-secondary); }
+.pricing-panel { background: var(--surface-1); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; }
+.pricing-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.pricing-actions { display: flex; gap: 8px; align-items: center; }
+.pricing-actions button { font: inherit; font-size: 13px; color: var(--text-primary); background: var(--surface-1);
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; cursor: pointer; }
+.pricing-actions button:hover { background: var(--surface-2); }
+.pricing-actions button.primary { font-weight: 600; box-shadow: inset 0 0 0 1px var(--text-primary); }
+.pricing-panel input[type="number"] { width: 82px; font: inherit; font-size: 13px; font-variant-numeric: tabular-nums;
+  text-align: right; color: var(--text-primary); background: var(--page); border: 1px solid var(--border); border-radius: 5px; padding: 3px 6px; }
 .tablewrap { max-height: 420px; overflow: auto; }
 #tip { position: fixed; z-index: 10; pointer-events: none; background: var(--surface-1); color: var(--text-primary);
   border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; min-width: 170px;
@@ -115,6 +125,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
     <div class="hdr-actions">
       <span id="live-pill" class="live-pill" hidden><i class="live-dot"></i><span id="live-text">Live</span></span>
       <button type="button" id="btn-refresh" hidden>Refresh</button>
+      <button type="button" id="btn-pricing">Pricing</button>
       <button type="button" id="btn-theme" title="Switch light, dark or system theme">Theme: Auto</button>
     </div>
   </header>
@@ -139,8 +150,24 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
     <select id="project-filter" aria-label="Filter by project" hidden><option value="">All projects</option></select>
   </div>
 
+  <section id="pricing-panel" class="pricing-panel" hidden aria-label="Model pricing">
+    <div class="pricing-head">
+      <div>
+        <h2>Model pricing (USD per 1M tokens)</h2>
+        <p class="cap" id="pricing-note">Built-in API list rates apply to known models. Add custom rates for preview or local models.</p>
+      </div>
+      <div class="pricing-actions">
+        <span class="cap" id="pricing-status"></span>
+        <button type="button" id="btn-pricing-reset">Reset custom</button>
+        <button type="button" id="btn-pricing-save" class="primary">Save rates</button>
+      </div>
+    </div>
+    <div class="tablewrap" id="pricing-table"></div>
+  </section>
+
   <section class="kpis" aria-label="Totals">
     <div class="tile"><div class="label">Tokens</div><div class="value" id="k-total"></div><div class="hint">New input, cached input and output</div></div>
+    <div class="tile"><div class="label">Est. API cost</div><div class="value" id="k-cost"></div><div class="hint" id="k-cost-hint">From API list rates</div></div>
     <div class="tile"><div class="label">Output tokens</div><div class="value" id="k-output"></div><div class="hint">Tokens the model wrote</div></div>
     <div class="tile"><div class="label">Cache hit rate</div><div class="value" id="k-cache"></div><div class="hint">Share of input read from cache</div></div>
     <div class="tile"><div class="label">Sessions</div><div class="value" id="k-sessions"></div><div class="hint" id="k-sessions-hint">Sessions in the range</div></div>
@@ -187,6 +214,64 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
   var harness = DATA.harness || "all";
   var modelFilter = DATA.model || "";
   var projectFilter = "";
+  var STORAGE_KEY = "shipinetics_usage_pricing_v1";
+  var userPricing = loadSavedPricing();
+
+  function loadSavedPricing() {
+    var out = {};
+    var fromServer = DATA.user_pricing || {};
+    Object.keys(fromServer).forEach(function (k) { out[k.toLowerCase()] = fromServer[k]; });
+    if (!DATA.live) {
+      try {
+        var raw = window.localStorage && window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          var parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === "object") {
+            Object.keys(parsed).forEach(function (k) { out[k.toLowerCase()] = parsed[k]; });
+          }
+        }
+      } catch (e) {}
+    }
+    return out;
+  }
+  function effectivePricing() {
+    var map = {};
+    var base = DATA.default_pricing || DATA.pricing || {};
+    Object.keys(base).forEach(function (k) { map[k.toLowerCase()] = base[k]; });
+    Object.keys(userPricing).forEach(function (k) { map[k.toLowerCase()] = userPricing[k]; });
+    return map;
+  }
+  function lookupRate(model, map) {
+    var m = String(model || "").trim().toLowerCase();
+    if (!m) return null;
+    if (map[m]) return map[m];
+    var best = "";
+    Object.keys(map).forEach(function (k) {
+      if (m.indexOf(k) === 0 && (m.length === k.length || "-_.:/@".indexOf(m.charAt(k.length)) !== -1)) {
+        if (k.length > best.length) best = k;
+      }
+    });
+    return best ? map[best] : null;
+  }
+  function calcRowCost(r, map) {
+    var rate = lookupRate(r.model, map);
+    if (!rate) return null;
+    return (r.input * (rate.input || 0) + r.cache_write * (rate.cache_write || 0) +
+      r.cache_read * (rate.cache_read || 0) + r.output * (rate.output || 0)) / 1e6;
+  }
+  function fmtCost(v, partial) {
+    if (v === null || v === undefined) return "—";
+    var s;
+    if (v === 0) s = "$0.00";
+    else if (v < 0.01) s = "$" + v.toFixed(4);
+    else if (v < 1000) s = "$" + v.toFixed(2);
+    else s = "$" + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return partial ? s + "*" : s;
+  }
+  function addCost(bucket, c, model) {
+    if (c === null) { bucket.unpriced[model] = true; }
+    else { bucket.cost = (bucket.cost === null ? 0 : bucket.cost) + c; }
+  }
 
   function compact(n) {
     var units = [[999950000, 1e9, "B"], [999950, 1e6, "M"], [1000, 1e3, "K"]];
@@ -314,20 +399,24 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
     var projectRows = baseRows.filter(function (r) { return !projectFilter || (r.project || "-") === projectFilter; });
     var rows = projectRows.filter(function (r) { return matchesModel(r.model, modelFilter); });
 
+    var pricing = effectivePricing();
     var sessions = {}, agents = {}, models = {};
     projectRows.forEach(function (r) {
-      var nw = r.input + r.cache_write, cached = r.cache_read, out = r.output;
-      var m = models[r.model] || (models[r.model] = { name: r.model, harness: rowHarness(r), calls: 0, nw: 0, cached: 0, output: 0, sessions: {} });
+      var nw = r.input + r.cache_write, cached = r.cache_read, out = r.output, c = calcRowCost(r, pricing);
+      var m = models[r.model] || (models[r.model] = { name: r.model, harness: rowHarness(r), calls: 0, nw: 0, cached: 0, output: 0, cost: null, unpriced: {}, sessions: {} });
       m.calls += r.api_calls; m.nw += nw; m.cached += cached; m.output += out; m.sessions[r.session_id] = true;
+      addCost(m, c, r.model);
     });
     rows.forEach(function (r) {
-      var nw = r.input + r.cache_write, cached = r.cache_read, out = r.output;
+      var nw = r.input + r.cache_write, cached = r.cache_read, out = r.output, c = calcRowCost(r, pricing);
       var h = rowHarness(r);
       var s = sessions[r.session_id] || (sessions[r.session_id] = { id: r.session_id, start: r.start, title: r.title === "-" ? "" : r.title,
-        project: r.project, harness: h, calls: 0, nw: 0, cached: 0, output: 0, models: {} });
+        project: r.project, harness: h, calls: 0, nw: 0, cached: 0, output: 0, cost: null, unpriced: {}, models: {} });
       s.calls += r.api_calls; s.nw += nw; s.cached += cached; s.output += out; s.models[r.model] = true;
-      var a = agents[r.agent] || (agents[r.agent] = { name: agentName(r.agent), calls: 0, nw: 0, cached: 0, output: 0, models: {} });
+      addCost(s, c, r.model);
+      var a = agents[r.agent] || (agents[r.agent] = { name: agentName(r.agent), calls: 0, nw: 0, cached: 0, output: 0, cost: null, unpriced: {}, models: {} });
       a.calls += r.api_calls; a.nw += nw; a.cached += cached; a.output += out; a.models[r.model] = true;
+      addCost(a, c, r.model);
     });
     var list = Object.keys(sessions).map(function (k) { return sessions[k]; }).sort(function (a, b) { return a.start < b.start ? -1 : 1; });
     var alist = Object.keys(agents).map(function (k) { return agents[k]; });
@@ -368,6 +457,8 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
     var rows = SERIES.map(function (s) { return { color: s.color, value: full(d[s.key]), label: s.name }; })
       .reverse().concat([{ value: full(d.total), label: "Total" }]);
     if (d.nw + d.cached > 0) rows.push({ value: pct(d.cached, d.nw + d.cached), label: "Cache hit" });
+    var unp = d.unpriced ? Object.keys(d.unpriced) : [];
+    rows.push({ value: d.cost === null ? "unpriced" : fmtCost(d.cost, unp.length > 0), label: "Est. API cost" });
     return rows;
   }
 
@@ -481,7 +572,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
   function sessionTable(fig, sessions) {
     var wrap = fig.querySelector(".tablewrap"); wrap.textContent = "";
     var t = el("table", {}, wrap), hr = el("tr", {}, el("thead", {}, t));
-    [["Date", ""], ["Harness", ""], ["Session", ""], ["Title", ""], ["Models", ""], ["Calls", "n"], ["New input", "n"], ["Cached", "n"], ["Output", "n"], ["Total", "n"]]
+    [["Date", ""], ["Harness", ""], ["Session", ""], ["Title", ""], ["Models", ""], ["Calls", "n"], ["New input", "n"], ["Cached", "n"], ["Output", "n"], ["Total", "n"], ["Est. cost", "n"]]
       .forEach(function (h) { txt("th", h[0], hr, { "class": h[1] }); });
     var tb = el("tbody", {}, t);
     sessions.slice().reverse().forEach(function (s) {
@@ -493,12 +584,13 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
       txt("td", s.title || "-", tr);
       txt("td", Object.keys(s.models).join(", "), tr);
       [s.calls, s.nw, s.cached, s.output, s.total].forEach(function (v) { txt("td", full(v), tr, { "class": "n" }); });
+      txt("td", fmtCost(s.cost, Object.keys(s.unpriced).length > 0), tr, { "class": "n" });
     });
   }
   function modelTable(fig, models) {
     var wrap = fig.querySelector(".tablewrap"); wrap.textContent = "";
     var t = el("table", {}, wrap), hr = el("tr", {}, el("thead", {}, t));
-    [["Model", ""], ["Sessions", "n"], ["Calls", "n"], ["Cache hit", "n"], ["New input", "n"], ["Cached", "n"], ["Output", "n"], ["Total", "n"]]
+    [["Model", ""], ["Sessions", "n"], ["Calls", "n"], ["Cache hit", "n"], ["New input", "n"], ["Cached", "n"], ["Output", "n"], ["Total", "n"], ["Est. cost", "n"]]
       .forEach(function (h) { txt("th", h[0], hr, { "class": h[1] }); });
     var tb = el("tbody", {}, t);
     models.forEach(function (m) {
@@ -508,18 +600,50 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
       txt("td", full(m.calls), tr, { "class": "n" });
       txt("td", pct(m.cached, m.nw + m.cached), tr, { "class": "n" });
       [m.nw, m.cached, m.output, m.total].forEach(function (v) { txt("td", full(v), tr, { "class": "n" }); });
+      txt("td", fmtCost(m.cost, Object.keys(m.unpriced).length > 0), tr, { "class": "n" });
     });
   }
   function agentTable(fig, agents) {
     var wrap = fig.querySelector(".tablewrap"); wrap.textContent = "";
     var t = el("table", {}, wrap), hr = el("tr", {}, el("thead", {}, t));
-    [["Agent", ""], ["Models", ""], ["Calls", "n"], ["New input", "n"], ["Cached", "n"], ["Output", "n"], ["Total", "n"]]
+    [["Agent", ""], ["Models", ""], ["Calls", "n"], ["New input", "n"], ["Cached", "n"], ["Output", "n"], ["Total", "n"], ["Est. cost", "n"]]
       .forEach(function (h) { txt("th", h[0], hr, { "class": h[1] }); });
     var tb = el("tbody", {}, t);
     agents.forEach(function (a) {
       var tr = el("tr", {}, tb);
       txt("td", a.name, tr); txt("td", Object.keys(a.models).join(", "), tr);
       [a.calls, a.nw, a.cached, a.output, a.total].forEach(function (v) { txt("td", full(v), tr, { "class": "n" }); });
+      txt("td", fmtCost(a.cost, Object.keys(a.unpriced).length > 0), tr, { "class": "n" });
+    });
+  }
+
+  // ---- pricing editor panel
+  function renderPricingPanel() {
+    var wrap = document.getElementById("pricing-table");
+    wrap.textContent = "";
+    var seen = {};
+    DATA.rows.forEach(function (r) { if (r.model) seen[r.model] = true; });
+    Object.keys(userPricing).forEach(function (m) { seen[m] = true; });
+    var allModels = Object.keys(seen).sort();
+    if (!allModels.length) { txt("p", "No models recorded yet.", wrap, { "class": "empty" }); return; }
+    var eff = effectivePricing(), defaults = DATA.default_pricing || {};
+    var t = el("table", {}, wrap), hr = el("tr", {}, el("thead", {}, t));
+    [["Model", ""], ["Source", ""], ["Input $/1M", "n"], ["Cache write $/1M", "n"], ["Cache read $/1M", "n"], ["Output $/1M", "n"]]
+      .forEach(function (h) { txt("th", h[0], hr, { "class": h[1] }); });
+    var tb = el("tbody", {}, t);
+    allModels.forEach(function (m) {
+      var key = m.toLowerCase();
+      var tr = el("tr", { "data-model": key }, tb);
+      txt("td", m, tr);
+      var tdS = el("td", {}, tr);
+      var rate = lookupRate(m, eff);
+      var src = userPricing[key] ? "Custom" : (lookupRate(m, defaults) ? "Default" : "Unpriced");
+      txt("span", src, tdS, { "class": "badge " + (src === "Custom" ? "badge-ag" : (src === "Unpriced" ? "badge-cc" : "badge-muted")) });
+      ["input", "cache_write", "cache_read", "output"].forEach(function (f) {
+        var td = el("td", { "class": "n" }, tr);
+        el("input", { type: "number", step: "any", min: "0", "data-field": f, placeholder: "—",
+          value: rate ? String(rate[f]) : "" }, td);
+      });
     });
   }
 
@@ -530,10 +654,17 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
     var d = slice();
     var tot = d.sessions.reduce(function (a, s) {
       a.total += s.total; a.output += s.output; a.nw += s.nw; a.cached += s.cached; a.calls += s.calls;
+      if (s.cost !== null) a.cost = (a.cost === null ? 0 : a.cost) + s.cost;
+      Object.keys(s.unpriced).forEach(function (m) { a.unpriced[m] = true; });
       if (s.harness === "antigravity") a.ag += 1; else a.cc += 1;
       return a;
-    }, { total: 0, output: 0, nw: 0, cached: 0, calls: 0, ag: 0, cc: 0 });
+    }, { total: 0, output: 0, nw: 0, cached: 0, calls: 0, cost: null, unpriced: {}, ag: 0, cc: 0 });
+    var unpList = Object.keys(tot.unpriced);
     document.getElementById("k-total").textContent = compact(tot.total);
+    document.getElementById("k-cost").textContent = tot.cost === null ? (d.sessions.length ? "Unpriced" : "$0.00") : fmtCost(tot.cost, unpList.length > 0);
+    document.getElementById("k-cost-hint").textContent = unpList.length
+      ? (tot.cost === null ? unpList.length + " unpriced model" + (unpList.length === 1 ? "" : "s") + " · open Pricing" : "*excludes " + unpList.length + " unpriced · open Pricing")
+      : "From API list & custom rates";
     document.getElementById("k-output").textContent = compact(tot.output);
     document.getElementById("k-cache").textContent = pct(tot.cached, tot.nw + tot.cached);
     document.getElementById("k-sessions").textContent = String(d.sessions.length);
@@ -598,6 +729,45 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
     });
   });
 
+  // ---- pricing panel interactions
+  var pricingPanel = document.getElementById("pricing-panel"), pricingStatus = document.getElementById("pricing-status");
+  document.getElementById("btn-pricing").addEventListener("click", function () {
+    pricingPanel.hidden = !pricingPanel.hidden;
+    if (!pricingPanel.hidden) { pricingStatus.textContent = ""; renderPricingPanel(); }
+  });
+  function persistPricing(nextOverrides) {
+    userPricing = nextOverrides;
+    if (DATA.live) {
+      pricingStatus.textContent = "Saving...";
+      fetch("/api/pricing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(userPricing) })
+        .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+        .then(function (next) { DATA = next; DATA.live = true; userPricing = loadSavedPricing(); pricingStatus.textContent = "Saved to pricing.json"; render(); renderPricingPanel(); })
+        .catch(function () { pricingStatus.textContent = "Save failed"; });
+    } else {
+      try { if (window.localStorage) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(userPricing)); } catch (e) {}
+      pricingStatus.textContent = "Saved in browser";
+      render();
+      renderPricingPanel();
+    }
+  }
+  document.getElementById("btn-pricing-save").addEventListener("click", function () {
+    var next = {}, defaults = DATA.default_pricing || {};
+    Array.prototype.forEach.call(document.querySelectorAll("#pricing-table tbody tr"), function (tr) {
+      var m = tr.getAttribute("data-model"), rate = {}, anySet = false;
+      Array.prototype.forEach.call(tr.querySelectorAll("input"), function (inp) {
+        var v = inp.value.trim();
+        if (v !== "") { anySet = true; rate[inp.getAttribute("data-field")] = Math.max(0, Number(v) || 0); }
+        else { rate[inp.getAttribute("data-field")] = 0; }
+      });
+      if (!anySet) return;
+      var def = lookupRate(m, defaults);
+      var sameAsDef = def && def.input === rate.input && def.cache_write === rate.cache_write && def.cache_read === rate.cache_read && def.output === rate.output;
+      if (!sameAsDef) next[m] = rate;
+    });
+    persistPricing(next);
+  });
+  document.getElementById("btn-pricing-reset").addEventListener("click", function () { persistPricing({}); });
+
   // ---- theme toggle (Auto -> Light -> Dark)
   var themes = ["", "light", "dark"];
   var themeLabels = { "": "Theme: Auto", light: "Theme: Light", dark: "Theme: Dark" };
@@ -623,7 +793,7 @@ td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space:
       inFlight = true;
       fetch("/api/data", { cache: "no-store" })
         .then(function (r) { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-        .then(function (next) { DATA = next; DATA.live = true; DATA.refresh_ms = ms; liveText.textContent = "Live · " + Math.round(ms / 1000) + "s"; render(); })
+        .then(function (next) { DATA = next; DATA.live = true; DATA.refresh_ms = ms; userPricing = loadSavedPricing(); liveText.textContent = "Live · " + Math.round(ms / 1000) + "s"; render(); })
         .catch(function () { liveText.textContent = "Disconnected"; })
         .finally(function () { inFlight = false; });
     }
