@@ -6,6 +6,24 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## 0.9.4
+
+### Added
+- **Antigravity plugin support.** Root `plugin.json` and `hooks.json` let Antigravity load Shipinetics natively alongside Claude Code's `.claude-plugin/plugin.json` and `hooks/hooks.json`. All hooks (`guard-edits.sh`, `guard-secrets.sh`, `guard-pr.sh`, `guard-installs.sh`, `companions-notice.sh`, `usage-record.sh`) now read both Claude Code and Antigravity JSON payloads and return each harness's response format.
+- **`bin/shipinetics-antigravity`** links a local clone into `~/.gemini/config/plugins/shipinetics`, generates Antigravity-native subagents in `agents/`, links `~/.agents/skills` and `~/.claude/skills` in `~/.gemini/config/skills.json`, and checks install status with `status`.
+- **Antigravity token usage, live dashboard and estimated API cost.** `shipinetics-usage` now reads Antigravity `brain/<id>/.system_generated/logs/transcript.jsonl` files, records turns on Antigravity's `Stop` hook, and infers the git repo from tool calls during backfill.
+  - `shipinetics-usage serve` runs a localhost-only (`127.0.0.1`) auto-refreshing dashboard with incremental backfill.
+  - `usage-page.html` adds harness filters (`Antigravity` / `Claude Code`), model & model-family filters, a clickable **Tokens by model** chart, a **Cache hit rate** tile, a **Theme** toggle, an **Est. API cost** tile/column, and an interactive **Pricing** editor (saving to `localStorage` in static mode and `~/.config/shipinetics/pricing.json` in `serve` mode).
+  - Built-in API list rates cover Claude (Opus/Sonnet/Haiku) and Gemini (2.0/2.5/3/3.8/4 Argon, Carbon, Neon, Hydrogen) models, while unknown models stay honestly marked `unpriced`.
+  - CLI adds `--harness`, `--model`, and `html --open`.
+- **Open-source governance & release automation.** Added `LICENSE` (MIT), `NOTICE`, `SECURITY.md`, `CONTRIBUTING.md`, `scripts/release.sh`, `.github/workflows/release.yml`, and `tests/test-release.sh`.
+
+### Fixed
+- `scripts/usage.py` keeps logged token counts and API calls monotonic (`max(old, new)`) and preserves existing `project`/`title` metadata so mid-write reads or deleted directories never cause tokens or estimated cost to drop.
+- `shipinetics-usage serve` overrides `HTTPServer.server_bind` to skip macOS `socket.getfqdn("127.0.0.1")` reverse DNS stalls.
+- `in_project()` resolves symlinks (`realpath`) so macOS `/var/folders` and `/private/var/folders` paths match reliably.
+- `sy_companion_installed`, `bin/design-check`, and `bin/scan-skills` also check Antigravity's `~/.gemini/config/` and `<project>/.agents/skills/` paths.
+
 ## 0.9.3
 
 ### Added
