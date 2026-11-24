@@ -66,7 +66,7 @@ Start with one test project. Choose a project that has tests and some small task
 
 1. Open the project in Claude Code, on a clean branch.
 2. Run `/shipinetics:setup`. It audits the project and writes the result to `docs/shipinetics-setup.md`.
-3. Answer its questions. They come in one message. First, choose how setup runs:
+3. Answer its questions. With the Whiteboard app, setup shows its findings and the numbered questions on a Whiteboard, and sends you the link. Each question has a recommended answer. If the Whiteboard plugin is installed but the app is missing, setup first asks whether you want to install the app. Without Whiteboard, the questions come in one message. You answer in chat, by number, or with "use the recommended answers". First, choose how setup runs:
    - **All phases in one run** (recommended): the fastest way to a working setup.
    - **One phase at a time:** setup shows what each phase added and asks before the next one.
    - **Phase 1 only:** the core loop, then a stop. Run `/shipinetics:setup` later for the rest.

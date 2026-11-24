@@ -26,13 +26,45 @@ With no argument, offer these four ways in the ask-once message, with the first 
 
 With "one phase at a time" or "Phase 1 only", ask the other questions only when the phase that needs them starts.
 
+## Show the findings and the questions
+
+The audit's findings and the ask-once questions are long. A person understands them faster on a Whiteboard than in one long chat message. So, before you show them, check for Whiteboard:
+
+1. **Call the Whiteboard `session_capabilities` tool.**
+   - **It answers:** show the findings and the questions on a Whiteboard (below).
+   - **The Whiteboard plugin is installed, but the tool doesn't answer** (the MCP server fails to connect, or the tool isn't there): the dev.fast Whiteboard app is probably missing. Ask the user one question before anything else: "Setup shows its findings and questions on a Whiteboard. The Whiteboard plugin is installed, but the dev.fast Whiteboard app does not answer. Do you want to install the app and restart this session, or continue with the questions as text?" Recommend the install. If they install it, run setup again after the restart. If they choose text, continue with text, and put the app install on the For you list.
+   - **The Whiteboard plugin isn't installed:** use text. Row R of the audit already lists the missing companion.
+2. **Write every word in ASD-STE100.** shipinetics:explain ("Prose" and "Labels") has the rules. They apply to each title, card, table cell and option. Two rules matter most here:
+   - **No private codes.** Write "Recommended:", not "(rec)". Write "Not confirmed:", not "?". The project's own names (`AXM`, `seed_admins`, a port number) stay as they are.
+   - **One question for each card,** as a sentence that ends with "?".
+
+### On a Whiteboard
+
+Call `session_get_instructions` with topic `scratchpad`, and follow it. Make one board with three parts, in this order:
+
+1. **What setup found.** The audit table: each row with its status (present, partial, missing). Then the main findings, one card each, most important first: each conflict between the project's rules and Shipinetics, each secret risk, each tool that isn't on the agent's PATH. Where the finding has structure (the repos and the root folder, the ports of each service, the flow of a commit through the hooks), draw it.
+2. **Questions for you.** One card for each question, with its number. Each card has these parts:
+   - The question.
+   - The options, each as a short sentence.
+   - "Recommended:" before the option that you recommend, and one sentence that says why.
+   - "Not confirmed:" before each fact that you inferred, with where you inferred it from.
+3. **What happens next.** The phases that run with the recommended answers, in order, and what each one adds.
+
+Read each card alone when you read the board back. Rewrite each card that makes no sense without the others.
+
+Then send a short chat message: the link to the board, the number of questions, and how to answer ("Answer by number, or say: use the recommended answers"). The answers come in chat. Write the questions and the findings in `docs/shipinetics-setup.md` too, because other people and later sessions can't open your Whiteboard.
+
+### As text
+
+Use one message, in this order: the findings, then the numbered questions, then what happens next. Each question has the same parts as a card: the question, the options, "Recommended:" with the reason, and "Not confirmed:" for each inferred fact.
+
 ## Rules
 
 - **Audit before you build.** Never overwrite an existing file. If a file exists, merge into it and show the user the diff. If an existing setup does something differently (a different test runner, a `tools/` folder instead of `bin/`), adapt to it, don't replace it.
 - **Detect, don't ask, where you can.** Read `package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `Makefile`, CI config, lockfiles and existing scripts to find the real commands. Ask only for what you can't find out.
 - **Confirm, don't infer.** Live config and scripts are evidence. Comments, TODOs, feedback logs, worksheets and old docs are history: they say what was true once. Before you act on a fact about infrastructure (the secrets vault, deploy target, CI, package manager, which package or runtime is active), find it in live config. If the only evidence is historical, or two sources disagree, ask the user. Say what you inferred and from where, so they can correct it in one answer. A wrong guess here gets written into config and every agent repeats it.
 - **Each phase ends with proof.** Run the thing you set up and show it working before you move on. If it doesn't work, fix it or stop and say what's blocking.
-- **Ask once, then run straight through** (with "All phases in one run"). After the audit, put every question the phases need in one message, with the way to run setup first: the Unconfirmed list, secret names you couldn't find, where recordings go (an opt-in `evidence_upload_cmd` for the team's store, or attach them to the PR by hand), the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), the smoke test's criterion (which screen it opens and what it must show: test-writer tests only criteria that a human approved), each disagreement between the project's instruction files and the Shipinetics block ("Projects that already have CLAUDE.md or AGENTS.md", step 3), and for Phase 7 which instance Strix may test and whether to run deepsec on the whole repo, with which cost cap. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
+- **Ask once, then run straight through** (with "All phases in one run"). After the audit, put every question the phases need in one place, on a Whiteboard or in one message ("Show the findings and the questions" above), with the way to run setup first: the Unconfirmed list, secret names you couldn't find, where recordings go (an opt-in `evidence_upload_cmd` for the team's store, or attach them to the PR by hand), the `no-evidence` label, which optional phases to run (6 visual and perf, 7 security tools), for UI projects whether to write PRODUCT.md with `/impeccable init` and whether token changes should need a human (protected design files), which task list is the source of truth if one exists outside `TODOS.md`, whether agents start the app or the user runs the servers (`launch`), the smoke test's criterion (which screen it opens and what it must show: test-writer tests only criteria that a human approved), each disagreement between the project's instruction files and the Shipinetics block ("Projects that already have CLAUDE.md or AGENTS.md", step 3), and for Phase 7 which instance Strix may test and whether to run deepsec on the whole repo, with which cost cap. Then work through the phases without stopping. Stop early only when a phase's proof fails and you can't fix it, or when something comes up that the answers don't cover.
 - **What only the user can do goes on a list, not a pause.** Installing a CLI, logging in, creating a GitHub label they didn't approve: add it to a "For you" list in `docs/shipinetics-setup.md` and carry on.
 - **Commit as you go.** At least one commit per phase, more where a phase is big (in Phase 2, a commit per few system docs), each under 400 changed lines. Log each phase's result and proof in `docs/shipinetics-setup.md` as you finish it, so a stopped run can resume. From Phase 4 on the commit hooks are live. Setup belongs to no worksheet, so commit with `SHIPINETICS_ALLOW_NO_WORKSHEET=1`.
 - Templates are in `${CLAUDE_SKILL_DIR}/templates/`. Copy them, then replace every `{{PLACEHOLDER}}` with real values. Delete sections that don't apply. No placeholder survives into the repo. (GitHub Actions `${{ ... }}` expressions in the CI template aren't placeholders. Leave them.)

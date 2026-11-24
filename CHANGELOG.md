@@ -6,6 +6,14 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Changed
+- **Setup shows its findings and questions on a Whiteboard.** Users found the ask-once message long and hard to read. With the dev.fast Whiteboard app, setup now makes one board in ASD-STE100: the audit table and the main findings, one card for each numbered question with its options and the recommended answer, and the phases that come next. The chat message has only the link and how to answer. The questions are also written in `docs/shipinetics-setup.md`.
+  - If the Whiteboard plugin is installed but the app doesn't answer, setup first asks the user to install the app and restart. The user can also continue with text.
+  - Each question says "Recommended:" and "Not confirmed:" in words, on the board and in text, and no longer uses codes such as "(rec)".
+  - shipinetics:explain also uses a Whiteboard for findings and questions, and tells the user when the Whiteboard app is missing.
+
 ## 0.9.5
 
 ### Fixed
