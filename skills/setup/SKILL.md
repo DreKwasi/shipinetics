@@ -221,7 +221,7 @@ The goal is one loop that works end to end: the agent runs the checks itself, a 
 
 ## Phase 5: CI (automation)
 
-1. Copy `templates/github/workflows/verify.yml` to `.github/workflows/verify.yml` (or adapt to the existing CI). It runs `bin/verify --full` on every PR, and its `evidence` job fails any PR whose description has no `## Evidence` section that links a recording, a screenshot or a transcript.
+1. Copy `templates/github/workflows/verify.yml` to `.github/workflows/verify.yml` (or adapt to the existing CI). It runs `bin/verify --full` on every PR, and its `evidence` job fails any PR that needs evidence and whose description has no `## Evidence` section that links a recording, a screenshot or a transcript. A PR that changes only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) passes.
 2. Recordings never go in git. If the user gave a store for them, set `evidence_upload_cmd` in `.shipinetics/config` (the template shows one with rclone, which reaches SharePoint, OneDrive, S3, Google Drive and others). Each person sets up the store's login on their own machine (for rclone: `rclone config`); never put credentials in the repo. Without a store, agents leave recordings on disk and the human attaches them to the PR. Check that `ffmpeg` is installed: `evidence frames` needs it. If it is missing, put the install on the For you list.
 3. If the user approved the `no-evidence` label (a person adds it to skip evidence for a code change), run `gh label create no-evidence --description "A person skipped evidence for this PR"`. Otherwise it goes on the For you list, since it changes the GitHub repo.
 4. Check: validate the YAML. Tell the user it runs on their next push.
