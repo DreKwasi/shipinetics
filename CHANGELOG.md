@@ -6,7 +6,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
-## 0.9.6
+## Unreleased
 
 ### Added
 - **More ASD-STE100 rules in `shipinetics:explain`** (`SKILL.md` and `plain-language.md`). The rules now also cover:
