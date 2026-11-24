@@ -6,7 +6,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
-## 0.9.5
+## 0.9.6
 
 ### Added
 - **More ASD-STE100 rules in `shipinetics:explain`** (`SKILL.md` and `plain-language.md`). The rules now also cover:
@@ -16,6 +16,11 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - The present perfect. It stays only when it says something that the simple past can't.
   - The strength of each claim. A rewrite keeps each hedge and adds no fact.
 - **Hard rules for text that agents and programs read.** Skill text, agent prompts, tool descriptions, hook and error messages, and instructions from one agent to another follow the rules as hard rules, with one word for one action everywhere. Text for people still uses them as a baseline.
+
+## 0.9.5
+
+### Fixed
+- **The edit guard uses the lists of the project that holds the file.** It used the session's folder. So in a session opened in one repo, an edit to a file in another repo was checked against the first repo's `protected-paths` and `test-paths`. test-writer was refused on every test file of the other repo ("is source"), and that repo's own lists never applied. Now the guard finds the `.shipinetics/` folder at or above the edited file: the other repo's lists apply, and a repo with no `.shipinetics/` has no edit rules. A relative path still counts from the session's project.
 
 ## 0.9.4
 

@@ -57,6 +57,24 @@ eq "any other agent edits source" "$OUT" ""
 edit_hook docs/testing/test-index.md shipinetics:test-writer
 eq "test-writer edits the testing docs" "$OUT" ""
 
+# A session in $p that edits a file in another repo: that repo's lists apply, not $p's.
+plain="$scratch/plain"; new_repo "$plain"
+setup="$scratch/setup"; new_repo "$setup"; mkdir -p "$setup/.shipinetics"
+printf 'tests/*\n' >"$setup/.shipinetics/test-paths"
+# edit_other <absolute file> [agent type]: the edit guard, with the session in $p; sets OUT
+edit_other() {
+  OUT="$(printf '{"tool_name":"Write","agent_type":"%s","cwd":"%s","tool_input":{"file_path":"%s","content":"x"}}' "${2:-}" "$p" "$1" |
+    CLAUDE_PROJECT_DIR="$p" bash "$SY/scripts/guard-edits.sh" 2>/dev/null)"
+}
+edit_other "$plain/tests/test_a.py" shipinetics:test-writer
+eq "test-writer edits a file in a repo that isn't set up" "$OUT" ""
+edit_other "$setup/tests/test_a.py" shipinetics:test-writer
+eq "test-writer edits a test file of another set-up repo" "$OUT" ""
+edit_other "$setup/tests/test_a.py"
+has "another repo's test list applies to the session's agent" "$OUT" "tests/test_a.py is a test file"
+edit_other "$setup/src/a.py" shipinetics:test-writer
+has "test-writer can't edit source in another set-up repo" "$OUT" "test-writer only edits test files"
+
 edit_hook .shipinetics/pending/../../e2e/acceptance/a.spec.ts shipinetics:test-writer
 has "a .. path can't use the pending folder to reach a protected file" "$OUT" "is protected"
 OUT="$(printf '{"tool_name":"Write","agent_type":"shipinetics:test-writer","tool_input":{"file_path":"%s","content":"x"}}' "$p/e2e/acceptance/a.spec.ts" |
