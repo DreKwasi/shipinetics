@@ -61,7 +61,13 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 To try the plugin for one session without an install, run `claude --plugin-dir <path to a clone of this repo>`.
 
-The plugin puts its tools (`bin/`) on the PATH of Claude Code's Bash tool. In your own terminal, run them by their full path, or add the plugin's `bin/` folder to your PATH.
+The plugin puts its tools (`bin/`) on the PATH of Claude Code's Bash tool only. In your own terminal, the full path contains the plugin version, so it changes after each update. To get short commands in your terminal, run this once:
+
+```bash
+~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-shims install
+```
+
+It writes a small shim for each `shipinetics-*` tool to `~/.local/bin`. Each shim finds the installed plugin when it runs, so it keeps working after an update. If your terminal doesn't find `shipinetics-config` after that, add `~/.local/bin` to your PATH.
 
 ### Antigravity
 
@@ -205,7 +211,7 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `shipinetics-verify` | Runs the project's checks for a tier (`quick` or `complete`), and records the pass for this exact code. `--force` runs them again. `status` shows which tiers passed. `times` shows where the time goes |
 | `evidence` | `init`, `run`, `upload`, `frames`, `check` and `pr-body`: records, checks and publishes the evidence for a PR |
 | `worksheet` | `new`, `current`, `use`, `list` and `tag`: creates, finds and tags worksheets |
-| `shipinetics-config` | Shows the project's settings. `get <key>` prints one, and `root` prints the folder that holds `.shipinetics/`. `match` shows which line of a list covers a path. `pending` and `apply` let you review and apply the changes that agents propose to protected files. `due security-audit` says if the full security audit is due |
+| `shipinetics-config` | Shows the project's settings. `-C <folder>` runs it for the project in that folder, like `git -C`. `get <key>` prints one, and `root` prints the folder that holds `.shipinetics/`. `match` shows which line of a list covers a path. `pending` and `apply` let you review and apply the changes that agents propose to protected files. `due security-audit` says if the full security audit is due |
 | `known-failing` | Gates a suite that already fails, so only new failures fail. Also finds flaky tests (`check --rerun`, `hunt`, `flaky`) |
 | `design-check` | Finds the fonts, colours, radii and font sizes that a branch added and that aren't in `DESIGN.md` |
 | `bench-compare` | Runs a benchmark several times and fails on a slowdown against this machine's baseline |
@@ -214,6 +220,7 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `shipinetics-antigravity` | `install`, `link-skills` and `status`: links this repo into Antigravity's plugins folder, generates Antigravity-native subagents, and shares companion skills through `skills.json` |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
 | `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
+| `shipinetics-shims` | `install`, `status` and `remove`: short commands for the `shipinetics-*` tools in your own terminal, in `~/.local/bin`. It never changes a file that it didn't write |
 | `shipinetics-usage` | Shows the tokens that each session used, from Claude Code and Antigravity transcripts. `html` makes a page with charts |
 
 ## When the checks run
@@ -554,7 +561,8 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 agents/           reviewer, security-reviewer, ui-reviewer, test-writer, test-plan-reviewer, live-tester
 bin/              the tools, on the agent's PATH: bench-compare, design-check, evidence, known-failing,
                   scan-skills, shipinetics-antigravity, shipinetics-companions, shipinetics-config,
-                  shipinetics-usage, shipinetics-update, shipinetics-verify, skills-outdated, worksheet
+                  shipinetics-shims, shipinetics-usage, shipinetics-update, shipinetics-verify,
+                  skills-outdated, worksheet
 hooks/            hooks.json: which script runs at which event (Claude Code)
 hooks.json        root lifecycle hooks for Antigravity
 plugin.json       root plugin manifest for Antigravity

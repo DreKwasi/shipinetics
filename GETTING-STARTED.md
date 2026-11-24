@@ -52,9 +52,17 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
    Also install the dev.fast Whiteboard app. The Whiteboard plugin starts it.
 
-4. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a required companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.
+4. Get short commands in your terminal. The plugin's tools are on the PATH of Claude Code's Bash tool only. Run this once:
 
-5. Install the optional tools that you want:
+   ```bash
+   ~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-shims install
+   ```
+
+   Then `shipinetics-config`, `shipinetics-update` and the other `shipinetics-*` tools work in your terminal, also after each update. If your terminal doesn't find them, add `~/.local/bin` to your PATH.
+
+5. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a required companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.
+
+6. Install the optional tools that you want:
    - **Secrets in Google Secret Manager:** run `gcloud auth login` and `gcloud auth application-default login`. Then `bin/with-secrets` can read Secret Manager.
    - **Security tests of your app:** Strix: `curl -sSL https://strix.ai/install | bash`. It needs Docker, running. Keep its LLM provider key in your vault.
    - **Agent review of all your code:** deepsec (Vercel). There is nothing to install: it needs Node.js, and it runs with `npx` in each project. Each run costs money (with Claude Opus, about 25 to 60 US dollars for each 100 files), so the agent asks you first and always sets a cap.
@@ -102,17 +110,19 @@ Start with one test project. Choose a project that has tests and some small task
    Some changes need a person. Setup puts them in `.shipinetics/pending/`, for example `.claude/settings.json`. The For you list gives the command to apply them. It looks like this:
 
    ```bash
-   cd ~/code/my-app && ~/.claude/plugins/cache/shipinetics/shipinetics/0.9.5/bin/shipinetics-config apply
+   shipinetics-config -C ~/code/my-app apply
    ```
+
+   Without the short commands from section 1, the command has the full path: `~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-config -C ~/code/my-app apply`.
 
    Why you run it yourself:
    - These files are protected. They hold the rules that check the agent's work: acceptance tests, baselines, policy lists and Claude Code's settings. The edit guard stops agents from changing them, so an agent cannot change a rule to make its own work pass.
    - The agent proposes each change. The command shows you each diff, and nothing changes until you say yes.
    - The command needs a terminal, so an agent cannot run it for you.
 
-   Why the command is long:
-   - The plugin puts its tools on the PATH of Claude Code's Bash tool only. Your terminal does not find `shipinetics-config`, so the command uses the full path. The path contains the plugin version, so it changes after each update.
-   - The tool finds the project from the current folder, so the command starts with `cd`.
+   Why the command has a path and `-C`:
+   - The plugin puts its tools on the PATH of Claude Code's Bash tool only. Without the short commands, your terminal does not find `shipinetics-config`, so the command uses the full path. The path contains the plugin version, so it changes after each update. Run `shipinetics-shims install` once (section 1) to fix this.
+   - `-C` names the project folder, so you can run the command from any folder.
 
    To get the command again, ask the agent to run `shipinetics-config pending`.
 

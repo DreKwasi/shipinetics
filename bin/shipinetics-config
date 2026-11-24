@@ -18,6 +18,8 @@
 #                                   review each proposal as a diff and apply it or not. Needs a
 #                                   human at a terminal, so an agent's Bash tool can't run it
 #                                   (a speed bump, not a lock).
+#   shipinetics-config -C <dir> <command>
+#                                   run the command for the project in <dir>, like git -C
 #
 # Skills and tools use these values in place of their default paths.
 
@@ -77,6 +79,11 @@ list_pending() {
     echo
     echo "Run this command in your own terminal:"
     echo "  $(apply_cmd)"
+    if ! has_shim; then
+      echo
+      echo "To use the short command 'shipinetics-config' in your terminal from now on, run this once:"
+      printf '  %q install\n' "$here/bin/shipinetics-shims"
+    fi
   else
     echo "No pending changes."
   fi
@@ -89,12 +96,21 @@ why_apply() {
   echo "- The edit guard stops agents from changing a protected file. So an agent cannot change a rule to make its own work pass."
   echo "- An agent wrote each new version to $SY_DIR_NAME/pending/. You read each diff and decide. Nothing changes until you say yes."
   echo "- The apply command needs a terminal, so an agent cannot run it for you."
-  echo "- The command uses the full path because your terminal does not have the plugin's tools on its PATH. The path contains the plugin version, so it changes after each update."
+  if ! has_shim; then
+    echo "- The command uses the full path because your terminal does not have the plugin's tools on its PATH. The path contains the plugin version, so it changes after each update."
+  fi
+}
+
+# has_shim: shipinetics-shims wrote a shipinetics-config shim, so the short name works in the
+# user's terminal (when the shim folder is on their PATH)
+has_shim() {
+  grep -qF "# Written by shipinetics-shims." "${SHIPINETICS_SHIM_DIR:-$HOME/.local/bin}/shipinetics-config" 2>/dev/null
 }
 
 # apply_cmd: the exact command that a person runs in their own terminal
 apply_cmd() {
-  printf 'cd %q && %q apply' "$root" "$here/bin/shipinetics-config"
+  if has_shim; then printf 'shipinetics-config -C %q apply' "$root"
+  else printf '%q -C %q apply' "$here/bin/shipinetics-config" "$root"; fi
 }
 
 apply_pending() {
@@ -130,7 +146,14 @@ apply_pending() {
   echo "$applied applied. Review with git diff and commit."
 }
 
-root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder here or above. Run /shipinetics:setup first." >&2; exit 1; }
+# -C <dir>: run as if started in <dir>, like git -C. A relative path in "match" counts from <dir> too.
+if [ "${1:-}" = -C ]; then
+  [ -n "${2:-}" ] || { echo "usage: shipinetics-config -C <project folder> <command>" >&2; exit 2; }
+  cd "$2" 2>/dev/null || { echo "shipinetics-config: can't open the folder $2" >&2; exit 2; }
+  shift 2
+fi
+
+root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder in $PWD or above. Run /shipinetics:setup first." >&2; exit 1; }
 
 case "${1:-}" in
   get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
