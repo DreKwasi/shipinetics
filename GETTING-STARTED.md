@@ -99,7 +99,22 @@ Start with one test project. Choose a project that has tests and some small task
 
 5. Read the report. It ends with a "For you" list: the things that only you can do, for example an install, a login or a new GitHub label. The items about secrets and evidence come first. Until you do them, those guardrails work only in part.
 
-   Some changes need a person. Setup puts them in `.shipinetics/pending/`, for example `.claude/settings.json`. Apply them with `shipinetics-config apply` in your terminal.
+   Some changes need a person. Setup puts them in `.shipinetics/pending/`, for example `.claude/settings.json`. The For you list gives the command to apply them. It looks like this:
+
+   ```bash
+   cd ~/code/my-app && ~/.claude/plugins/cache/shipinetics/shipinetics/0.9.5/bin/shipinetics-config apply
+   ```
+
+   Why you run it yourself:
+   - These files are protected. They hold the rules that check the agent's work: acceptance tests, baselines, policy lists and Claude Code's settings. The edit guard stops agents from changing them, so an agent cannot change a rule to make its own work pass.
+   - The agent proposes each change. The command shows you each diff, and nothing changes until you say yes.
+   - The command needs a terminal, so an agent cannot run it for you.
+
+   Why the command is long:
+   - The plugin puts its tools on the PATH of Claude Code's Bash tool only. Your terminal does not find `shipinetics-config`, so the command uses the full path. The path contains the plugin version, so it changes after each update.
+   - The tool finds the project from the current folder, so the command starts with `cd`.
+
+   To get the command again, ask the agent to run `shipinetics-config pending`.
 
    If setup stopped early, run `/shipinetics:setup` again. It starts at the first phase that isn't done. To do one phase again later, run `/shipinetics:setup <phase>`, for example `/shipinetics:setup 4`.
 

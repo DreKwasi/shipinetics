@@ -71,12 +71,44 @@ list_pending() {
     elif cmp -s "$f" "$root/$t"; then echo "$t (same as the current file)"
     else echo "$t (+$(diff "$root/$t" "$f" | grep -c '^>') -$(diff "$root/$t" "$f" | grep -c '^<') lines)"; fi
   done < <(proposals)
-  [ "$n" -gt 0 ] && echo "Review and apply them with: shipinetics-config apply" || echo "No pending changes."
+  if [ "$n" -gt 0 ]; then
+    echo
+    why_apply
+    echo
+    echo "Run this command in your own terminal:"
+    echo "  $(apply_cmd)"
+  else
+    echo "No pending changes."
+  fi
+}
+
+# why_apply: the reason that a person, not an agent, applies a proposal
+why_apply() {
+  echo "Why you must apply these changes yourself:"
+  echo "- Each file is protected. Protected files hold the rules that check the agent's work: acceptance tests, baselines, policy lists and Claude Code's settings."
+  echo "- The edit guard stops agents from changing a protected file. So an agent cannot change a rule to make its own work pass."
+  echo "- An agent wrote each new version to $SY_DIR_NAME/pending/. You read each diff and decide. Nothing changes until you say yes."
+  echo "- The apply command needs a terminal, so an agent cannot run it for you."
+  echo "- The command uses the full path because your terminal does not have the plugin's tools on its PATH. The path contains the plugin version, so it changes after each update."
+}
+
+# apply_cmd: the exact command that a person runs in their own terminal
+apply_cmd() {
+  printf 'cd %q && %q apply' "$root" "$here/bin/shipinetics-config"
 }
 
 apply_pending() {
   local f t reply applied=0 dir
-  [ -t 0 ] || { echo "shipinetics-config: apply needs a human at a terminal. Pending changes are for a person to review; an agent can list them with: shipinetics-config pending" >&2; exit 1; }
+  if [ ! -t 0 ]; then
+    {
+      echo "shipinetics-config: apply needs a person at a terminal, so an agent cannot run it."
+      echo "List the changes with: shipinetics-config pending"
+      echo "Then give the user its output. It says why they must apply the changes, and it gives the exact command."
+    } >&2
+    exit 1
+  fi
+  why_apply
+  echo
   dir="$(sy_dir "$root")/pending"
   while IFS="$(printf '\t')" read -r f t <&3; do
     echo "== $t"

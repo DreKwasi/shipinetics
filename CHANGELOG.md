@@ -6,6 +6,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## 0.9.6
+
+### Changed
+- **Users learn why they apply changes to protected files, and get the exact command.** Users asked why they must always run a long `shipinetics-config apply` command.
+  - `shipinetics-config pending` now says why a person applies each change. The files hold the rules that check the agent's work, and the edit guard stops agents from changing them.
+  - It also prints the exact command for your own terminal, with the project folder and the full path to the tool. The plugin's tools are not on your terminal's PATH, and the path contains the plugin version.
+  - `shipinetics-config apply` shows the same reasons before the first diff.
+  - The edit guard, `known-failing`, `bench-compare`, setup and the `AGENTS.md` template tell the agent to give the user the output of `shipinetics-config pending`, not only `shipinetics-config apply`.
+  - GETTING-STARTED.md explains the step and why the command is long.
+
 ## 0.9.5
 
 ### Fixed
