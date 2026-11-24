@@ -5,14 +5,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Before 1.0.0, a **breaking** change increases the minor number (0.6.0 to 0.7.0). A breaking change removes or changes something that a project uses: a command, a setting, a file name or a hook rule. Its entry gives the steps for each project.
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
+- A pull request adds its entries under `## Unreleased`, and never changes the version. `scripts/release.sh` turns `## Unreleased` into the new version's section, and sets the version in both manifests. A breaking change says so in its entry, so that the release can increase the minor number.
 
-## 0.9.6
+## Unreleased
 
 ### Added
 - **`shipinetics-shims`** gives you short commands for the `shipinetics-*` tools in your own terminal. Run `shipinetics-shims install` once. It writes a small shim for each tool to `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`). Each shim finds the installed plugin when it runs, from Claude Code's `installed_plugins.json` or Antigravity's plugin folder, so it keeps working after an update. `status` lists the shims, and `remove` removes them. It never changes a file that it didn't write. It doesn't make shims for tools with common names, such as `evidence` and `worksheet`.
 - **`shipinetics-config -C <folder>`** runs the command for the project in that folder, like `git -C`. So you can apply pending changes from any folder: `shipinetics-config -C ~/code/my-app apply`.
 
 ### Changed
+- **Pull requests don't set the version.** A pull request adds its entries under `## Unreleased` in `CHANGELOG.md`. `scripts/release.sh` turns that section into `## X.Y.Z` and sets the version in both manifests. Before, each pull request had to choose a version. Two open pull requests then took the same number, and their CHANGELOG headings conflicted. CI runs the new `scripts/check-pr-version.sh` on each pull request: it fails when a pull request changes the version in a manifest or adds a `## X.Y.Z` heading.
 - **Users learn why they apply changes to protected files, and get the exact command.** Users asked why they must always run a long `shipinetics-config apply` command.
   - `shipinetics-config pending` now says why a person applies each change. The files hold the rules that check the agent's work, and the edit guard stops agents from changing them.
   - It also prints the exact command for your own terminal, with `-C` and the project folder. With the shims, the command is `shipinetics-config -C <folder> apply`. Without them, it has the full path to the tool, and the output also gives the one-time command that installs the shims.

@@ -586,12 +586,12 @@ tests/            the tests of the hooks and tools
 
 - **Run the tests** with `bash tests/run.sh`. Also run `/bin/bash tests/run.sh` on macOS: the scripts must work in bash 3.2. CI runs both, on Linux and on macOS.
 - **Try a change** in one session with `claude --plugin-dir <path to this repo>`, or add the marketplace from your clone. Then `/reload-plugins` loads each edit.
-- **Release a change:**
-  1. Choose the version by the rules at the top of [CHANGELOG.md](CHANGELOG.md). Before 1.0.0, a breaking change increases the minor number (0.9.0 to 0.10.0). Other changes increase the patch number (0.9.3 to 0.9.4).
-  2. Preview the commits since the last tag with `scripts/release.sh patch --dry-run` (or `minor` / `major`).
-  3. Add the `## X.Y.Z` entry in `CHANGELOG.md`. For a breaking change, give the steps for each project.
-  4. Run `scripts/release.sh patch` (or `minor` / `major` / `X.Y.Z`). It runs `tests/run.sh`, updates `.claude-plugin/plugin.json` and `plugin.json`, commits `Release X.Y.Z`, and creates the annotated tag `vX.Y.Z`.
-  5. Push the commit and tag: `git push origin main vX.Y.Z`. Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which verifies the manifests and publishes the GitHub Release from `CHANGELOG.md`.
+- **In a pull request, don't change the version.** Add your entries under `## Unreleased` in `CHANGELOG.md`. For a breaking change, say so and give the steps for each project. CI fails a pull request that changes the version in a manifest or adds a `## X.Y.Z` heading (`scripts/check-pr-version.sh`). A branch named `release/*` skips this check.
+- **Release the changes that were merged:**
+  1. Choose the version by the rules at the top of [CHANGELOG.md](CHANGELOG.md), from the entries under `## Unreleased`. Before 1.0.0, a breaking change increases the minor number (0.9.0 to 0.10.0). Other changes increase the patch number (0.9.3 to 0.9.4).
+  2. Preview the release with `scripts/release.sh patch --dry-run` (or `minor` / `major`).
+  3. Run `scripts/release.sh patch` (or `minor` / `major` / `X.Y.Z`). It runs `tests/run.sh`, turns `## Unreleased` into `## X.Y.Z` with a new empty `## Unreleased` above it, updates `.claude-plugin/plugin.json` and `plugin.json`, commits `Release X.Y.Z`, and creates the annotated tag `vX.Y.Z`.
+  4. Push the commit and tag: `git push origin main vX.Y.Z`. Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`, which verifies the manifests and publishes the GitHub Release from `CHANGELOG.md`.
 
   If the version doesn't change, `claude plugin update` does nothing for installs from GitHub.
 
