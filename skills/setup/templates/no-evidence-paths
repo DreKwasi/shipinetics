@@ -1,0 +1,19 @@
+# Changes that need no evidence. A PR whose changed files all match a line here (or are tests in
+# test-paths, or are in .shipinetics/) opens with no evidence, and CI passes it with no label.
+# Any other file needs evidence: a recording or a terminal transcript (shipinetics:evidence).
+# One bash glob per line, relative to the repo root. * matches across folders. A # starts a comment.
+# This file replaces the built-in defaults, so keep the lines you still want.
+# Check a path with: shipinetics-config match no-evidence-paths <path>
+#
+# Add a line only for files that can't change what a user sees or what the app does.
+# Examples to consider: *.lock, package-lock.json (a dependency bump still runs the verify),
+# infra/*, scripts/dev/*.
+
+docs/*
+*.md
+.github/*
+.gitignore
+.gitattributes
+.editorconfig
+.vscode/*
+LICENSE*

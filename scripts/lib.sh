@@ -164,6 +164,33 @@ sy_in_list() {
   return 1
 }
 
+# Changes that need no evidence (shipinetics:evidence). The project's .shipinetics/no-evidence-paths
+# replaces these defaults. Keep them the same as templates/no-evidence-paths and the CI template.
+SY_NO_EVIDENCE_DEFAULTS='docs/*
+*.md
+.github/*
+.gitignore
+.gitattributes
+.editorconfig
+.vscode/*
+LICENSE*'
+
+# sy_no_evidence <root> <path relative to root>: true if a change to this path needs no evidence.
+# That is .shipinetics/, a test file (test-paths), or a match in no-evidence-paths (else the defaults).
+# Sets SY_MATCHED to the glob or the list that matched.
+sy_no_evidence() {
+  local d="$1/$SY_DIR_NAME" glob
+  case "$2" in "$SY_DIR_NAME"/*) SY_MATCHED="$SY_DIR_NAME/"; return 0 ;; esac
+  sy_in_list "$d/test-paths" "$2" && return 0
+  if [ -f "$d/no-evidence-paths" ]; then sy_in_list "$d/no-evidence-paths" "$2"; return; fi
+  SY_MATCHED=""
+  while IFS= read -r glob; do
+    # shellcheck disable=SC2053  # the right-hand side is meant to be a pattern
+    if [[ "$2" == $glob ]]; then SY_MATCHED="$glob"; return 0; fi
+  done <<<"$SY_NO_EVIDENCE_DEFAULTS"
+  return 1
+}
+
 # ---------------------------------------------------------------- hook settings
 # Each hook can be switched off, and the secrets guard's file list is the user's to set. Settings
 # come from the project (.shipinetics/) or from the user's own folder, for every project.

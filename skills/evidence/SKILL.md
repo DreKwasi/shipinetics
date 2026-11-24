@@ -24,7 +24,27 @@ Worksheet: `$ARGUMENTS` (default: the current one).
 ## What's enforced
 
 - **`gh pr create` and `gh pr ready` are blocked** by a hook until `evidence check --branch` passes and the PR body contains the `## Evidence` section.
-- **CI fails any PR** (agent or human) whose description has no `## Evidence` section that links a recording (or a fallback screenshot) or a transcript, unless it carries the `no-evidence` label (for docs-only or config-only changes).
+- **CI fails any PR** (agent or human) that needs evidence and whose description has no `## Evidence` section that links a recording (or a fallback screenshot) or a transcript.
+
+## Changes that need no evidence
+
+The hook and CI use the same rule. A PR needs no evidence when every file it changes is:
+
+- in `.shipinetics/` or the evidence folder,
+- a test (a path in `.shipinetics/test-paths`),
+- or a path in `.shipinetics/no-evidence-paths`. Without that file, the defaults are `docs/*`, `*.md`, `.github/*`, `.gitignore`, `.gitattributes`, `.editorconfig`, `.vscode/*` and `LICENSE*`. The file replaces the defaults, so a project can add paths (for example `infra/*`) or remove them (for example `*.md` when Markdown pages are the product).
+
+For such a PR, the hook still needs the complete verify, unless the PR changes only docs and Markdown. CI passes it with no label. To see which files need evidence on a branch, run `evidence needed`. To check one path, run `shipinetics-config match no-evidence-paths <path>`.
+
+`no-evidence-paths` is a protected file, so an agent only proposes a change to it, and a person applies it.
+
+**A person can skip evidence for any other change** (for example a refactor that changes no behaviour, or a dependency bump):
+
+- Add the `no-evidence` label: `gh pr edit <number> --add-label no-evidence`, or **Labels** in the PR's sidebar on GitHub. Create the label once for each repo: `gh label create no-evidence`.
+- Or write `None: <reason>` in the PR's `## Evidence` section. CI accepts it and shows the reason. This works for people who can't add labels.
+- Or start the session with `SHIPINETICS_ALLOW_NO_EVIDENCE=1` to skip the hook.
+
+An agent never skips evidence by itself. It doesn't add the label, write a `None:` line or change `no-evidence-paths` without the user's yes.
 - **Reviewers look at it:** the wrap-up reviewer checks evidence against the acceptance criteria, the UI reviewer starts from the frames of the recording, and the Whiteboard shows the recording and its key frames to the human.
 
 ## What counts
@@ -36,7 +56,7 @@ Worksheet: `$ARGUMENTS` (default: the current one).
 | API | A transcript of real requests against the running service (curl or httpie through `evidence run`), showing status and body |
 | Background job, data change | A transcript of triggering it and of the resulting state (a query, a log line, a file) |
 | Bug fix | The same, showing the bug's reproduction steps now producing the right result. If you can, also the "before" from the base commit |
-| Docs, config, tests only | None. Humans add the `no-evidence` label; the hook passes docs-only branches by itself |
+| Only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) | None. The hook and CI pass it with no label ("Changes that need no evidence") |
 
 Evidence is real or it's nothing. The verification map's evidence standards apply (shipinetics:verification-map): the real user path, the action *and* the resulting state, changes read back from a second view, every entry point the feature lists, each artifact labeled with its feature ID and entry point. In short:
 

@@ -6,6 +6,18 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Added
+- **`.shipinetics/no-evidence-paths`** lists the files that need no evidence. A PR that changes only these files, tests or `.shipinetics/` opens with no evidence, and CI passes it with no label. Without the file, the defaults are docs, Markdown, `.github/` and editor files. Setup writes it from `templates/no-evidence-paths`.
+- **`evidence needed`** lists the changed files on the branch that need evidence.
+- **`None: <reason>` in the Evidence section** lets a person skip evidence in CI without the label, for example a contributor who can't add labels. CI shows the reason.
+
+### Changed
+- **The PR hook and CI use the same rule.** Before, the hook let a docs-only branch open, but CI failed it until a person added the `no-evidence` label. Test-only and config-only branches needed evidence, although the evidence skill said they didn't. Branches that change only tests or config still need the complete verify.
+- **Clearer errors.** The hook and CI list the files that need evidence, and give the exact commands to skip it, also how to create the label when it's missing.
+- **Projects that use the CI template:** copy the new `evidence` job from `skills/setup/templates/github/workflows/verify.yml`. It needs `fetch-depth: 0` to compare the branch with its base.
+
 ## 0.9.5
 
 ### Fixed
