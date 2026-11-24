@@ -22,6 +22,9 @@ always turn out to be two facts joined by a comma.
 
 **Use simple tenses.** Prefer "the gate rejected the request" over "the gate had been
 rejecting requests". Simple past, simple present, simple future cover nearly everything.
+Keep the present perfect only when it carries something the simple past cannot. "The
+job has completed" says the output is ready now. "The request may have failed" keeps a
+doubt.
 
 **Keep the articles and the connecting words.** "Fix for case where config is nil" reads
 as a telegram. "This fixes the case where the config is nil" costs three words and one
@@ -30,7 +33,8 @@ less reparse. Keep "that" and "which" rather than dropping them.
 **Use one term per concept, for the whole description.** If you call it a tenant in the
 first paragraph, it is a tenant in the last. Switching between tenant, organization, and
 account makes a reviewer wonder whether you mean three things. The same applies in
-reverse: do not use one word for two concepts.
+reverse: do not use one word for two concepts. Also keep each word in one part of
+speech: "apply oil to the valve", not "oil the valve".
 
 **Do not stack more than three nouns.** "Consumer retry backoff configuration override"
 forces the reader to guess the bracketing. Break it up with prepositions: "the override
@@ -43,7 +47,31 @@ carries three conditions in one paragraph hides at least one of them.
 placeholders for a verb you have not chosen yet. "Validates", "retries", "rejects",
 "caches" tell the reviewer what the code does.
 
+**Use the verb, not a noun made from it.** "Analyze the log", not "perform an analysis
+of the log". "The hook blocks the push", not "the hook provides blocking of the push".
+The noun form is longer, and it hides who acts.
+
+**Use one-word verbs, not phrasal verbs.** "Start the job", not "spin up the job".
+"Contact", not "reach out to". "Read", not "dive into". "Begin", not "kick off". A
+two-word verb has meanings that its parts do not predict.
+
+**Do not use semicolons.** Make two sentences. An em dash that joins two ideas is
+usually the same problem: split the sentence.
+
 **Keep paragraphs to about six sentences.** Past that, split them or make them a list.
+
+**Keep the strength of each claim when you rewrite.** A hedge ("may", "could", "is
+likely to") is part of the content. "The request may have failed" does not become "the
+request failed". Do not add a cause, a frequency or a mechanism that the source does not
+state. If a shorter sentence loses a condition, a scope or a number, keep the longer one.
+
+## Text that agents and programs read
+
+Apply the rules above as hard rules, not as a baseline, to text that a model or a
+program reads with no person to resolve a doubt. That text includes skill text, agent
+prompts, tool descriptions, hook and error messages, and instructions from one agent to
+another. For this text, also use one word for one action everywhere. Always "check", for
+example, never "check", "verify" and "confirm" for the same action.
 
 ## What is exempt
 
@@ -87,6 +115,10 @@ Do not paraphrase an identifier into prose to satisfy a word rule. `nil` is `nil
 
 Cut these unless they carry weight: comprehensive, robust, cleanly, properly, simply,
 just, basically, essentially, in order to, it should be noted that, a number of.
+
+Cut the adjectives that claim quality instead of showing it: seamless, powerful,
+cutting-edge, effortless, blazing-fast. Give the measurement that earns the claim, or
+delete the word.
 
 "Simply" and "just" are worth singling out. They tell a reviewer that the thing they are
 about to read is easy, which is either redundant or wrong, and occasionally insulting.
