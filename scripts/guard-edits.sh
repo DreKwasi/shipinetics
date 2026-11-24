@@ -25,16 +25,20 @@ input="$(cat)"
 . "$(dirname "$0")/lib.sh"
 harness="$(sy_hook_harness "$input")"
 cwd="$(sy_hook_cwd "$input")"
-root="$(sy_root "$cwd" 2>/dev/null)" || root=""
 
 noop() { sy_hook_noop "$harness"; exit 0; }
 deny() { sy_hook_pretool_reply "$harness" deny "$1"; exit 0; }
 
 path="$(sy_hook_file_path "$input")"
 [ -n "$path" ] || noop
-case "$path" in /*) ;; *) path="${root:-$cwd}/$path" ;; esac
+case "$path" in /*) ;; *) path="$(sy_root "$cwd" 2>/dev/null || printf '%s' "$cwd")/$path" ;; esac
 path="$(sy_norm_path "$path")"   # so .. can't step out of the pending folder past the rules
 
+# The rules are those of the project that holds the file, not of the session's folder: a session
+# can edit another repo, and that repo's lists apply there (none, if it isn't set up).
+start="$(dirname "$path")"
+while [ ! -d "$start" ] && [ "$start" != "/" ]; do start="$(dirname "$start")"; done
+root="$(sy_root "$start" 2>/dev/null)" || root=""
 [ -n "$root" ] || noop
 sy_hook_off edits "$root" && noop
 dir="$(sy_dir "$root")"
