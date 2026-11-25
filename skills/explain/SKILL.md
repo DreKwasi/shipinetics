@@ -35,17 +35,23 @@ The full guide, with its examples, is [plain-language.md](plain-language.md) (`$
 - **Use the active voice, and name the actor.** "The parser rejects unknown keys", not "Unknown keys are rejected."
 - **One topic per sentence.** A fact, its consequence and a caveat are two or three sentences.
 - **Short sentences.** An instruction has 20 words or fewer. A description has about 25 words or fewer.
-- **Simple tenses.** Simple past, simple present and simple future.
+- **Simple tenses.** Simple past, simple present and simple future. Keep the present perfect only when it says something that the simple past can't. "The job has completed" says that the output is ready now. "The request may have failed" keeps a doubt.
 - **Keep the articles and the connecting words:** "the", "a", "that", "which". Don't drop words to sound terse.
-- **One term for each concept, in the whole text.** Don't switch between "tenant", "organization" and "account" for one concept. Don't use one word for two concepts. Use the terms in `GLOSSARY.md`.
+- **One term for each concept, in the whole text.** Don't switch between "tenant", "organization" and "account" for one concept. Don't use one word for two concepts. Use the terms in `GLOSSARY.md`. Also keep each word in one part of speech: "Apply oil to the valve", not "Oil the valve".
 - **No more than three nouns in a stack.** Use prepositions: "the override for the retry backoff on the consumer".
 - **A vertical list** when there is more than one condition or step. Write instructions as numbered steps, with one action each and the imperative verb first ("Run `bin/verify`.").
 - **The specific verb.** "Validates", "retries", "rejects" and "caches" say what the code does. "Handles", "supports", "manages" and "processes" don't.
+- **The verb, not a noun made from it.** "Analyze the log", not "Perform an analysis of the log". "The hook blocks the push", not "The hook provides blocking of the push". The noun form is longer, and it hides the actor.
+- **One-word verbs, not phrasal verbs.** "Start the job", not "spin up the job". Also: "contact", not "reach out to". "Read", not "dive into". "Begin", not "kick off". A two-word verb has meanings that its parts don't predict.
+- **No semicolons.** Make two sentences. An em dash that joins two ideas usually means the same thing: split the sentence.
 - **Paragraphs of about six sentences** or fewer. Past that, split them or make a list.
 - **State results, not intent.** Say what the code does now and what shows it: "`migrate down` drops the index. The integration test checks this." Not "Added tests to make sure the migration is safe."
 - **Say what's true plainly.** No hedging on what you verified. Say exactly what you didn't verify.
+- **Keep the strength of each claim when you rewrite.** A hedge ("may", "could", "is likely to") is part of the content. Don't shorten "The request may have failed" to "The request failed". Don't add a cause, a frequency or a mechanism that the source doesn't state. If a shorter sentence loses a condition, a scope or a number, keep the longer sentence.
 - **Every factual claim in an explainer or report needs evidence you opened:** `file:line`, or a primary source URL with the date checked. Mark anything unverified as unverified. Don't let a polished page or video make a guess look like a fact.
-- **Cut the words that add nothing,** unless they carry weight: comprehensive, robust, cleanly, properly, simply, just, basically, essentially, various, appropriate, in order to, it should be noted that, a number of. "Simply" and "just" tell the reader that something is easy. That is redundant or wrong.
+- **Cut the words that add nothing,** unless they carry weight: comprehensive, robust, cleanly, properly, simply, just, basically, essentially, various, appropriate, in order to, it should be noted that, a number of. "Simply" and "just" tell the reader that something is easy. That is redundant or wrong. Also cut the adjectives that claim quality: seamless, powerful, cutting-edge, effortless, blazing-fast. Give the measurement instead, or delete the word.
+
+**Text that agents and programs read.** Apply the rules above as hard rules, not as a baseline, to text that a model or a program reads with no person to resolve a doubt. That text includes skill text, agent and subagent prompts, tool descriptions, hook and error messages, and instructions from one agent to another. For this text, also use one word for one action everywhere. For example, always "check", never "check", "verify" and "confirm" for the same action.
 
 **What is exempt.** Don't use STE's approved-word list. These names stay exactly as they are:
 
@@ -56,7 +62,7 @@ The full guide, with its examples, is [plain-language.md](plain-language.md) (`$
 
 Never paraphrase an identifier to satisfy a word rule. `nil` is `nil`, not "an empty value".
 
-Shipinetics adds some rules to the guide: the 20-word limit for instructions, numbered steps, the terms in `GLOSSARY.md`, "various" and "appropriate" in the word list, the evidence for each claim and the rule against hedging. They don't change the guide's rules.
+Shipinetics adds some rules to the guide: the 20-word limit for instructions, numbered steps, the terms in `GLOSSARY.md`, "various" and "appropriate" in the word list, the evidence for each claim, the rule against hedging and the hard rules for text that agents and programs read. They don't change the guide's rules.
 
 When the user runs `/wait-what`, or says a message didn't land, re-pitch it with these rules: a little context first, then the point, in the terms from `GLOSSARY.md`.
 

@@ -11,12 +11,14 @@
 #   --no-test   Skip running tests/run.sh (for emergencies only)
 #   --check     Validate that plugin.json and .claude-plugin/plugin.json match
 #
-# Before running, add a `## X.Y.Z` section to CHANGELOG.md (following its SemVer rules).
+# Pull requests add their CHANGELOG entries under `## Unreleased` and never change the version.
+# The release turns `## Unreleased` into `## X.Y.Z`, adds a new empty `## Unreleased` above it,
+# and sets the version in both manifests. A `## X.Y.Z` section that is already there also works.
 # After running, push the commit and tag with: git push origin main vX.Y.Z
 # Exit codes: 0 ok, 1 validation/test failure, 2 bad usage.
 
 set -uo pipefail
-usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; }
 case "${1:-}" in -h|--help|"") usage; exit 0 ;; esac
 
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"
@@ -36,6 +38,25 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$mode" ] || die "give patch, minor, major, X.Y.Z, or --check"
+
+# unreleased <changelog> <mode>: mode "has" exits 0 when `## Unreleased` has entries.
+# Mode "cut <version>" renames that section to `## <version>` and adds a new empty
+# `## Unreleased` above it.
+unreleased() {
+  python3 -I - "$@" <<'PY'
+import re, sys
+path, mode = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+m = re.search(r"^## Unreleased[ \t]*\n(.*?)(?=^## |\Z)", text, re.M | re.S)
+if not m or not m.group(1).strip():
+    sys.exit(1)
+if mode == "cut":
+    ver = sys.argv[3]
+    new = "## Unreleased\n\n## %s\n%s" % (ver, m.group(1))
+    text = text[:m.start()] + new + text[m.end():]
+    open(path, "w", encoding="utf-8").write(text)
+PY
+}
 
 read_ver() {
   python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1], encoding="utf-8")).get("version",""))' "$1" 2>/dev/null
@@ -96,8 +117,10 @@ if [ "$dry" = 1 ]; then
   fi
   if grep -qE "^## ${next}([[:space:]]|\$)" "$repo/CHANGELOG.md"; then
     echo "CHANGELOG.md:    has '## $next' section"
+  elif unreleased "$repo/CHANGELOG.md" has; then
+    echo "CHANGELOG.md:    '## Unreleased' becomes '## $next'"
   else
-    echo "CHANGELOG.md:    missing '## $next' section (add it before releasing)"
+    echo "CHANGELOG.md:    nothing under '## Unreleased' (nothing to release)"
   fi
   exit 0
 fi
@@ -107,8 +130,8 @@ dirty="$(git -C "$repo" status --porcelain | grep -vE '^[ M?][ M?] CHANGELOG\.md
 [ -z "$dirty" ] || fail "working tree has uncommitted changes (commit or stash first):
 $dirty"
 
-if ! grep -qE "^## ${next}([[:space:]]|\$)" "$repo/CHANGELOG.md"; then
-  echo "release: CHANGELOG.md has no '## $next' section yet." >&2
+if ! grep -qE "^## ${next}([[:space:]]|\$)" "$repo/CHANGELOG.md" && ! unreleased "$repo/CHANGELOG.md" has; then
+  echo "release: CHANGELOG.md has nothing under '## Unreleased', so there is nothing to release." >&2
   if [ -n "$last_tag" ]; then
     echo "Commits since $last_tag:" >&2
     git -C "$repo" log --oneline "$last_tag..HEAD" | sed 's/^/  /' >&2
@@ -119,6 +142,11 @@ fi
 if [ "$run_tests" = 1 ]; then
   echo "Running tests..."
   (cd "$repo" && bash tests/run.sh) || fail "tests failed; release aborted"
+fi
+
+# Turn '## Unreleased' into '## <next>', unless that section is already there
+if ! grep -qE "^## ${next}([[:space:]]|\$)" "$repo/CHANGELOG.md"; then
+  unreleased "$repo/CHANGELOG.md" cut "$next" || fail "failed to update CHANGELOG.md"
 fi
 
 # Update version in both manifests
