@@ -9,6 +9,8 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+## 0.9.6
+
 ### Added
 - **`shipinetics-shims`** gives you short commands for the `shipinetics-*` tools in your own terminal. Run `shipinetics-shims install` once. It writes a small shim for each tool to `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`). Each shim finds the installed plugin when it runs, from Claude Code's `installed_plugins.json` or Antigravity's plugin folder, so it keeps working after an update. `status` lists the shims, and `remove` removes them. It never changes a file that it didn't write. It doesn't make shims for tools with common names, such as `evidence` and `worksheet`.
 - **`shipinetics-config -C <folder>`** runs the command for the project in that folder, like `git -C`. So you can apply pending changes from any folder: `shipinetics-config -C ~/code/my-app apply`.
