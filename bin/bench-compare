@@ -118,7 +118,7 @@ if [ "$init" = 1 ]; then
     prop="$(sy_dir "$root")/pending/$rel"
     mkdir -p "$(dirname "$prop")"; write_results "$prop"
     echo "bench-compare: $baseline already exists, and baselines are protected. The new one is a proposal in ${prop#"$root"/}."
-    echo "Say why it should change under 'Test change requests' in your worksheet. A human applies it with: shipinetics-config apply"
+    echo "Say why it should change under 'Test change requests' in your worksheet. A human applies it. Run shipinetics-config pending and give the user its output: it says why, and it gives the exact command."
     exit 0
   fi
   [ "$force" = 1 ] || die "$baseline already exists. Pass --force to replace it."
