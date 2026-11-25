@@ -51,7 +51,7 @@ $out
 ${need:+These changed files need evidence:
 $need
 }Capture it (shipinetics:evidence): one paced recording of the flow for UI changes, with the time of each acceptance criterion (screenshots only if it can't be recorded), terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section). Write the summary by the plain-language guide: $guide.
-If these files can't change what a user sees or what the app does, a person can add their globs to $SY_DIR_NAME/no-evidence-paths (propose the change, then tell the user). Only a person can skip evidence for a code change: the no-evidence label, a 'None: <reason>' line in the PR's Evidence section, or SHIPINETICS_ALLOW_NO_EVIDENCE=1 for the session."
+If these files can't change what a user sees or what the app does, a person can add their globs to $SY_DIR_NAME/no-evidence-paths (propose the change, then give the user the output of: shipinetics-config pending). Only a person can skip evidence for a code change: the no-evidence label, a 'None: <reason>' line in the PR's Evidence section, or SHIPINETICS_ALLOW_NO_EVIDENCE=1 for the session."
 fi
 # Docs only: nothing to verify or show. Other files that need no evidence (tests, config) still need the verify.
 case "$out" in *"no evidence needed (docs only)"*) noop ;; esac

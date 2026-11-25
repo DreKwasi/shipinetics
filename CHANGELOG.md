@@ -19,6 +19,9 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - The present perfect. It stays only when it says something that the simple past can't.
   - The strength of each claim. A rewrite keeps each hedge and adds no fact.
 - **Hard rules for text that agents and programs read.** Skill text, agent prompts, tool descriptions, hook and error messages, and instructions from one agent to another follow the rules as hard rules, with one word for one action everywhere. Text for people still uses them as a baseline.
+- **`.shipinetics/no-evidence-paths`** lists the files that need no evidence. A PR that changes only these files, tests or `.shipinetics/` opens with no evidence, and CI passes it with no label. Without the file, the defaults are docs, Markdown, `.github/` and editor files. Setup writes it from `templates/no-evidence-paths`.
+- **`evidence needed`** lists the changed files on the branch that need evidence.
+- **`None: <reason>` in the Evidence section** lets a person skip evidence in CI without the label, for example a contributor who can't add labels. CI shows the reason.
 
 ### Changed
 - **Pull requests don't set the version.** A pull request adds its entries under `## Unreleased` in `CHANGELOG.md`. `scripts/release.sh` turns that section into `## X.Y.Z` and sets the version in both manifests. Before, each pull request had to choose a version. Two open pull requests then took the same number, and their CHANGELOG headings conflicted. CI runs the new `scripts/check-pr-version.sh` on each pull request: it fails when a pull request changes the version in a manifest or adds a `## X.Y.Z` heading.
@@ -32,15 +35,6 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - If the Whiteboard plugin is installed but the app doesn't answer, setup first asks the user to install the app and restart. The user can also continue with text.
   - Each question says "Recommended:" and "Not confirmed:" in words, on the board and in text, and no longer uses codes such as "(rec)".
   - shipinetics:explain also uses a Whiteboard for findings and questions, and tells the user when the Whiteboard app is missing.
-
-## Unreleased
-
-### Added
-- **`.shipinetics/no-evidence-paths`** lists the files that need no evidence. A PR that changes only these files, tests or `.shipinetics/` opens with no evidence, and CI passes it with no label. Without the file, the defaults are docs, Markdown, `.github/` and editor files. Setup writes it from `templates/no-evidence-paths`.
-- **`evidence needed`** lists the changed files on the branch that need evidence.
-- **`None: <reason>` in the Evidence section** lets a person skip evidence in CI without the label, for example a contributor who can't add labels. CI shows the reason.
-
-### Changed
 - **The PR hook and CI use the same rule.** Before, the hook let a docs-only branch open, but CI failed it until a person added the `no-evidence` label. Test-only and config-only branches needed evidence, although the evidence skill said they didn't. Branches that change only tests or config still need the complete verify.
 - **Clearer errors.** The hook and CI list the files that need evidence, and give the exact commands to skip it, also how to create the label when it's missing.
 - **Projects that use the CI template:** copy the new `evidence` job from `skills/setup/templates/github/workflows/verify.yml`. It needs `fetch-depth: 0` to compare the branch with its base.
