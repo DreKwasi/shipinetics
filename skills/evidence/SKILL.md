@@ -1,6 +1,6 @@
 ---
 name: evidence
-description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to a PR. The user decides for each task, unless the project sets evidence = required. Recordings are uploaded and linked, never committed. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
+description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to a PR. Optional: the user decides for each task. Recordings are uploaded and linked, never committed. Use when the user says yes to evidence for a task (the workflow asks when the change works), when the user asks to record or check evidence, and when reviewing a PR that has evidence.
 argument-hint: "[worksheet]"
 ---
 
@@ -17,9 +17,9 @@ Evidence shows a change working in the real, running app at the PR's code: one r
 - **Yes:** record it by this skill, and write "Evidence: the user said yes" in the worksheet's Verified section.
 - **No:** don't record it. Write "Evidence: the user said no" in Verified, and say in the PR how you verified the change: the commands you ran, what you checked in the app, and what you didn't check.
 - Ask once for each task. If the user already answered, for example in the task's request, don't ask again.
-- In an autonomous session, don't ask and don't record evidence, unless the project requires it.
+- In an autonomous session, don't ask and don't record evidence.
 
-**A project can require it on every PR** with `evidence = required` in `.shipinetics/config` (check with `shipinetics-config get evidence`). Then don't ask: record it. `.shipinetics/config` is a protected file, so only a person changes this setting. Never skip required evidence on your own: only a person adds the `no-evidence` label or writes a `None: <reason>` line.
+**Nothing requires evidence.** No hook or CI job checks for it, and a PR opens without it. Never record it unless the user said yes.
 
 **Rules for media:**
 - **A recording first.** One recording of the whole flow. Each criterion's row names the time where its result shows: `walkthrough.webm @ 0:07`. People jump to that time. Agents can't watch a video, so `evidence frames` extracts the frame at each time, and agents look at those frames.
@@ -30,46 +30,19 @@ Evidence shows a change working in the real, running app at the PR's code: one r
 
 Worksheet: `$ARGUMENTS` (default: the current one).
 
-## What's enforced
+## Who uses it
 
-With `evidence = optional` (the default), nothing. With `evidence = required`:
-
-- **`gh pr create` and `gh pr ready` are blocked** by a hook until `evidence check --branch` passes and the PR body contains the `## Evidence` section.
-- **CI fails any PR** (agent or human) that needs evidence and whose description has no `## Evidence` section that links a recording (or a fallback screenshot) or a transcript.
-
-The rest of this skill applies whenever you record evidence.
-
-## Changes that need no evidence
-
-The hook and CI use the same rule. A PR needs no evidence when every file it changes is:
-
-- in `.shipinetics/` or the evidence folder,
-- a test (a path in `.shipinetics/test-paths`),
-- or a path in `.shipinetics/no-evidence-paths`. Without that file, the defaults are `docs/*`, `*.md`, `.github/*`, `.gitignore`, `.gitattributes`, `.editorconfig`, `.vscode/*` and `LICENSE*`. The file replaces the defaults, so a project can add paths (for example `infra/*`) or remove them (for example `*.md` when Markdown pages are the product).
-
-For such a PR, the hook still needs the complete verify, unless the PR changes only docs and Markdown. CI passes it with no label. To see which files need evidence on a branch, run `evidence needed`. To check one path, run `shipinetics-config match no-evidence-paths <path>`.
-
-`no-evidence-paths` is a protected file, so an agent only proposes a change to it, and a person applies it.
-
-**A person can skip evidence for any other change** (for example a refactor that changes no behaviour, or a dependency bump):
-
-- Add the `no-evidence` label: `gh pr edit <number> --add-label no-evidence`, or **Labels** in the PR's sidebar on GitHub. Create the label once for each repo: `gh label create no-evidence`.
-- Or write `None: <reason>` in the PR's `## Evidence` section. CI accepts it and shows the reason. This works for people who can't add labels.
-- Or start the session with `SHIPINETICS_ALLOW_NO_EVIDENCE=1` to skip the hook.
-
-An agent never skips evidence by itself. It doesn't add the label, write a `None:` line or change `no-evidence-paths` without the user's yes.
 - **Reviewers look at it:** the wrap-up reviewer checks evidence against the acceptance criteria, the UI reviewer starts from the frames of the recording, and the Whiteboard shows the recording and its key frames to the human.
 
 ## What counts
 
-| Change | Required evidence |
+| Change | Evidence to record |
 |---|---|
 | UI (any path in `.shipinetics/ui-paths`) | One paced recording of the whole flow, with the time where each acceptance criterion's result shows, and a mobile-width part for the main changed screen. If it can't be recorded: a screenshot per criterion and a mobile-width one, with the reason. Never both |
 | CLI | A terminal transcript per criterion: the real command and its real output, via `evidence run` |
 | API | A transcript of real requests against the running service (curl or httpie through `evidence run`), showing status and body |
 | Background job, data change | A transcript of triggering it and of the resulting state (a query, a log line, a file) |
 | Bug fix | The same, showing the bug's reproduction steps now producing the right result. If you can, also the "before" from the base commit |
-| Only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) | None. The hook and CI pass it with no label ("Changes that need no evidence") |
 
 Evidence is real or it's nothing. The verification map's evidence standards apply (shipinetics:verification-map): the real user path, the action *and* the resulting state, changes read back from a second view, every entry point the feature lists, each artifact labeled with its feature ID and entry point. In short:
 
@@ -93,7 +66,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 7. **Check:** `evidence check`. It confirms that every criterion has a recording with its time or a terminal log, every named file exists, no recording or screenshot is in git, with a store the recordings are uploaded, there is one recording and no screenshots beside it, screenshots have a reason, UI changes have a recording, and the evidence is fresh: no code changed since the commit on the Commit line. Changes to docs, Markdown, tests, worksheets and the evidence itself don't count. Record it when the feature works (workflow step 6), so reviewers can start from it. A later docs or test commit doesn't make you record it again. If a review fix touches code, re-record the criteria it affects at wrap-up and update the Commit line. Only this branch's own changes count, so merging main doesn't make evidence stale.
 8. Commit EVIDENCE.md, `terminal.log` and the folder's `.gitignore` with the work (trailer `Worksheet: <name>`). Never commit the recording or screenshots.
 
-## Opening the PR
+## Opening the PR with evidence
 
 ```bash
 evidence pr-body > "$TMPDIR/pr-body.md"
@@ -113,7 +86,7 @@ Add a `## Merge risk` section after it with the independent grade (shipinetics:r
 gh pr create --title "<title>" --body-file "$TMPDIR/pr-body.md"
 ```
 
-Push the branch first so the `terminal.log` link resolves. If a recording isn't uploaded, the section says so: drag the file into the PR description. CI fails until the description links it. If evidence changes after review, regenerate the section and update the PR body (`gh pr edit --body-file`).
+Push the branch first so the `terminal.log` link resolves. If a recording isn't uploaded, the section says so: drag the file into the PR description. If evidence changes after review, regenerate the section and update the PR body (`gh pr edit --body-file`).
 
 ## Reviewing a PR
 

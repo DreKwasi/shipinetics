@@ -84,7 +84,6 @@ Start with one test project. Choose a project that has tests and some small task
    - about the facts that it couldn't confirm;
    - for the secret names, and which files hold secrets;
    - where recordings go: your team's store, or attached to the PR by hand;
-   - whether to create the `no-evidence` label;
    - how often to run the full security audit;
    - which optional phases you want.
 4. Setup installs each phase in the same run. It proves that each phase works, and commits it before it starts the next one:
@@ -95,7 +94,7 @@ Start with one test project. Choose a project that has tests and some small task
    | 2 | System docs with 7-line headers, the conventions, and for UI projects `DESIGN.md` from the tokens that the code uses | `head -n 7 docs/systems/*.md` reads like a map of the code, and `design-check --all` runs |
    | 3 | The worksheet template, the feedback log and `TODOS.md` | `worksheet new`, then `worksheet list` |
    | 4 | The git hooks, `bin/lint-fix` and `bin/llm-fix` | It makes four test commits and runs the pre-push hook |
-   | 5 | CI, the evidence store setting, and the `no-evidence` label if you said yes | It validates the workflow file |
+   | 5 | CI and the evidence store setting | It validates the workflow file |
    | 6 (optional) | One visual test and one benchmark | Both run in `bin/verify --full` |
    | 7 (optional) | The security tools, and `security_audit_every` | `scan-skills` runs, and you see its summary. Each DO_NOT_INSTALL result is a companion that was checked by hand (the README lists them), or a tool to remove |
 
@@ -140,7 +139,7 @@ Start with one test project. Choose a project that has tests and some small task
 
 7. **Check the guardrails yourself:**
    - Run `shipinetics-verify quick`, then `shipinetics-verify`. The quick tier must take seconds, and the complete tier a few minutes at most. Then `shipinetics-verify status` shows that both passed.
-   - Ask the agent to make a small change that breaks a test, and then to open a PR. The PR gate must refuse until `shipinetics-verify` passes. With `evidence = required`, it also refuses until the evidence is complete.
+   - Ask the agent to make a small change that breaks a test, and then to open a PR. The PR gate must refuse until `shipinetics-verify` passes.
    - Ask the agent to write a test itself. The edit guard must refuse, and tell it to use `shipinetics:test-writer`.
    - Ask the agent to run `env`. The secrets guard must refuse.
 
@@ -153,10 +152,10 @@ Tell the agent what you want, as you do now. The README's "A task, step by step"
 3. Approve the acceptance criteria. Tests are only written for what a criterion states. So when test-writer proposes a new criterion, decide whether the spec needs it.
 4. Decide the design-system change requests in the worksheet, if there are any.
 5. Review the PR as its merge-risk grade tells you:
-   - **low:** look at the evidence, read the change quickly, and merge;
+   - **low:** look at how it was verified (the evidence, if any), read the change quickly, and merge;
    - **medium:** read the Whiteboard and the files that the grade names;
    - **high:** do a full review.
-6. If the project doesn't set `evidence_upload_cmd`, drag the recording into the PR.
+6. If you asked for evidence and the project doesn't set `evidence_upload_cmd`, drag the recording into the PR.
 7. Fill in the three fields for you in the worksheet's Metrics: the corrections, your review time, and whether you accepted the work.
 
 If a message from the agent isn't clear, type `/wait-what`. The agent explains it again, more simply.
@@ -292,7 +291,7 @@ the time and cost again after it.
 | Problem | Cause and solution |
 |---|---|
 | `shipinetics-verify quick` is slow | Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows how long each tier takes. Put slow suites behind `--full` |
-| `gh pr create` is refused | The PR gate works as designed. The complete checks didn't pass on this exact code (run `shipinetics-verify`). With `evidence = required`, the evidence may also be incomplete, or the body may have no Evidence section. `evidence check --branch` shows what is missing |
+| `gh pr create` is refused | The PR gate works as designed. The complete checks didn't pass on this exact code (run `shipinetics-verify`). |
 | `evidence check` says that the code changed after the evidence | A code fix came after the recording. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests don't cause this |
 | `design-check` says that there is no design system | `DESIGN.md` is missing, or it has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
 | The agent says that it can't write a test | The edit guard works as designed. The agent must use `shipinetics:test-writer`. For a large one-time change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |

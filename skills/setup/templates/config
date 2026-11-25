@@ -16,10 +16,7 @@
 # personas_dir = docs/review/personas
 # evidence_dir = docs/evidence
 
-# ---- Evidence (shipinetics:evidence). Optional by default: for each task, the agent asks you
-# whether to record it, and nothing blocks a PR without it. "required" makes the PR gate and the CI evidence job ask for it
-# on every PR that changes code.
-# evidence = optional
+# ---- Evidence (shipinetics:evidence) is optional. An agent records it only when you ask for it.
 
 # ---- Evidence store (opt-in). Recordings never go in git. With this set, `evidence upload` runs the
 # command once per recording: $1 is the file, $2 a suggested name (<worksheet>/<file>). The command

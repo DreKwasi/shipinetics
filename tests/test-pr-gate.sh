@@ -1,8 +1,7 @@
-# The PR gate requires fresh evidence and a complete verify pass on exactly this code.
+# The PR gate requires a complete verify pass on exactly this code. It never asks for evidence.
 . "$(dirname "$0")/helpers.sh"
 t="$scratch/pr"; new_repo "$t"; cd "$t" || exit 1
 stub_verify bin/verify; mkdir -p .shipinetics; printf '.shipinetics/.cache/\n' >.gitignore
-printf 'evidence = required\n' >.shipinetics/config  # this file tests the gate with evidence required
 echo a >a.txt; git add -A; git commit -qm init; git checkout -qb feat
 mkdir -p docs/worksheets docs/evidence/w; printf '# W\n> Status: done\n- [x] AC1: works\n' >docs/worksheets/w.md
 echo b >a.txt; git add -A; git commit -qm code -m "Worksheet: w"
@@ -13,12 +12,16 @@ pr() { OUT="$(printf '{"tool_input":{"command":"gh pr create --body-file %s"},"c
 pr; has "denied before verify" "$OUT" "complete verify hasn't passed"
 shipinetics-verify >/dev/null; pr; eq "allowed after shipinetics-verify" "$OUT" ""
 echo note >>docs/worksheets/w.md; git commit -qam ws -m "Worksheet: w"; pr; eq "worksheet-only commit keeps the pass" "$OUT" ""
-echo c >a.txt; git commit -qam fix -m "Worksheet: w"; pr; has "code change makes evidence stale" "$OUT" "code changed since: a.txt"
+echo c >a.txt; git commit -qam fix -m "Worksheet: w"; pr; has "a code change needs a new verify" "$OUT" "complete verify hasn't passed"
+shipinetics-verify >/dev/null; pr; eq "and then opens, with stale evidence" "$OUT" ""
+printf 'Summary only\n' >"$scratch/body.md"; pr; eq "a body with no Evidence section opens" "$OUT" ""
+rm -rf docs/evidence; git add -A; git commit -qm "no evidence" -m "Worksheet: w"; shipinetics-verify >/dev/null; pr; eq "a branch with no evidence at all opens" "$OUT" ""
+git checkout -q -b docs-only main; echo d >README.md; git add -A; git commit -qm d; pr; eq "docs only: opens with no verify" "$OUT" ""
+git checkout -q feat
 # ---- what the gate judges: commands that would run, not the same words in text
-# A branch with code and no evidence, so a real PR command is denied.
+# A branch with code and no verify pass, so a real PR command is denied.
 g="$scratch/words"; new_repo "$g"; cd "$g" || exit 1
-mkdir -p .shipinetics; printf '.shipinetics/.cache/\n' >.gitignore
-printf 'evidence = required\n' >.shipinetics/config
+stub_verify bin/verify; mkdir -p .shipinetics; printf '.shipinetics/.cache/\n' >.gitignore
 echo a >a.txt; git add -A; git commit -qm init; git checkout -qb feat
 echo b >a.txt; git commit -qam code
 # prg <command>: run the gate on a Bash command in this repo; sets OUT

@@ -7,7 +7,7 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence evidence_dir evidence_upload_cmd personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir evidence_upload_cmd personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every"
 
 sy_default() {
   case "$1" in
@@ -19,7 +19,6 @@ sy_default() {
     test_index_file) echo "docs/testing/test-index.md" ;;
     tools_index_file) echo "docs/tools.md" ;;
     queue_file) echo "TODOS.md" ;;
-    evidence) echo "optional" ;;
     evidence_dir) echo "docs/evidence" ;;
     personas_dir) echo "docs/review/personas" ;;
     verify_cmd) echo "bin/verify" ;;
@@ -165,8 +164,8 @@ sy_in_list() {
   return 1
 }
 
-# Changes that need no evidence (shipinetics:evidence). The project's .shipinetics/no-evidence-paths
-# replaces these defaults. Keep them the same as templates/no-evidence-paths and the CI template.
+# Files whose changes don't make recorded evidence stale (evidence check): docs, Markdown, CI and
+# editor files. .shipinetics/ and tests (test-paths) don't either.
 SY_NO_EVIDENCE_DEFAULTS='docs/*
 *.md
 .github/*
@@ -176,14 +175,13 @@ SY_NO_EVIDENCE_DEFAULTS='docs/*
 .vscode/*
 LICENSE*'
 
-# sy_no_evidence <root> <path relative to root>: true if a change to this path needs no evidence.
-# That is .shipinetics/, a test file (test-paths), or a match in no-evidence-paths (else the defaults).
+# sy_no_evidence <root> <path relative to root>: true if a change to this path doesn't make recorded
+# evidence stale. That is .shipinetics/, a test file (test-paths), or a match in the defaults above.
 # Sets SY_MATCHED to the glob or the list that matched.
 sy_no_evidence() {
   local d="$1/$SY_DIR_NAME" glob
   case "$2" in "$SY_DIR_NAME"/*) SY_MATCHED="$SY_DIR_NAME/"; return 0 ;; esac
   sy_in_list "$d/test-paths" "$2" && return 0
-  if [ -f "$d/no-evidence-paths" ]; then sy_in_list "$d/no-evidence-paths" "$2"; return; fi
   SY_MATCHED=""
   while IFS= read -r glob; do
     # shellcheck disable=SC2053  # the right-hand side is meant to be a pattern
