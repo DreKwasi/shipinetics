@@ -12,6 +12,13 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 ### Added
 - **`shipinetics-shims`** gives you short commands for the `shipinetics-*` tools in your own terminal. Run `shipinetics-shims install` once. It writes a small shim for each tool to `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`). Each shim finds the installed plugin when it runs, from Claude Code's `installed_plugins.json` or Antigravity's plugin folder, so it keeps working after an update. `status` lists the shims, and `remove` removes them. It never changes a file that it didn't write. It doesn't make shims for tools with common names, such as `evidence` and `worksheet`.
 - **`shipinetics-config -C <folder>`** runs the command for the project in that folder, like `git -C`. So you can apply pending changes from any folder: `shipinetics-config -C ~/code/my-app apply`.
+- **More ASD-STE100 rules in `shipinetics:explain`** (`SKILL.md` and `plain-language.md`). The rules now also cover:
+  - Semicolons (Rule 8.1), phrasal verbs (Rule 9.3) and noun forms of verbs (Rule 3.7).
+  - One part of speech for each word.
+  - The adjectives that claim quality, such as "seamless" and "powerful".
+  - The present perfect. It stays only when it says something that the simple past can't.
+  - The strength of each claim. A rewrite keeps each hedge and adds no fact.
+- **Hard rules for text that agents and programs read.** Skill text, agent prompts, tool descriptions, hook and error messages, and instructions from one agent to another follow the rules as hard rules, with one word for one action everywhere. Text for people still uses them as a baseline.
 
 ### Changed
 - **Pull requests don't set the version.** A pull request adds its entries under `## Unreleased` in `CHANGELOG.md`. `scripts/release.sh` turns that section into `## X.Y.Z` and sets the version in both manifests. Before, each pull request had to choose a version. Two open pull requests then took the same number, and their CHANGELOG headings conflicted. CI runs the new `scripts/check-pr-version.sh` on each pull request: it fails when a pull request changes the version in a manifest or adds a `## X.Y.Z` heading.
@@ -21,17 +28,6 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - `shipinetics-config apply` shows the same reasons before the first diff.
   - The edit guard, `known-failing`, `bench-compare`, setup and the `AGENTS.md` template tell the agent to give the user the output of `shipinetics-config pending`, not only `shipinetics-config apply`.
   - GETTING-STARTED.md explains the step and why the command is long.
-
-## Unreleased
-
-### Added
-- **More ASD-STE100 rules in `shipinetics:explain`** (`SKILL.md` and `plain-language.md`). The rules now also cover:
-  - Semicolons (Rule 8.1), phrasal verbs (Rule 9.3) and noun forms of verbs (Rule 3.7).
-  - One part of speech for each word.
-  - The adjectives that claim quality, such as "seamless" and "powerful".
-  - The present perfect. It stays only when it says something that the simple past can't.
-  - The strength of each claim. A rewrite keeps each hedge and adds no fact.
-- **Hard rules for text that agents and programs read.** Skill text, agent prompts, tool descriptions, hook and error messages, and instructions from one agent to another follow the rules as hard rules, with one word for one action everywhere. Text for people still uses them as a baseline.
 
 ## 0.9.5
 
