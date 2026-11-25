@@ -6,6 +6,13 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
 
+## Unreleased
+
+### Changed
+- **The pre-push hook runs `bin/verify` itself, every time.** It no longer calls `shipinetics-verify` or reuses a recorded pass. It says that it is running, shows each check as `bin/verify` reports it, gives the total time, and says when uncommitted changes are in the checks. A push that only deletes a remote branch runs nothing.
+  - Before, the hook failed in a git worktree whose repo keeps `.shipinetics/` out of git: `shipinetics-verify` found the main checkout's `.shipinetics/` and refused the worktree as "not one of the packages". The new hook doesn't need the plugin or `.shipinetics/`.
+  - **Projects with `.githooks/pre-push` from setup:** copy the new `skills/setup/templates/pre-push` over it.
+
 ## 0.9.5
 
 ### Fixed

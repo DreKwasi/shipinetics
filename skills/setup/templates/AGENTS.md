@@ -59,7 +59,7 @@ Always run the app and use the feature you changed before you say it works. Test
 
 ### Definition of done
 
-Work is done when the project's verify command passes on the final code and the change has been reviewed (see Review below). Verify runs every fast check: typecheck, lint, unit tests, build and the e2e smoke test. Run it as `shipinetics-verify`, which records the pass so the push and PR gates don't repeat it. After each step, run `shipinetics-verify quick`, which checks only the changed files. Run the complete `shipinetics-verify` before you call the work done; a push and a PR need its pass. The full tier (`bin/verify --full` by default) runs everything, including full e2e, visual and performance checks, in CI. Never call work done with a failing check, and never edit or skip a test to get a pass.
+Work is done when the project's verify command passes on the final code and the change has been reviewed (see Review below). Verify runs every fast check: typecheck, lint, unit tests, build and the e2e smoke test. Run it as `shipinetics-verify`, which records the pass so the PR gate doesn't repeat it. After each step, run `shipinetics-verify quick`, which checks only the changed files. Run the complete `shipinetics-verify` before you call the work done. A PR needs its pass, and the pre-push hook runs `bin/verify` again on each push. The full tier (`bin/verify --full` by default) runs everything, including full e2e, visual and performance checks, in CI. Never call work done with a failing check, and never edit or skip a test to get a pass.
 
 ### Docs stay true
 

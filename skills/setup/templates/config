@@ -27,7 +27,8 @@
 # Checks run in tiers, each at the moment its result is needed. Nothing is skipped:
 #   verify_quick_cmd  shipinetics-verify quick, after each step, scoped to the changed files
 #                     ($SHIPINETICS_CHANGED_FILES)
-#   verify_cmd        the complete fast checks: before work is done, pre-push and the PR gate
+#   verify_cmd        the complete fast checks: before work is done, and the PR gate. The
+#                     pre-push hook runs bin/verify directly
 #   bin/verify --full CI
 # Leave verify_quick_cmd unset and the quick tier runs verify_cmd. Timings: shipinetics-verify times
 # verify_cmd = bin/verify

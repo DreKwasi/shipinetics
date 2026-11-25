@@ -1,15 +1,39 @@
 #!/usr/bin/env bash
-# Pre-push: the complete verify must pass before code leaves the machine.
+# Pre-push: run the project's checks (bin/verify) before code leaves the machine.
 # Install as .githooks/pre-push (git config core.hooksPath .githooks).
 #
-# With the Shipinetics plugin installed, shipinetics-verify reuses a pass already recorded for exactly
-# this code, so a push after the agent verified costs nothing. Otherwise it runs bin/verify.
-# It checks the working tree, so commit or stash anything you don't mean to push first.
+# It runs bin/verify itself, every time, and shows each check as it finishes. It doesn't need the
+# Shipinetics plugin, and it works the same in every clone and worktree.
+# bin/verify checks the files on disk, so uncommitted changes count. The hook says when there are some.
 # Skip it for one push with: git push --no-verify
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
-if command -v shipinetics-verify >/dev/null 2>&1; then
-  exec shipinetics-verify complete
+
+# Git sends one line per ref: <local ref> <local sha> <remote ref> <remote sha>.
+# Deleting a remote branch sends an all-zero local sha, and pushes no code.
+code=0
+while read -r _ local_sha _ _; do
+  case "$local_sha" in *[!0]*) code=1 ;; esac
+done
+[ "$code" = 1 ] || exit 0
+
+if [ ! -x bin/verify ]; then
+  echo "pre-push: no bin/verify in this repo, so no checks ran."
+  exit 0
 fi
-exec bin/verify
+
+echo "pre-push: running bin/verify before the push. Skip it once with: git push --no-verify"
+if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
+  echo "pre-push: you have uncommitted changes. The checks see them, but the push doesn't include them."
+fi
+start=$(date +%s)
+bin/verify
+rc=$?
+took=$(( $(date +%s) - start ))
+if [ "$rc" -ne 0 ]; then
+  echo
+  echo "pre-push: bin/verify failed after ${took}s, so the push was stopped. Fix the step marked FAILED above, then push again."
+  exit "$rc"
+fi
+echo "pre-push: bin/verify passed in ${took}s. Pushing."
