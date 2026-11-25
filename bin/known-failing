@@ -141,7 +141,7 @@ case "$cmd" in
         [ -n "$fails" ] && printf '%s\n' "$fails"; } >"$target"
       n="$(printf '%s' "$fails" | grep -c '')"
       if [ "$target" = "$list" ]; then echo "known-failing: listed $n failing tests in ${list#"$root"/}. Commit it."
-      else echo "known-failing: the list is protected, so the new one ($n tests) is a proposal in ${target#"$root"/}. A human applies it with: shipinetics-config apply"; fi
+      else echo "known-failing: the list is protected, so the new one ($n tests) is a proposal in ${target#"$root"/}. A human applies it. Run shipinetics-config pending and give the user its output: it says why, and it gives the exact command."; fi
       exit 0
     fi
     new=() known=0 fixed=()

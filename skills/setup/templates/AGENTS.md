@@ -109,5 +109,5 @@ Where there's structure or flow, or a code change, show it on a Whiteboard. In c
 
 ### Protected files
 
-Files matching `.shipinetics/protected-paths` (acceptance and e2e tests, baselines) can be created but not modified by agents. If one looks wrong, write the new version to `.shipinetics/pending/<path>`, explain why under "Test change requests" in your worksheet, and keep going. A human applies it with `shipinetics-config apply`. The guard only sees the file tools, but the rule covers Bash too: never `mv`, `cp`, `sed -i` or script your way around it.
+Files matching `.shipinetics/protected-paths` (acceptance and e2e tests, baselines) can be created but not modified by agents. If one looks wrong, write the new version to `.shipinetics/pending/<path>`, explain why under "Test change requests" in your worksheet, and keep going. A human applies it. At the end of the task, run `shipinetics-config pending` and give the user its output: it says why they must apply the change, and it gives the exact command. The guard only sees the file tools, but the rule covers Bash too: never `mv`, `cp`, `sed -i` or script your way around it.
 <!-- shipinetics:end -->

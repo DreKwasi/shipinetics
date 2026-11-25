@@ -37,7 +37,11 @@ has "major --dry-run computes 1.0.0" "$out" "Next version:    1.0.0"
 # Refuses release without CHANGELOG entry
 out="$(bash "$r/scripts/release.sh" patch 2>&1)"; rc=$?
 eq "release refuses missing CHANGELOG section" "$rc" 1
-has "release tells user to add section" "$out" "CHANGELOG.md has no '## 0.9.4' section"
+has "release says there is nothing to release" "$out" "nothing under '## Unreleased'"
+printf '# Changelog\n\n## Unreleased\n\n## 0.9.3\n\n- Initial.\n' >"$r/CHANGELOG.md"
+out="$(bash "$r/scripts/release.sh" patch 2>&1)"; rc=$?
+eq "release refuses an empty Unreleased section" "$rc" 1
+git -C "$r" checkout -q CHANGELOG.md
 
 # Refuses dirty working tree (other than CHANGELOG.md)
 echo dirty >"$r/dirty.txt"
@@ -54,6 +58,18 @@ has "release reports tag v0.9.4" "$out" "Created commit and tag v0.9.4"
 eq ".claude-plugin/plugin.json updated to 0.9.4" "$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$r/.claude-plugin/plugin.json")" "0.9.4"
 eq "plugin.json updated to 0.9.4" "$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$r/plugin.json")" "0.9.4"
 eq "git tag v0.9.4 points at HEAD" "$(git -C "$r" rev-parse v0.9.4^{commit})" "$(git -C "$r" rev-parse HEAD)"
+
+# A release turns '## Unreleased' into the version's section, and adds a new empty one
+printf '# Changelog\n\n## Unreleased\n\n### Fixed\n- A fix.\n\n## 0.9.4\n\n### Added\n- Antigravity support.\n\n## 0.9.3\n\n- Initial.\n' >"$r/CHANGELOG.md"
+git -C "$r" commit -qam "a fix"
+out="$(bash "$r/scripts/release.sh" patch --dry-run 2>&1)"
+has "dry run says Unreleased becomes the version" "$out" "'## Unreleased' becomes '## 0.9.5'"
+out="$(bash "$r/scripts/release.sh" patch 2>&1)"; rc=$?
+eq "release from Unreleased exits 0" "$rc" 0
+eq "Unreleased becomes 0.9.5, with a new empty Unreleased above it" "$(sed -n 3,8p "$r/CHANGELOG.md" | tr '\n' '|')" "## Unreleased||## 0.9.5||### Fixed|- A fix.|"
+eq "the release commit has the CHANGELOG change" "$(git -C "$r" status --porcelain)" ""
+out="$(bash "$r/scripts/release.sh" --check 2>&1)"; rc=$?
+eq "--check passes after the release" "$rc" 0
 
 # Refuses duplicate tag
 out="$(bash "$r/scripts/release.sh" 0.9.4 2>&1)"; rc=$?

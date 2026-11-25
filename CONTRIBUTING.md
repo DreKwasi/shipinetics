@@ -44,8 +44,9 @@ Run a single test file while iterating:
 
 1. Branch from `main`.
 2. Keep commits small and focused, with clear commit messages stating what changed and why.
-3. Verify all checks above pass locally.
-4. Open a pull request against `main` summarizing the change and how you verified it.
+3. Add your CHANGELOG entries under `## Unreleased`. Don't change the version in `.claude-plugin/plugin.json`, `plugin.json` or the CHANGELOG headings: `scripts/release.sh` sets the version when the maintainer releases. CI checks this with `scripts/check-pr-version.sh`.
+4. Verify all checks above pass locally.
+5. Open a pull request against `main` summarizing the change and how you verified it.
 
 ## License
 
