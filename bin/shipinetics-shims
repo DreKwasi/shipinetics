@@ -11,6 +11,9 @@
 #   shipinetics-shims status    list each shim and the plugin folder that the shims use. Exit 1 if
 #                               a shim is missing
 #   shipinetics-shims remove    remove the shims that this tool wrote
+#   shipinetics-shims auto      what the session-start hook runs: install or refresh the shims
+#                               only if the shim folder is on the PATH, and say nothing unless it
+#                               wrote a shim. Switch it off with "hooks_off = shims"
 #
 # The shim folder is ~/.local/bin, or $SHIPINETICS_SHIM_DIR. A shim finds the plugin in this order:
 #   1. $SHIPINETICS_HOME (a plugin folder or a clone)
@@ -125,8 +128,26 @@ remove_shims() {
   echo "removed $n shims from $shim_dir."
 }
 
+# auto_shims: like install, but only into a folder on the PATH, and quiet when nothing changed.
+# Prints the names of the shims it wrote, one for each line.
+auto_shims() {
+  local name target text
+  on_path "$shim_dir" || return 0
+  [ -d "$shim_dir" ] || return 0
+  text="$(shim_text)"
+  while read -r name; do
+    target="$shim_dir/$name"
+    if [ -e "$target" ]; then
+      is_ours "$target" || continue
+      [ "$(cat "$target")" = "$text" ] && continue
+    fi
+    printf '%s\n' "$text" >"$target" && chmod 755 "$target" && echo "$name"
+  done < <(tools)
+}
+
 case "${1:-}" in
   install) install_shims ;;
+  auto) auto_shims ;;
   status) status_shims ;;
   remove) remove_shims ;;
   *) sed -n '2,/^$/p' "$0" | sed -e '/^$/d' -e 's/^# \{0,1\}//'; exit 2 ;;

@@ -48,6 +48,7 @@
 # Switch hooks off for this project: edits, secrets, pr, installs, companions, usage. Without this key, the
 # user's own ~/.config/shipinetics/config applies. SHIPINETICS_HOOKS_OFF does the same for a session.
 # hooks_off = installs
+# The names are edits, secrets, pr, installs, shims, companions and usage.
 
 # ---- Companions (companions.tsv in the plugin)
 # Companions that this team does not use. The session-start notice and shipinetics-companions

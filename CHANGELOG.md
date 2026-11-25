@@ -9,6 +9,9 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Added
+- **The short commands install themselves.** A new session-start hook (`scripts/shims-auto.sh`) runs `shipinetics-shims auto`. It writes or refreshes the `shipinetics-*` shims in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your terminal can run `shipinetics-config` and the other tools by name with no manual step. It writes only when that folder exists and is on the PATH, never changes a file that `shipinetics-shims` didn't write, and tells you only when it wrote a shim. Switch it off with `hooks_off = shims`.
+
 ## 0.9.6
 
 ### Added
