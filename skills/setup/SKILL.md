@@ -193,7 +193,7 @@ The goal is one loop that works end to end: the agent runs the checks itself, a 
 1. **Find the commands.** Typecheck, lint, unit tests, e2e, how to start the app, which port, how to seed data, how to log in with a test user. Find out who runs the servers. If the user starts them (they need the user's credentials or devices, or the agent's sandbox can't run them), set `launch = user` in `.shipinetics/config`, and agree a test account for agents' writes. Run each one to confirm it works today. Note any that fail on a clean checkout: that's the first thing to tell the user.
 2. **`bin/verify`** from `templates/bin/verify`, with its three tiers. Each check runs at the moment its result is needed, and none is skipped:
    - `--quick` is what the agent runs after each step (`shipinetics-verify quick`). Scope each check to the files in `$SHIPINETICS_CHANGED_FILES` (lint the changed files, type-check incrementally, run the tests related to the changes). Keep it to seconds.
-   - The default (complete) tier is every fast check, including the build and the e2e smoke test. The agent runs it before it marks the work done, and the pre-push hook and the PR gate require its pass. Keep it to a few minutes.
+   - The default (complete) tier is every fast check, including the build and the e2e smoke test. The agent runs it before it marks the work done, the PR gate requires its pass, and the pre-push hook runs `bin/verify` on each push. Keep it to a few minutes.
    - `--full` runs everything, in CI.
 
    Fill in the step functions with the project's real commands. Steps in `parallel` run at once, so only put independent checks there. Local caches (`eslint --cache`, `tsc --incremental`, the build tool's cache) are fine, because CI runs without them. If the project's tools can't scope a check to files, run the whole check in `--quick` too, as long as it's fast. Leave anything slow (a build, e2e) to the complete tier. `chmod +x` it. Run all three tiers and record each one's time in `docs/shipinetics-setup.md`. Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`. If the suite already fails on a clean checkout and the user can't fix it now, quarantine the failures instead of skipping tests (shipinetics:testing, "A suite that already fails"): the user runs `known-failing init`, and `bin/verify` gates on `known-failing check`.
@@ -243,13 +243,13 @@ The goal is one loop that works end to end: the agent runs the checks itself, a 
 
 ## Phase 4: commit hooks (point 5)
 
-1. Copy `templates/bin/lint-fix` and `templates/bin/llm-fix` to `bin/`, `templates/pre-commit` to `.githooks/pre-commit`, `templates/commit-msg` to `.githooks/commit-msg` and `templates/pre-push` to `.githooks/pre-push`. The pre-push hook runs the complete verify, and reuses a pass the agent already recorded for the same code. Fill in the project's fixers and checkers in `bin/lint-fix`. In `.githooks/pre-commit`, add the project's generated files to `ignore`, and change the worksheets and evidence paths there if `.shipinetics/config` maps them elsewhere. Keep `max_lines` at 400 unless the user asks otherwise.
+1. Copy `templates/bin/lint-fix` and `templates/bin/llm-fix` to `bin/`, `templates/pre-commit` to `.githooks/pre-commit`, `templates/commit-msg` to `.githooks/commit-msg` and `templates/pre-push` to `.githooks/pre-push`. The pre-push hook runs `bin/verify` on every push, shows each check and its time, and stops the push if a check fails. It doesn't need the plugin. Fill in the project's fixers and checkers in `bin/lint-fix`. In `.githooks/pre-commit`, add the project's generated files to `ignore`, and change the worksheets and evidence paths there if `.shipinetics/config` maps them elsewhere. Keep `max_lines` at 400 unless the user asks otherwise.
 2. Run `git config core.hooksPath .githooks`, and add that command to the setup section of `AGENTS.md` so fresh clones get it. If the project already uses husky, lefthook or pre-commit, keep both hooks in `.githooks/` and call them from that tool's pre-commit and commit-msg stages instead (the commit-msg hook takes the message file as its argument).
 3. Check on a scratch branch, then delete it:
    - Stage a file with a fixable lint error and commit without a trailer. The commit-msg hook should refuse.
    - Commit again with `Worksheet: setup-check` as the last line. The lint error should be fixed and the commit should succeed.
    - Stage more than 400 changed lines and commit. The pre-commit hook should refuse and list the largest files.
-   - Run `.githooks/pre-push` by hand. It should report the complete verify as passed (reused if you ran `shipinetics-verify` already).
+   - Run `echo "refs/heads/x $(git rev-parse HEAD) refs/heads/x 0000000000000000000000000000000000000000" | .githooks/pre-push` by hand. It should run `bin/verify`, show each check, and end with "bin/verify passed".
 
 ## Phase 5: CI (automation)
 

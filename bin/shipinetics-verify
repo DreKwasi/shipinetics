@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # shipinetics-verify: run the project's verify command for a tier, and record the pass so the
-# pre-push hook and the PR gate don't run it again on the same code.
+# PR gate doesn't run it again on the same code. (The pre-push hook runs bin/verify itself.)
 #
 # Usage:
 #   shipinetics-verify [complete]     every fast check (verify_cmd, default bin/verify). The default

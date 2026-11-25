@@ -38,6 +38,9 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - **The PR hook and CI use the same rule.** Before, the hook let a docs-only branch open, but CI failed it until a person added the `no-evidence` label. Test-only and config-only branches needed evidence, although the evidence skill said they didn't. Branches that change only tests or config still need the complete verify.
 - **Clearer errors.** The hook and CI list the files that need evidence, and give the exact commands to skip it, also how to create the label when it's missing.
 - **Projects that use the CI template:** copy the new `evidence` job from `skills/setup/templates/github/workflows/verify.yml`. It needs `fetch-depth: 0` to compare the branch with its base.
+- **The pre-push hook runs `bin/verify` itself, every time.** It no longer calls `shipinetics-verify` or reuses a recorded pass. It says that it is running, shows each check as `bin/verify` reports it, gives the total time, and says when uncommitted changes are in the checks. A push that only deletes a remote branch runs nothing.
+  - Before, the hook failed in a git worktree whose repo keeps `.shipinetics/` out of git: `shipinetics-verify` found the main checkout's `.shipinetics/` and refused the worktree as "not one of the packages". The new hook doesn't need the plugin or `.shipinetics/`.
+  - **Projects with `.githooks/pre-push` from setup:** copy the new `skills/setup/templates/pre-push` over it.
 
 ## 0.9.5
 

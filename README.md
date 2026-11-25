@@ -31,7 +31,7 @@ These rules are enforced:
 | The agent can't show the environment, a variable with a secret-like name, a vault or a secret file | The secrets guard (`scripts/guard-secrets.sh`) | Every project | `SHIPINETICS_ALLOW_ENV_READ=1` turns off the whole guard for a session |
 | `gh pr create` and `gh pr ready` work only with complete evidence, a complete verify pass on this exact code, and an `## Evidence` section in the PR body. A branch that changes only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) needs only the verify, and docs alone need nothing | The PR gate (`scripts/guard-pr.sh`) | Set-up projects | `SHIPINETICS_ALLOW_NO_EVIDENCE=1`, or `SHIPINETICS_SKIP_VERIFY=1` for the verify part only |
 | You approve each `npx skills add`, `update` or `check`, `claude plugin install` or `update`, `claude plugin marketplace add` or `update`, and `claude mcp add` | The install gate (`scripts/guard-installs.sh`) | Every project | `SHIPINETICS_ALLOW_INSTALLS=1` for a session |
-| A push needs a complete verify pass on the working tree. The hook reuses a recorded pass when `shipinetics-verify` is on the PATH, and runs `bin/verify` when it isn't | The git `pre-push` hook | Projects with `.githooks/` from setup | `git push --no-verify` |
+| A push runs `bin/verify` and stops if it fails. The hook shows each check and the time it took, and says when uncommitted changes are in the checks | The git `pre-push` hook | Projects with `.githooks/` from setup | `git push --no-verify` |
 | A commit changes 400 lines or fewer, and its lint problems are fixed. Lockfiles, worksheets, evidence and binary files don't count. Merges, cherry-picks and reverts skip the size limit | The git `pre-commit` hook | The same | `SHIPINETICS_ALLOW_BIG_COMMIT=1` for one commit |
 | Each commit names its worksheet in a `Worksheet:` trailer | The git `commit-msg` hook | The same | `SHIPINETICS_ALLOW_NO_WORKSHEET=1` for one commit |
 | The agent can't run `git push --force`, `git push -f`, `git reset --hard`, `gh pr merge`, `npm publish` or `gcloud secrets versions access`, or read `~/.config/gcloud`, `~/.aws` or `~/.ssh`. The rules match these command forms only: for example, `git push origin main --force` isn't covered | Deny rules in `.claude/settings.json` | Projects that use the settings template | Edit the settings |
@@ -233,7 +233,7 @@ Each check runs at the first moment that its result is useful. No check is dropp
 | A commit | The size limit and lint with fixes on the staged files (`pre-commit`), then the `Worksheet:` trailer check (`commit-msg`). A lint problem that the linters can't fix goes to `bin/llm-fix`, which calls a model | The commit |
 | After each step | `shipinetics-verify quick`: the checks for the changed files | Nothing. It tells the agent early |
 | Before the agent says that the work is done | `shipinetics-verify`: all fast checks, with the build and the e2e smoke test | Nothing in code. The workflow requires it |
-| A push | The `pre-push` hook: a recorded complete pass, or a new run | The push |
+| A push | The `pre-push` hook: `bin/verify`, run every time, with each check shown | The push |
 | A PR | The PR gate: `evidence check --branch`, a recorded complete pass for exactly this code, and the Evidence section | The PR |
 | CI | `bin/verify --full`, without local caches, and the evidence check | The merge, if branch protection requires these jobs |
 
