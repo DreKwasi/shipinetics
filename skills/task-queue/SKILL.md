@@ -41,7 +41,7 @@ When you find work outside your current task (a bug, a missing test, a refactor 
   Acceptance: <runnable criteria>
   Context: found while working on <worksheet>; <file:line>
   Blocked-by: T-NNN (only if it can't start before another task is Done)
-  Touches: <the paths or areas it will change> (optional; it lets agents check the rule in "Picking a task")
+  Touches: <the paths or areas it will change> (optional. It lets agents check the rule in "Picking a task")
   Interface: <a function, type or endpoint that other tasks rely on> (optional, for split tasks)
 ```
 

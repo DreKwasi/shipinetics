@@ -87,7 +87,7 @@ from `shipinetics-usage session` (add up the sessions of the task). The human ca
 | Session span (first to last message) | |
 | Merge risk (low, medium, high) | |
 | Review rounds | |
-| Findings: fixed / disagreed / deferred | |
+| Findings: fixed / disagreed / deferred / spec updated | |
 | Suspected bugs found by test-writer | |
 | Corrections needed after human review | |
 | Human review minutes | |

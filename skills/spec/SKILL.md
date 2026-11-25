@@ -73,7 +73,7 @@ IDs are stable: never renumber. A new criterion takes the next free number. A re
 <A few lines: which systems change and how. Enough for a plan review, not a design doc.>
 
 ## Risks and edge cases
-<Go through this list and keep what applies: data migration; permissions, and who is refused; concurrency, a second instance or tab, a double submit; empty, loading, error and cancelled states; timeouts and offline; stale data; keyboard, focus and accessibility; the features next to this one that share its data or its screen; performance. If the change adds or changes a state or a transition: which transitions are now valid, and what a retry or a second request at the same time does. Each rule that must hold is an acceptance criterion above, or it gets no test.>
+<Check each item in this list, and keep the ones that apply. Data migration. Permissions, and who is refused. Concurrency: a second instance or tab, a double submit. Empty, loading, error and cancelled states. Timeouts and offline. Stale data. Keyboard, focus and accessibility. The features next to this one that share its data or its screen. Performance. If the change adds or changes a state or a transition: which transitions are now valid, and what a retry or a second request at the same time does. Each rule that must hold is an acceptance criterion above, or it gets no test.>
 
 ## Open questions
 <Decisions made without the human, so they can overrule them.>

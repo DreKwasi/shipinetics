@@ -4,27 +4,28 @@
 
 A PR description gives the reviewer what the diff can't. The diff shows what changed. The description says why it changed, what it affects, which decisions you made, and where you want attention. When a rule here conflicts with what a reviewer needs, do what the reviewer needs.
 
-`evidence pr-body` writes the `## Evidence` section (shipinetics:evidence). The review adds `## Merge risk` (shipinetics:review). This guide covers the rest: the summary, the repo's template, and the review guide.
+`evidence pr-body` writes the `## Evidence` section (shipinetics:evidence). The review adds `## Merge risk` (shipinetics:review). This file covers the rest: the summary, the repo's template, and the review guide.
 
 ## 1. Collect the facts
 
-- **The worksheet first.** Its Decisions, Claims, Reviews and Open questions sections hold most of what the reviewer needs. The Log is history: don't copy it (see "Narrating the branch's history" below).
+- **The worksheet first.** Its Decisions, Claims, Verified, Reviews and Blockers sections, and the spec's Open questions, hold most of what the reviewer needs. Verified says what you did not verify. The Log is history: don't copy it (see "Narrating the branch's history" below).
 - **Commit bodies next:** `git log <base>..HEAD`. They carry the why.
 - **Check each claim that you carry over.** A commit message that says "matches the pattern in this file" makes a claim about code, and it is often wrong. Check it by looking, not by reasoning:
   - Read what the change deletes. For a fix, the defect is usually in the removed code.
   - Ask the system what a thing means: the role's permissions, the API schema, the parser.
   - Grep a flag in the environment and config files before you say that it is on or off.
-  - Open the file that a comment points to, and confirm that it says what the comment claims.
+  - Open the file that a comment points to, and check that it says what the comment claims.
 
 ## 2. Follow the repo's PR template
 
-Look for a template each time: `.github/pull_request_template.md`, `.github/PULL_REQUEST_TEMPLATE/*.md` (pick the one that matches the change), `docs/pull_request_template.md`, or `pull_request_template.md` at the root. **The template's own instructions win over this guide.**
+Find the repo's template each time: `find . .github docs -maxdepth 2 -iname 'pull_request_template*'`. A `PULL_REQUEST_TEMPLATE/` folder holds several templates: use the one that matches the change. **The template's own instructions win over this file.**
 
 - Keep its headings, their words and their order. Reviewers and tools look for them.
 - Answer each section in your own words. Don't copy the template's questions, links or examples.
 - If a section doesn't apply, say so in a clause that shows you considered it: "No new tables." Don't delete it or leave it empty.
 - Tick a box only when its statement is true. Otherwise leave it empty, with a short reason on the same line.
 - Keep machine-read content: changelog markers, issue keys (`Fixes #12`), media markers. Check that a marker isn't inside an HTML comment that the parser removes.
+- Put the opening paragraph (section 3) in the template's first section, whatever its name. Don't put text above the template's first heading.
 - Put `## Evidence` and `## Merge risk` after the template's sections, with those exact headings: CI and the PR gate look for `## Evidence`. If the template has a testing section, write one line there that points to the Evidence section.
 
 With no template, use this order. On a small change, drop each heading that would hold one line:
@@ -73,7 +74,13 @@ Add one if one of these is true:
 
 > `billing/invoice.go` treats a zero-amount line as a deletion, not a no-op, so the line disappears from the invoice. I think this is correct, because the upstream system sends zero only for removed items. Please check this.
 
-Good focus areas: where you aren't sure; a value or name that looks wrong (say whether it is deliberate, and ask); what a security change now permits, and who is now inside the boundary; a decision where a reasonable engineer could choose the other way; a change that is expensive to reverse when you aren't sure of it.
+Good focus areas:
+
+- where you aren't sure,
+- a value or a name that looks wrong. Say whether it is deliberate, and ask,
+- what a security change now permits, and who is now inside the boundary,
+- a decision where a reasonable engineer could choose the other way,
+- a change that is expensive to reverse, when you aren't sure of it.
 
 **Reading order,** only for about ten or more files that aren't generated. Order by dependency: the new contract or mechanism, then its first real user, then the wiring, then the mechanical rest. Give one clause of reason for each step. Use three to six steps. Name what the reviewer can skim, and why: "`types.gen.go` is generated from `openapi.yaml`. Review the YAML."
 
@@ -88,7 +95,7 @@ Find the decision that each paragraph helps the reviewer make. If you can't name
 - A list of the tests you added. Say what isn't covered.
 - How a standard tool works. Explain this change, not the reviewer's tools.
 - A fact that you state twice.
-- Sentences that point to another part of the description, or that talk about the description.
+- Sentences that point to another part of the description, or that talk about the description. Exception: the one line in the template's testing section that points to the Evidence section (section 2).
 - Commit trailers.
 
 Approximate length: a test, config or mechanical change with no behaviour change needs a short paragraph. A focused fix or feature needs about 400 to 500 words. A new mechanism needs fewer than 1,000. These are guides, not limits. Never cut a decision, a rejected alternative, an open question or the blast radius to fit one.

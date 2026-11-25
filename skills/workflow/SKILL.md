@@ -96,7 +96,7 @@ You run verify yourself. No hook runs it when you stop.
 
 ## 8. Review
 
-Implementation review is required for every task above XS (shipinetics:review impl). That includes the security reviewer when the change touches anything security-relevant and the UI reviewer when it touches UI. Respond to every finding in the worksheet: fixed, disagree with a reason, or deferred to the queue.
+Implementation review is required for every task above XS (shipinetics:review impl). That includes the security reviewer when the change touches anything security-relevant and the UI reviewer when it touches UI. Respond to every finding in the worksheet: fixed, disagree with a reason, deferred to the queue, or spec updated (shipinetics:review).
 
 For UI changes, run `design-check` yourself before review and fix what it finds. A value outside DESIGN.md either becomes the documented token, or, if the design really needs something new, goes in the worksheet's "Design-system change requests" for a human to approve. Don't add tokens or edit DESIGN.md to make a finding go away.
 
@@ -111,9 +111,16 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 
 ## 10. Wrap up
 
-1. If review fixes changed code since the evidence was recorded, re-record the affected criteria now (`evidence check` says which). If the code differs from the spec on purpose, update the spec in this branch so it describes what ships: keep the criterion IDs, strike through the removed ones, and get a human yes for a change to product behaviour. Then set its Status to done. Then the wrap-up review for S and up (shipinetics:review wrapup).
+1. If review fixes changed code since the evidence was recorded, re-record the affected criteria now (`evidence check` says which).
+   If the code differs from the spec on purpose, the spec must describe what ships:
+   - Get the human's yes for the change to the spec.
+   - Update the spec in this branch. Keep the criterion IDs, and strike through the removed ones.
+   - Send test-writer a `change` request for the tests of the changed criteria. A protected test goes through `.shipinetics/pending/`.
+   - Set the spec's Status to done.
+
+   Then run the wrap-up review for S and up (shipinetics:review wrapup).
 2. Commit what's left: evidence, docs, the worksheet. The first line of the message says what changed, and the body says why. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Add the trailer line `Worksheet: <name>`.
-3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section, by the PR description guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`). Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
+3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section, by the PR description guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`). Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the plain-language guide, and check these four points:
    - Each sentence names its actor.
    - Each verb is the specific verb, not "handles" or "supports".
    - The summary states results, not intent.
@@ -129,10 +136,19 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 
 **Review comments on your PR.**
 
-1. Get the threads: `gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate` for comments on lines, and `gh pr view <n> --comments` for the others. Skip comments from bots, and threads that are resolved or already answered. If you aren't sure, keep the comment.
-2. Write one row for each comment in the worksheet's Reviews table, with the same responses as an agent's finding (shipinetics:review): fixed, disagree, deferred or spec updated. Merge comments that have the same cause.
-3. Make the fixes. A comment that asks for a test change goes to test-writer (step 5). Then run `shipinetics-verify`, and re-record the evidence that `evidence check` names.
-4. Push. Then show the user the replies that you want to post, and post them only after the user says yes. Start each reply with "Agent:", and link the fix commit. Pass the reply text in a file (`--body-file`, or `gh api ... --input`), never in the command line.
+1. Get the threads, with whether each one is resolved:
+
+   ```bash
+   gh api graphql -F owner=<owner> -F repo=<repo> -F n=<n> -f query='query($owner:String!,$repo:String!,$n:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved path line comments(first:50){nodes{databaseId author{login} body}}}}}}}'
+   ```
+
+   `gh pr view <n> --comments` shows the comments that are not on a line. Skip comments from bots, resolved threads, and threads where the last comment is your answer. If you aren't sure, keep the comment.
+2. Set the worksheet's Status back to in progress. Add one row to its Reviews table: Stage `PR comments`, Reviewer the people who commented, and in the last column each comment with its response (shipinetics:review): fixed, disagree, deferred or spec updated. If two comments have the same cause, give them one response.
+3. Make the fixes. A comment that asks for a test change goes to test-writer (step 5). Then run `shipinetics-verify`, and re-record the evidence that `evidence check` names. Regenerate the Evidence section (`evidence pr-body`), and update the PR body with `gh pr edit <n> --body-file`, because CI reads the body.
+4. Push. Then show the user the replies that you want to post, and post them only after the user says yes. Start each reply with "Agent:", and link the fix commit. Write each reply to a file, never in the command line:
+   - A reply in a line's thread: `gh api repos/<owner>/<repo>/pulls/<n>/comments/<databaseId>/replies -F body=@"$TMPDIR/reply.md"`.
+   - An answer to a comment that is not on a line: `gh pr comment <n> --body-file "$TMPDIR/reply.md"`.
+5. Mark the worksheet done again, and run `worksheet tag` (step 10).
 
 **CI failed.**
 
@@ -141,7 +157,13 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 3. A failed evidence job means that evidence is missing, not that code is wrong (shipinetics:evidence). Never add the `no-evidence` label yourself.
 4. A test that fails only sometimes follows the flaky-test rules in shipinetics:testing.
 
-**Merge conflicts.** Resolve one file at a time, and check that no conflict markers remain (`git diff --check`). A conflict in a file in `.shipinetics/test-paths` goes to test-writer. A conflict in a protected file needs a person: write the merged text you propose to `.shipinetics/pending/<path>`, and ask the user to resolve that file. Don't use `git checkout --ours` or `--theirs`, or a Bash edit, on test files or protected files: that gets around the edit guard. After the merge, run `shipinetics-verify` again.
+**Merge conflicts.**
+
+1. Resolve one file at a time. Before you commit the merge, run `git diff --cached --check`. It finds conflict markers that remain in staged files. (`git diff --check` without `--cached` doesn't see staged files.)
+2. A conflict in a file in `.shipinetics/test-paths`: send test-writer a `change` request with the conflicted paths. Say that a merge is in progress, and name both sides (`HEAD` and `MERGE_HEAD`). Stage its result yourself.
+3. A conflict in a protected file needs a person. Write the merged text that you propose to `.shipinetics/pending/<path>`, and ask the user to resolve that file.
+4. Don't use `git checkout --ours` or `--theirs`, or a Bash edit, on test files or protected files. That gets around the edit guard.
+5. After the merge, run `shipinetics-verify` again.
 
 ## Choose a route
 

@@ -87,7 +87,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 evidence pr-body > "$TMPDIR/pr-body.md"
 ```
 
-Put your summary above the generated `## Evidence` section in that file. Write it by the PR description guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`): the repo's PR template if it has one, what changed and why, the decisions with the alternatives that lost, what you did not verify, and a review guide when the change needs one. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). The PR title follows the same guide, and says what changed. In particular:
+Put your summary above the generated `## Evidence` section in that file. Write it by the PR description rules in `${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`: they cover the repo's PR template, the review guide, the decisions and what you did not verify. Write its sentences by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). The PR title follows the same guide, and says what changed. In particular:
 
 - Name each actor.
 - Use the specific verb.

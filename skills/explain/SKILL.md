@@ -131,7 +131,7 @@ A single self-contained `.html` file: inline CSS and JS, no external requests, n
 - Draw diagrams with inline SVG, or an inline Mermaid render if you embed the library source. Don't link a CDN.
 - Link to code with line numbers. If the page leaves this machine, link to the commit on the remote (`<repo URL>/blob/<sha>/<path>#L10-L25`), because a relative path breaks when someone else opens the page. Use real data from the repo, not placeholders.
 - End the page with where it came from: the date, the commit, and the sources it uses. Mark what you verified apart from what you inferred.
-- Before you give the user the path, check the file: it parses as HTML, it has no external URL in a `src` or `href` that loads content, and no placeholder is left.
+- Before you give the user the path, check the file. `grep -nE '(src|<link[^>]*href)="https?:' <file>` finds content loaded from outside, and must find nothing (links in `<a href>` are fine). `grep -nE '\{\{|TODO|lorem' <file>` finds placeholders, and must find nothing too.
 - For a big page, give the build to a subagent with a short brief: pointers to the files and findings, not their contents. This keeps your own context small.
 - Make it look good. If the `impeccable` skill is installed, use it for the visual design.
 - Tell the user the path. You can't open it for them inside the sandbox, so give them the command: `open <path>`.

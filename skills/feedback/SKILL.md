@@ -27,7 +27,7 @@ Be specific and actionable. Name files, commands and minutes lost. Write the ent
 
 Include instruction problems too: rules that contradicted each other, rules that didn't fit the situation, steps you skipped and why. If nothing slowed you down, write one line saying so. That's useful signal too.
 
-- Write what got you unstuck on the Workaround line. It is often the fix: a command for `bin/`, a missing doc line.
+- Add a `- Workaround:` line to the entry: what got you unstuck. It is often the fix: a command for `bin/`, a missing doc line.
 - One root cause for each bullet. If three symptoms came from one cause, write the cause once.
 - A bug in the project's own code is not feedback. Add it to the task queue (shipinetics:task-queue).
 
@@ -46,10 +46,10 @@ Run this with the user every week or two, or when the backlog gets long.
    5. An `AGENTS.md` routing line (it points)
    Keep a proposed fix only if it passes three tests: it's **durable** (it will still matter next month, not just for one task), the problem happened while the relevant skill or doc was **actually in use** (a fix to a skill nobody loaded won't help), and it's **not already covered** somewhere else. Also ask what would have let the agent do this without asking or guessing: a missing script or a missing doc line is often the real fix. For a new lint rule or hook, prove it fails on a real past mistake from git history before you add it, and say which commit.
    Don't propose a change to a skill or a doc when:
-   - the rule was already there and the agent didn't follow it. Find out why first: a skill that didn't load usually has a description that doesn't match the task;
-   - it happened once and looks like chance;
-   - the change only says the same rule again, or adds a hedge;
-   - the real fix is in code, a script or the environment.
+   - The rule was already there and the agent didn't follow it. Learn the cause first. A skill that didn't load usually has a description that doesn't match the task.
+   - It happened once and looks like chance.
+   - The change only says the same rule again, or adds a hedge.
+   - The real fix is in code, a script or the environment.
 
    When you change a skill, replace the text that failed. Don't add a paragraph next to it. State the rule and the file that owns it in one sentence, then make the smallest change. An ingest that proposes no change is a good result when nothing passes these tests.
 5. Show the user the ranked list as a table: cluster, how often, minutes lost, proposed fix and file. Write it in ASD-STE100. When one root cause makes several clusters, or one fix closes several clusters, show the clusters and their fixes on a Whiteboard. Without Whiteboard, use a Mermaid flowchart from the clusters to the fixes. Apply the fixes that the user approves. Changes to the plugin itself (skills, reviewer, hooks) go in the plugin repo, not the project: note them as a list the user can take there.

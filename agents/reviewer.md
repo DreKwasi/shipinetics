@@ -51,7 +51,7 @@ For **plans**, check the acceptance criteria are runnable and the plan meets the
 - The message states intent as a result.
 - The message uses a word that adds nothing and carries no weight.
 
-Check that each fix is still there. For each row marked **fixed** in the worksheet's Reviews table, and each PR review comment that the author answered with "fixed", find the fix in the code at HEAD. A fix that a later commit removed or undid is a major finding.
+Check that each fix is still there. For each finding answered **fixed** in the worksheet's Reviews section, and each PR review comment that the author answered with "fixed", find the fix in the code at HEAD. A fix that a later commit removed or undid is a major finding.
 
 Then check the evidence: run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, run `evidence frames` and look at each frame with the Read tool (a recording can't be watched, so each criterion's row gives the time where its result shows, and the frame at that time is what you check). Fallback screenshots you open directly. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Missing, stale or unconvincing evidence is a major finding.
 

@@ -9,6 +9,25 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Added
+- **A PR description guide,** `skills/explain/pr-description.md`, adapted from Warp's `write-pr-description` (MIT, see NOTICE). It covers the repo's PR template, decisions with the alternative that lost, what you did not verify, a review guide when the blast radius is wide, and a pass that cuts what the reviewer doesn't need. Evidence, workflow and explain point to it.
+- **Workflow step 11, "After the PR opens":** review comments on your own PR (a row for each comment, fixes through test-writer and verify, replies posted only after a yes), CI failures (read the failed log, reproduce, never add `no-evidence` yourself), and merge conflicts (test files go to test-writer, protected files to a person).
+- **`tests/test-skills.sh`** checks the plugin's own skills and agents: names, descriptions and size, and that each `${CLAUDE_PLUGIN_ROOT}`/`${CLAUDE_SKILL_DIR}` path and each relative `.md` link in their Markdown files exists. CONTRIBUTING.md has the rules.
+
+### Changed
+- **Specs** have a Design line for UI tasks, a fuller edge-case list (loading, cancelled, offline, a second instance, accessibility, the features next to this one), and two more kinds of criteria: who is refused, and what must not change.
+- **Reviews:** the reviewer checks migration and rollout steps that the spec names, and that each fix marked "fixed" is still in the code at HEAD. Two reviewers who disagree on a blocking finding get one cross-critique round. A new response, **spec updated**, says when to change the spec and when to fix the code.
+- **Bug fixes** record the version in the report and the one tested, try the exact steps and then at most two changes, record whether the bug reproduced, and stop when it didn't.
+- **Wrap-up** updates the spec when the code differs from it on purpose.
+- **Feedback** entries have a Workaround line, and project bugs go to the task queue. The ingest has a bar before it changes a skill or a doc, and replaces the text that failed instead of adding to it.
+- **pr-review** reads the review threads that are already on the PR, and checks each line comment against the diff before it posts.
+- **The task queue** has optional `Touches:` and `Interface:` lines, and a split L task keeps its end-to-end criteria as the last slice.
+- **Evidence** has a row for performance changes: a `bench-compare` transcript.
+- **Explain HTML pages** link to the commit when the page is shared, end with where the content came from, are checked before you hand them over, and big ones are built by a subagent.
+
+### Fixed
+- **Credit for `skills/explain/plain-language.md`.** It started from Warp's `plain-language.md` but didn't credit it. The file and NOTICE now carry Warp's MIT notice.
+
 ## 0.9.6
 
 ### Added

@@ -27,10 +27,11 @@ PRs: `$ARGUMENTS`.
 1. **Fetch the PRs.** For each PR run:
    - `gh pr view <n> --repo <owner/repo> --json title,body,baseRefName,headRefName,headRefOid,files,additions,deletions`
    - `gh pr diff <n> --repo <owner/repo> > "$TMPDIR/pr-review/<name>.diff"`
-   - `gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate` and `gh pr view <n> --repo <owner/repo> --comments`, for the review threads that are already there. Give them to the reviewer, so it marks a finding that someone already raised as "already raised" and doesn't count it again.
+   - `gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate > "$TMPDIR/pr-review/<name>-comments.json"` and `gh pr view <n> --repo <owner/repo> --comments > "$TMPDIR/pr-review/<name>-comments.txt"`, for the review comments that are already there.
 
    Read the PR description for the intent, the acceptance criteria and the known exceptions, and the ticket it links, if you can read it. If the user links paired PRs, read the "depends on" lines to find the order.
 2. **Start the review in the background.** Spawn `shipinetics:reviewer` now, so that it runs while you write the explanation. Give it:
+   - the saved comment files, so that it marks a finding that someone already raised as "already raised",
    - the stage (`impl`),
    - the diff paths and the repo names,
    - the intent and the acceptance criteria from the PR text,

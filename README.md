@@ -294,7 +294,7 @@ Recordings never go in git. If the project sets `evidence_upload_cmd`, `evidence
 - **Merge risk.** Before a PR opens, an independent reviewer grades it low, medium or high with Warp's `merge-risk` skill, and names the files that cause the grade. Nothing merges by itself.
 - **Your view.** For M tasks and larger, the agent makes a Whiteboard of the change, with the merge-risk grade and the review results at the top. Without Whiteboard, it makes an HTML page.
 
-The agent answers each finding in the worksheet: fixed, disagree (with a reason), or deferred (with a task in the queue).
+The agent answers each finding in the worksheet: fixed, disagree (with a reason), deferred (with a task in the queue), or spec updated (with your yes).
 
 **Design system.** `design-check` and the UI reviewer compare UI changes with `DESIGN.md`. An agent never adds a token to make a finding go away. It writes a design-system change request in the worksheet, and you decide.
 
