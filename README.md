@@ -7,11 +7,11 @@ In a project that Shipinetics has set up, a task goes like this:
 1. The agent writes acceptance criteria, and you approve them.
 2. The agent writes the code and commits it.
 3. A second agent, `shipinetics:test-writer`, writes the tests from the criteria. It works in its own context, and it doesn't trust the code.
-4. The agent starts the real app, uses the feature, and records evidence: a video of the flow, or the output of the commands.
+4. The agent starts the real app and uses the feature. If you ask, or the project requires it, it also records evidence: a video of the flow, or the output of the commands.
 5. Read-only reviewers check the change, each one in its own context.
-6. The agent opens a PR. The PR body holds the evidence and a merge-risk grade: low, medium or high.
+6. The agent opens a PR. The PR body says how the change was verified, with the evidence if there is any, and a merge-risk grade: low, medium or high.
 
-Hooks stop a PR when the checks didn't pass on that exact code, or when the evidence is missing. Other hooks stop the agent when it writes its own tests, reads a secret, or installs a skill, plugin or MCP server without your yes.
+Hooks stop a PR when the checks didn't pass on that exact code (and, if the project requires evidence, when the evidence is missing). Other hooks stop the agent when it writes its own tests, reads a secret, or installs a skill, plugin or MCP server without your yes.
 
 [GETTING-STARTED.md](GETTING-STARTED.md) gives the steps to start, one by one.
 
@@ -29,13 +29,13 @@ These rules are enforced:
 | Only test-writer creates or edits test files. The guard knows test-writer by its agent type: any agent type that ends in `test-writer` counts, `shipinetics:test-writer` included. Test-writer can edit only test files and the testing docs | The edit guard (`scripts/guard-edits.sh`) | Set-up projects | `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` turns off both parts for a session |
 | An agent can create a protected file, but it can't change one. You apply each change | The edit guard, and `shipinetics-config apply` | Set-up projects | `SHIPINETICS_UNLOCK=1` for a session |
 | The agent can't show the environment, a variable with a secret-like name, a vault or a secret file | The secrets guard (`scripts/guard-secrets.sh`) | Every project | `SHIPINETICS_ALLOW_ENV_READ=1` turns off the whole guard for a session |
-| `gh pr create` and `gh pr ready` work only with complete evidence, a complete verify pass on this exact code, and an `## Evidence` section in the PR body. A branch that changes only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) needs only the verify, and docs alone need nothing | The PR gate (`scripts/guard-pr.sh`) | Set-up projects | `SHIPINETICS_ALLOW_NO_EVIDENCE=1`, or `SHIPINETICS_SKIP_VERIFY=1` for the verify part only |
+| `gh pr create` and `gh pr ready` work only with a complete verify pass on this exact code. With `evidence = required`, they also need complete evidence and an `## Evidence` section in the PR body. A branch that changes only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) needs only the verify, and docs alone need nothing | The PR gate (`scripts/guard-pr.sh`) | Set-up projects | `SHIPINETICS_ALLOW_NO_EVIDENCE=1`, or `SHIPINETICS_SKIP_VERIFY=1` for the verify part only |
 | You approve each `npx skills add`, `update` or `check`, `claude plugin install` or `update`, `claude plugin marketplace add` or `update`, and `claude mcp add` | The install gate (`scripts/guard-installs.sh`) | Every project | `SHIPINETICS_ALLOW_INSTALLS=1` for a session |
 | A push runs `bin/verify` and stops if it fails. The hook shows each check and the time it took, and says when uncommitted changes are in the checks | The git `pre-push` hook | Projects with `.githooks/` from setup | `git push --no-verify` |
 | A commit changes 400 lines or fewer, and its lint problems are fixed. Lockfiles, worksheets, evidence and binary files don't count. Merges, cherry-picks and reverts skip the size limit | The git `pre-commit` hook | The same | `SHIPINETICS_ALLOW_BIG_COMMIT=1` for one commit |
 | Each commit names its worksheet in a `Worksheet:` trailer | The git `commit-msg` hook | The same | `SHIPINETICS_ALLOW_NO_WORKSHEET=1` for one commit |
 | The agent can't run `git push --force`, `git push -f`, `git reset --hard`, `gh pr merge`, `npm publish` or `gcloud secrets versions access`, or read `~/.config/gcloud`, `~/.aws` or `~/.ssh`. The rules match these command forms only: for example, `git push origin main --force` isn't covered | Deny rules in `.claude/settings.json` | Projects that use the settings template | Edit the settings |
-| A PR passes `bin/verify --full`, and its Evidence section links a recording (`Video: <url>`), a screenshot (`Screenshot: <url>`), a GitHub attachment or `terminal.log`. CI blocks the merge only if branch protection requires these jobs | CI (`.github/workflows/verify.yml`) | Projects that use the CI template | None needed when every changed file needs no evidence (the same rule as the PR gate). For other changes, a person adds the `no-evidence` label or writes `None: <reason>` in the Evidence section |
+| A PR passes `bin/verify --full`. With `evidence = required`, its Evidence section also links a recording (`Video: <url>`), a screenshot (`Screenshot: <url>`), a GitHub attachment or `terminal.log`. CI blocks the merge only if branch protection requires these jobs | CI (`.github/workflows/verify.yml`) | Projects that use the CI template | None needed when every changed file needs no evidence (the same rule as the PR gate). For other changes, a person adds the `no-evidence` label or writes `None: <reason>` in the Evidence section |
 
 Two more hooks only inform you:
 
@@ -234,8 +234,8 @@ Each check runs at the first moment that its result is useful. No check is dropp
 | After each step | `shipinetics-verify quick`: the checks for the changed files | Nothing. It tells the agent early |
 | Before the agent says that the work is done | `shipinetics-verify`: all fast checks, with the build and the e2e smoke test | Nothing in code. The workflow requires it |
 | A push | The `pre-push` hook: `bin/verify`, run every time, with each check shown | The push |
-| A PR | The PR gate: `evidence check --branch`, a recorded complete pass for exactly this code, and the Evidence section | The PR |
-| CI | `bin/verify --full`, without local caches, and the evidence check | The merge, if branch protection requires these jobs |
+| A PR | The PR gate: a recorded complete pass for exactly this code. With `evidence = required`, also `evidence check --branch` and the Evidence section | The PR |
+| CI | `bin/verify --full`, without local caches, and the evidence check (it passes unless `evidence = required`) | The merge, if branch protection requires these jobs |
 
 `shipinetics-verify` records each pass against a hash of the code's contents, not against the commit. So a commit of checked code doesn't run the checks again. Changes to worksheets, evidence and the feedback log don't either. In a project without a quick tier (`verify_quick_cmd`), `quick` runs the complete tier. `shipinetics-verify` gives the verify command two variables: `SHIPINETICS_CHANGED_FILES`, the path of a file that lists the changed paths, one on each line, and `SHIPINETICS_VERIFY_TIER`, the tier.
 
@@ -276,7 +276,7 @@ For an app that has few tests, `/shipinetics:test-backfill` adds them in batches
 
 ## Evidence
 
-Each PR shows the change working in the real app:
+Evidence is optional. The agent records it when you ask, or on every PR when `.shipinetics/config` sets `evidence = required`. Then the PR gate and the CI evidence job ask for it. Evidence shows the change working in the real app:
 
 - **A UI change** gets one recording of the whole flow, at a pace that a person can follow. Each acceptance criterion's row in `EVIDENCE.md` names the time where its result shows. Screenshots are only for a change that can't be recorded, and never beside a recording.
 - **A CLI or an API** gets terminal transcripts, recorded with `evidence run`.
@@ -478,6 +478,7 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 | The path keys: `worksheets_dir`, `feedback_file`, `systems_dir`, `conventions_file`, `testing_guide_file`, `test_index_file`, `tools_index_file`, `queue_file`, `personas_dir`, `evidence_dir` | `shipinetics-config` prints each default | Where the project keeps each kind of file. Use them to map Shipinetics onto a project with its own layout |
 | `verify_cmd` | `bin/verify` | The complete checks |
 | `verify_quick_cmd` | None | The checks for the changed files. Without it, the quick tier runs the complete checks |
+| `evidence` | `optional` | `required` makes the PR gate and the CI evidence job ask for evidence on every PR that changes code. With `optional`, the agent records evidence only when you ask |
 | `evidence_upload_cmd` | None | A command that uploads a recording to the team's store and prints a link. Setting it is the team's yes to upload evidence there |
 | `launch` | `agent` | `user` when you start the dev servers yourself. Then agents don't start, restart or stop the servers. They run the doctor check before they use the app. They don't seed or reset data, they write only as the test account, and they remove what they create |
 | `hooks_off` | None | The hooks that are off for this project |

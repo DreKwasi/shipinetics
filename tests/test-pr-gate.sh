@@ -2,6 +2,7 @@
 . "$(dirname "$0")/helpers.sh"
 t="$scratch/pr"; new_repo "$t"; cd "$t" || exit 1
 stub_verify bin/verify; mkdir -p .shipinetics; printf '.shipinetics/.cache/\n' >.gitignore
+printf 'evidence = required\n' >.shipinetics/config  # this file tests the gate with evidence required
 echo a >a.txt; git add -A; git commit -qm init; git checkout -qb feat
 mkdir -p docs/worksheets docs/evidence/w; printf '# W\n> Status: done\n- [x] AC1: works\n' >docs/worksheets/w.md
 echo b >a.txt; git add -A; git commit -qm code -m "Worksheet: w"
@@ -17,6 +18,7 @@ echo c >a.txt; git commit -qam fix -m "Worksheet: w"; pr; has "code change makes
 # A branch with code and no evidence, so a real PR command is denied.
 g="$scratch/words"; new_repo "$g"; cd "$g" || exit 1
 mkdir -p .shipinetics; printf '.shipinetics/.cache/\n' >.gitignore
+printf 'evidence = required\n' >.shipinetics/config
 echo a >a.txt; git add -A; git commit -qm init; git checkout -qb feat
 echo b >a.txt; git commit -qam code
 # prg <command>: run the gate on a Bash command in this repo; sets OUT

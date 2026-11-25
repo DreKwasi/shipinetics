@@ -2,6 +2,7 @@
 . "$(dirname "$0")/helpers.sh"
 t="$scratch/ne"; new_repo "$t"; cd "$t" || exit 1
 mkdir -p .shipinetics src tests docs; printf 'tests/*\n' >.shipinetics/test-paths
+printf 'evidence = required\n' >.shipinetics/config  # the rules below apply when evidence is required
 printf '.shipinetics/.cache/\n' >.gitignore
 echo a >src/a.js; echo d >docs/x.txt; git add -A; git commit -qm init; git checkout -qb feat
 base="$(git rev-parse HEAD)"
@@ -71,4 +72,16 @@ ci "$(printf '## Evidence\n\nTerminal transcript: [terminal.log](x)\n')"; eq "CI
 ci "$(printf '## Evidence\n\nsoon\n\n## Notes\nNone: later\n')"; eq "CI: a None line outside the section doesn't count" "$RC" 1
 printf 'src/*\n.github/*\n' >.shipinetics/no-evidence-paths; git add -A; git commit -qm list
 ci ""; eq "CI: reads the project's list" "$RC" 0
+# ---- evidence = optional (the default): no evidence asked for, the verify still is
+git reset -q --hard "$base"; git clean -fdq
+sed -i.bak '/^evidence/d' .shipinetics/config && rm -f .shipinetics/config.bak; git commit -qam "default"
+echo d >src/a.js; git add -A; git commit -qm code2
+eq "optional: the default setting" "$(shipinetics-config get evidence)" "optional"
+pr; eq "optional: a code change opens with no evidence and no Evidence section" "$OUT" ""
+printf 'Summary only\n' >"$scratch/body.md"; pr; eq "optional: the body needs no Evidence section" "$OUT" ""
+stub_verify bin/verify; git add -A; git commit -qm v; printf 'verify_cmd = bin/verify\n' >>.shipinetics/config
+pr; has "optional: the verify is still required" "$OUT" "complete verify hasn't passed"
+git checkout -q .shipinetics/config
+ci "Summary"; eq "optional: the CI evidence job passes" "$RC" 0
+has "optional: and says how to require it" "$OUT" "evidence = required"
 done_testing

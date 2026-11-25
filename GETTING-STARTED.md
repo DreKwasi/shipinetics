@@ -140,7 +140,7 @@ Start with one test project. Choose a project that has tests and some small task
 
 7. **Check the guardrails yourself:**
    - Run `shipinetics-verify quick`, then `shipinetics-verify`. The quick tier must take seconds, and the complete tier a few minutes at most. Then `shipinetics-verify status` shows that both passed.
-   - Ask the agent to make a small change that breaks a test, and then to open a PR. The PR gate must refuse. It checks the evidence first, so the first refusal is often about missing evidence. It must also refuse until `shipinetics-verify` passes.
+   - Ask the agent to make a small change that breaks a test, and then to open a PR. The PR gate must refuse until `shipinetics-verify` passes. With `evidence = required`, it also refuses until the evidence is complete.
    - Ask the agent to write a test itself. The edit guard must refuse, and tell it to use `shipinetics:test-writer`.
    - Ask the agent to run `env`. The secrets guard must refuse.
 
@@ -292,7 +292,7 @@ the time and cost again after it.
 | Problem | Cause and solution |
 |---|---|
 | `shipinetics-verify quick` is slow | Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows how long each tier takes. Put slow suites behind `--full` |
-| `gh pr create` is refused | The PR gate works as designed. The complete checks didn't pass on this exact code (run `shipinetics-verify`), the evidence isn't complete, or the body has no Evidence section. `evidence check --branch` shows what is missing |
+| `gh pr create` is refused | The PR gate works as designed. The complete checks didn't pass on this exact code (run `shipinetics-verify`). With `evidence = required`, the evidence may also be incomplete, or the body may have no Evidence section. `evidence check --branch` shows what is missing |
 | `evidence check` says that the code changed after the evidence | A code fix came after the recording. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests don't cause this |
 | `design-check` says that there is no design system | `DESIGN.md` is missing, or it has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
 | The agent says that it can't write a test | The edit guard works as designed. The agent must use `shipinetics:test-writer`. For a large one-time change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |

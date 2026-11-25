@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse hook for Bash. Blocks `gh pr create` and `gh pr ready` until the branch has
-# complete evidence (a recording, or terminal transcripts, for every acceptance
-# criterion; see shipinetics:evidence), the complete verify has passed on exactly this code
-# (shipinetics-verify), and the PR body carries the "## Evidence" section.
+# PreToolUse hook for Bash. Blocks `gh pr create` and `gh pr ready` until the complete verify has
+# passed on exactly this code (shipinetics-verify). Evidence is optional: only a project with
+# "evidence = required" in its config also needs complete evidence (a recording, or terminal
+# transcripts, for every acceptance criterion; see shipinetics:evidence) and the "## Evidence"
+# section in the PR body.
 #
 # Works from the repo the command runs in, so in workspace mode it checks the package repo.
 # Active only when a .shipinetics/ folder exists at or above that repo. Docs-only branches pass.
@@ -44,19 +45,21 @@ deny() { sy_hook_pretool_reply "$harness" deny "$1"; exit 0; }
 
 evidence="$(cd "$(dirname "$0")/.." && pwd)/bin/evidence"
 guide="$(cd "$(dirname "$0")/.." && pwd)/skills/explain/plain-language.md"
-if ! out="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" check --branch 2>&1)"; then
+required=0; [ "$(sy_cfg "$root" evidence)" = required ] && required=1
+if ! out="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" check --branch 2>&1)" && [ "$required" = 1 ]; then
   need="$(cd "$repo" && SHIPINETICS_ROOT="$root" "$evidence" needed 2>/dev/null | head -n 8 | sed 's/^/  /')"
   deny "shipinetics: this PR has no complete evidence yet, so it can't be opened.
 $out
 ${need:+These changed files need evidence:
 $need
 }Capture it (shipinetics:evidence): one paced recording of the flow for UI changes, with the time of each acceptance criterion (screenshots only if it can't be recorded), terminal transcripts for CLIs and APIs. Then build the PR body with: evidence pr-body > \$TMPDIR/pr-body.md, and pass --body-file \$TMPDIR/pr-body.md (add your summary above the Evidence section). Write the summary by the plain-language guide: $guide.
-If these files can't change what a user sees or what the app does, a person can add their globs to $SY_DIR_NAME/no-evidence-paths (propose the change, then give the user the output of: shipinetics-config pending). Only a person can skip evidence for a code change: the no-evidence label, a 'None: <reason>' line in the PR's Evidence section, or SHIPINETICS_ALLOW_NO_EVIDENCE=1 for the session."
+If these files can't change what a user sees or what the app does, a person can add their globs to $SY_DIR_NAME/no-evidence-paths (propose the change, then give the user the output of: shipinetics-config pending). Only a person can skip evidence for a code change: the no-evidence label, a 'None: <reason>' line in the PR's Evidence section, SHIPINETICS_ALLOW_NO_EVIDENCE=1 for the session, or "evidence = optional" in $SY_DIR_NAME/config for the project."
 fi
 # Docs only: nothing to verify or show. Other files that need no evidence (tests, config) still need the verify.
 case "$out" in *"no evidence needed (docs only)"*) noop ;; esac
 no_evidence=0
 case "$out" in *"no evidence needed"*) no_evidence=1 ;; esac
+[ "$required" = 1 ] || no_evidence=1
 
 # The complete verify must have passed on exactly this code. The agent may only have run the
 # quick tier, so this is where the complete tier is guaranteed. A recorded pass is reused, so

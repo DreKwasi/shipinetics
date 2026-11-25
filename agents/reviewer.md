@@ -51,7 +51,7 @@ For **plans**, check the acceptance criteria are runnable and the plan meets the
 - The message states intent as a result.
 - The message uses a word that adds nothing and carries no weight.
 
-Then check the evidence: run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, run `evidence frames` and look at each frame with the Read tool (a recording can't be watched, so each criterion's row gives the time where its result shows, and the frame at that time is what you check). Fallback screenshots you open directly. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Missing, stale or unconvincing evidence is a major finding.
+Then check the evidence, if the task recorded any (`docs/evidence/<worksheet>/` exists): run `evidence check`, open `docs/evidence/<worksheet>/EVIDENCE.md`, run `evidence frames` and look at each frame with the Read tool (a recording can't be watched, so each criterion's row gives the time where its result shows, and the frame at that time is what you check). Fallback screenshots you open directly. Every acceptance criterion needs evidence that actually shows its result, recorded at this branch's code. Stale or unconvincing evidence is a major finding. Missing evidence is a finding only when `shipinetics-config get evidence` says `required`. Without evidence, check that the worksheet's Verified section says what was run and seen.
 
 You don't drive the app for a **re-check**. `shipinetics:live-tester` does that. If you're asked for one, say so in your first line and review the author's evidence only.
 
@@ -76,7 +76,7 @@ Verdicts: **verified** (the evidence says this), **incorrect** (the evidence con
 
 For the `merge-risk` stage, load the `merge-risk` skill with the Skill tool and follow it exactly, including its output format. Grade the whole PR (`git diff <base>`, the PR description or worksheet, the linked spec) as an outsider would. Two things specific to this setup:
 
-- **Verification** comes from `docs/evidence/<worksheet>/`: open EVIDENCE.md and look at the frame of each criterion (`evidence frames`). No evidence for a user-facing change is the worst verification grade, whatever the unit tests say.
+- **Verification** comes from `docs/evidence/<worksheet>/` when the task recorded evidence: open EVIDENCE.md and look at the frame of each criterion (`evidence frames`). Without evidence, it comes from the worksheet's Verified section, the complete verify pass and test-writer's tests. A user-facing change with no evidence can't get better than a medium verification grade, whatever the unit tests say.
 - **Impact** treats auth, permissions, payments, personal data, secrets and config reads, migrations, dependency bumps and infra as sensitive, as does anything touching `.shipinetics/` or hooks.
 - **Blast radius.** For the riskiest change, name what outside the diff could break (callers, consumers of a changed shape, jobs, other packages) and how far its safety is proven: 1 claimed, 2 callers found by search, 3 checked by the type system, 4 a test exercises the callers, 5 someone ran it. Below 3 on a sensitive change is a gap worth closing before the PR opens.
 

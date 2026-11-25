@@ -9,6 +9,10 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Changed
+- **Evidence is optional.** A new setting, `evidence` in `.shipinetics/config`, is `optional` by default. Then the PR gate doesn't check evidence or the `## Evidence` section, the CI evidence job passes, and agents record evidence only when you ask. They say in the PR how they verified the change. The PR gate still needs the complete verify pass. Set `evidence = required` to get the old behaviour. The reviewer treats missing evidence as a finding only when evidence is required, and merge-risk grades verification from the worksheet, the verify pass and the tests when there is no evidence.
+  - **Projects that want evidence on every PR:** add `evidence = required` to `.shipinetics/config`. Projects that use the CI template: copy the new `evidence` job, which reads the setting.
+
 ## 0.9.6
 
 ### Added

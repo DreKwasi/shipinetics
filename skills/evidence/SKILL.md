@@ -1,6 +1,6 @@
 ---
 name: evidence
-description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to every PR. Recordings are uploaded and linked, never committed. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
+description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to a PR. Optional unless the project sets evidence = required. Recordings are uploaded and linked, never committed. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
 argument-hint: "[worksheet]"
 ---
 
@@ -10,7 +10,9 @@ argument-hint: "[worksheet]"
 >
 > Text for people (docs, worksheets, reports, PR descriptions, commit messages, review comments, replies, and each label on a board, diagram or table): write it in ASD-STE100, by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Where the text describes structure or flow (a call path, a data flow, states or steps), show it on a Whiteboard. In a committed file, also put a Mermaid diagram and a link to the Whiteboard, because GitHub and other people cannot open your Whiteboard. Without Whiteboard, use Mermaid only. shipinetics:explain has the rules.
 
-A PR without proof that it works isn't worth a reviewer's time. Passing tests are necessary, not sufficient: tests can be wrong, and they never show what the user sees. So every PR carries evidence recorded from the real, running app at the PR's code: one recording of the flow for anything visual, and terminal transcripts for CLIs, APIs and jobs.
+Evidence shows a change working in the real, running app at the PR's code: one recording of the flow for anything visual, and terminal transcripts for CLIs, APIs and jobs. Tests can be wrong, and they never show what the user sees, so evidence helps a reviewer.
+
+**Evidence is optional.** Record it when the user asks for it, or when the project sets `evidence = required` in `.shipinetics/config`. Without it, say in the PR how you verified the change: the commands you ran, what you checked in the app, and what you didn't check. Check the setting with `shipinetics-config get evidence`.
 
 **Rules for media:**
 - **A recording first.** One recording of the whole flow. Each criterion's row names the time where its result shows: `walkthrough.webm @ 0:07`. People jump to that time. Agents can't watch a video, so `evidence frames` extracts the frame at each time, and agents look at those frames.
@@ -23,8 +25,12 @@ Worksheet: `$ARGUMENTS` (default: the current one).
 
 ## What's enforced
 
+With `evidence = optional` (the default), nothing. With `evidence = required`:
+
 - **`gh pr create` and `gh pr ready` are blocked** by a hook until `evidence check --branch` passes and the PR body contains the `## Evidence` section.
 - **CI fails any PR** (agent or human) that needs evidence and whose description has no `## Evidence` section that links a recording (or a fallback screenshot) or a transcript.
+
+The rest of this skill applies whenever you record evidence.
 
 ## Changes that need no evidence
 

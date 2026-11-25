@@ -50,6 +50,8 @@ jobs:
     # The same rule runs in the PR hook (bin/evidence). Keep the defaults the same as there.
     # For any other change, a person can skip evidence with the no-evidence label, or with a
     # "None: <reason>" line in the Evidence section (for people who can't add labels).
+    # The job enforces this only when .shipinetics/config sets "evidence = required". With the
+    # default, "evidence = optional", it passes.
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'no-evidence')
     runs-on: ubuntu-latest
     steps:
@@ -65,6 +67,11 @@ jobs:
         run: |
           set -uo pipefail
           d=.shipinetics
+          mode="$(sed -n 's/^[[:space:]]*evidence[[:space:]]*=[[:space:]]*//p' "$d/config" 2>/dev/null | tail -n 1 | sed 's/[[:space:]]*#.*//; s/[[:space:]]*$//')"
+          if [ "$mode" != required ]; then
+            echo "Evidence is optional in this project. Set 'evidence = required' in $d/config to make this job check it."
+            exit 0
+          fi
           defaults="$RUNNER_TEMP/no-evidence-defaults"
           printf '%s\n' 'docs/*' '*.md' '.github/*' .gitignore .gitattributes .editorconfig '.vscode/*' 'LICENSE*' >"$defaults"
           ev_dir="$(sed -n 's/^[[:space:]]*evidence_dir[[:space:]]*=[[:space:]]*//p' "$d/config" 2>/dev/null | tail -n 1 | sed 's/[[:space:]]*#.*//; s/[[:space:]]*$//')"
