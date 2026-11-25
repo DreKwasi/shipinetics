@@ -9,6 +9,8 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+## 0.10.0
+
 ### Changed
 - **Evidence is no longer a requirement.** You decide for each task: when the change works, the agent asks "Record evidence for this change?", with its advice, and records it only on your yes. In an autonomous session it doesn't record it. Without evidence, it says in the PR how it verified the change.
   - The PR gate checks only the complete verify pass on this exact code. It no longer checks evidence or the `## Evidence` section. A branch with only docs and Markdown still needs nothing.
