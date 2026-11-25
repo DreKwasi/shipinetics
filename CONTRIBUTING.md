@@ -38,6 +38,11 @@ Run a single test file while iterating:
 - **Standard library only for Python:** `scripts/usage.py` and inline Python helpers must use Python 3.7+ standard library modules only (no third-party pip packages).
 - **Dual-harness support:** Keep Claude Code (`.claude-plugin/plugin.json`, `hooks/hooks.json`, `agents/*.md`) and Antigravity (`plugin.json`, `hooks.json`, `bin/shipinetics-antigravity`) working together. Keep versions in `.claude-plugin/plugin.json` and `plugin.json` aligned.
 - **Plain language:** Write docs, skill text, commit messages, and PR summaries in clear active voice following `skills/explain/plain-language.md`.
+- **Writing a skill:** `tests/test-skills.sh` checks the first four rules.
+  - `name` matches the folder. The `description` says what the skill does and when to use it ("Use when ..."), in 1,024 characters or fewer. Claude reads every description in every session, so keep detail out of it.
+  - Keep `SKILL.md` short: 350 lines at most, and about 200 is better. Move detail into a reference file beside it, one level deep, and link to it from `SKILL.md`.
+  - Each `${CLAUDE_PLUGIN_ROOT}/...` or `${CLAUDE_SKILL_DIR}/...` path, and each relative `.md` link, points to a file that exists.
+  - Add a rule only when real use shows that agents need it. Replace the text that failed instead of adding a paragraph next to it. Text for agents follows the hard rules in `skills/explain/plain-language.md`: one word for one action.
 - **Tests:** Add or update tests in `tests/` for any behavior change or bug fix. Tests must run in a scratch directory under `$TMPDIR` and never touch the user's real home directory or this repo.
 
 ## Pull requests
