@@ -41,6 +41,8 @@ When you find work outside your current task (a bug, a missing test, a refactor 
   Acceptance: <runnable criteria>
   Context: found while working on <worksheet>; <file:line>
   Blocked-by: T-NNN (only if it can't start before another task is Done)
+  Touches: <the paths or areas it will change> (optional; it lets agents check the rule in "Picking a task")
+  Interface: <a function, type or endpoint that other tasks rely on> (optional, for split tasks)
 ```
 
 Use the next free ID (`grep -o 'T-[0-9]*' TODOS.md | sort -t- -k2 -n | tail -1`). New tasks go at the bottom of Ready unless they're urgent: a broken build or a security problem goes at the top with P0.
@@ -53,7 +55,7 @@ An L task gets broken into S and M tasks that each leave the product working, ea
 2. **Cut vertical slices.** Each task cuts through every layer it needs (data, logic, API, UI) and delivers one thing a user or caller can see working, a tracer bullet, not a layer ("all the models", "all the endpoints"). If the code needs reshaping first, that's its own task at the front, a prefactor that changes no behavior.
 3. **Mark dependencies** with `Blocked-by:`. Keep them few: slices that can run in any order are better.
 4. **Check the split with the human** (interactive): are the slices the right size, in the right order, and is anything missing? Autonomous: you can split, but put the split in Blocked for a human to confirm before any piece goes to Ready.
-5. Replace the L item with the pieces, in order, and link them to each other in Context.
+5. Replace the L item with the pieces, in order, and link them to each other in Context. Keep the L task's end-to-end criteria as the last piece, with `Blocked-by:` on all the others: it drives the whole flow through the verification map once every slice is Done. Otherwise nothing checks that the slices work together.
 
 ## Linear or another tracker
 

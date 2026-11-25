@@ -17,6 +17,7 @@ Entry format (append at the bottom, newest last):
 - Wrong or conflicting: <instructions that were wrong or contradicted each other>
 - I would change: <concrete suggestion: which file, what edit>
 - Time sinks: <where most of the session went>
+- Workaround: <what got me unstuck: a command, a file, a step>
 ```
 
 <!-- ingested through: never -->

@@ -27,6 +27,7 @@ PRs: `$ARGUMENTS`.
 1. **Fetch the PRs.** For each PR run:
    - `gh pr view <n> --repo <owner/repo> --json title,body,baseRefName,headRefName,headRefOid,files,additions,deletions`
    - `gh pr diff <n> --repo <owner/repo> > "$TMPDIR/pr-review/<name>.diff"`
+   - `gh api repos/<owner>/<repo>/pulls/<n>/comments --paginate` and `gh pr view <n> --repo <owner/repo> --comments`, for the review threads that are already there. Give them to the reviewer, so it marks a finding that someone already raised as "already raised" and doesn't count it again.
 
    Read the PR description for the intent, the acceptance criteria and the known exceptions, and the ticket it links, if you can read it. If the user links paired PRs, read the "depends on" lines to find the order.
 2. **Start the review in the background.** Spawn `shipinetics:reviewer` now, so that it runs while you write the explanation. Give it:
@@ -94,7 +95,7 @@ If the problems are older than the PR and wider than it, say so in one line and 
 Write each comment and the review body by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Name the actor, use the specific verb, and state the failure case as a result: "A second call to `capture()` charges the card again."
 
 - First show the user a table of `file:line` and comment text. Post only after the user says yes.
-- Post short **line comments**, one finding per comment, one or two sentences each, on a line in the diff at the PR head.
+- Post short **line comments**, one finding per comment, one or two sentences each, on a line in the diff at the PR head. Before you post, check each `path:line` against the hunks in the saved diff. GitHub refuses a comment on a line outside the diff: put that finding in the review body.
 - Mark a minor item as minor at the start of its comment. A major item has no mark.
 - The review body holds only items that have no code line. Keep it to one or two sentences. "What is correct" and "Not checked" go to the user and on the boards, not to GitHub.
 - Use the event `COMMENT` unless the user asks for another.

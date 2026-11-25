@@ -129,7 +129,10 @@ A single self-contained `.html` file: inline CSS and JS, no external requests, n
 - Put it in `.shipinetics/explainers/YYYY-MM-DD-<slug>.html`. That folder is gitignored because these are throwaway. Commit one only if the user asks.
 - Structure: the one-line answer at the top, then a diagram, then detail the reader can expand. Make it interactive where that helps understanding: toggles between before and after, collapsible sections, step-through animations of a flow, sortable tables, a filter on findings.
 - Draw diagrams with inline SVG, or an inline Mermaid render if you embed the library source. Don't link a CDN.
-- Link to code with relative paths and line numbers. Use real data from the repo, not placeholders.
+- Link to code with line numbers. If the page leaves this machine, link to the commit on the remote (`<repo URL>/blob/<sha>/<path>#L10-L25`), because a relative path breaks when someone else opens the page. Use real data from the repo, not placeholders.
+- End the page with where it came from: the date, the commit, and the sources it uses. Mark what you verified apart from what you inferred.
+- Before you give the user the path, check the file: it parses as HTML, it has no external URL in a `src` or `href` that loads content, and no placeholder is left.
+- For a big page, give the build to a subagent with a short brief: pointers to the files and findings, not their contents. This keeps your own context small.
 - Make it look good. If the `impeccable` skill is installed, use it for the visual design.
 - Tell the user the path. You can't open it for them inside the sandbox, so give them the command: `open <path>`.
 - Never put secrets, tokens or personal data in an explainer.

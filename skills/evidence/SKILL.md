@@ -55,6 +55,7 @@ An agent never skips evidence by itself. It doesn't add the label, write a `None
 | CLI | A terminal transcript per criterion: the real command and its real output, via `evidence run` |
 | API | A transcript of real requests against the running service (curl or httpie through `evidence run`), showing status and body |
 | Background job, data change | A transcript of triggering it and of the resulting state (a query, a log line, a file) |
+| Performance change | A transcript of `bench-compare` (shipinetics:perf) through `evidence run`, with the numbers before and after. A claim that it is faster needs this |
 | Bug fix | The same, showing the bug's reproduction steps now producing the right result. If you can, also the "before" from the base commit |
 | Only files that need no evidence (docs, tests, `.shipinetics/no-evidence-paths`) | None. The hook and CI pass it with no label ("Changes that need no evidence") |
 
