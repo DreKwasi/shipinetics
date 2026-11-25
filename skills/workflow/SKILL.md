@@ -142,13 +142,13 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
    gh api graphql -F owner=<owner> -F repo=<repo> -F n=<n> -f query='query($owner:String!,$repo:String!,$n:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved path line comments(first:50){nodes{databaseId author{login} body}}}}}}}'
    ```
 
-   `gh pr view <n> --comments` shows the comments that are not on a line. Skip comments from bots, resolved threads, and threads where the last comment is your answer. If you aren't sure, keep the comment.
+   The query reads the first 100 threads. `gh pr view <n> --comments` shows the comments that are not on a line. Skip comments from bots, resolved threads, and threads where the last comment is your answer. If you aren't sure, keep the comment.
 2. Set the worksheet's Status back to in progress. Add one row to its Reviews table: Stage `PR comments`, Reviewer the people who commented, and in the last column each comment with its response (shipinetics:review): fixed, disagree, deferred or spec updated. If two comments have the same cause, give them one response.
-3. Make the fixes. A comment that asks for a test change goes to test-writer (step 5). Then run `shipinetics-verify`, and re-record the evidence that `evidence check` names. Regenerate the Evidence section (`evidence pr-body`), and update the PR body with `gh pr edit <n> --body-file`, because CI reads the body.
+3. Make the fixes. A comment that asks for a test change goes to test-writer (step 5). Then run `shipinetics-verify`, and re-record the evidence that `evidence check` names. Regenerate the Evidence section with `evidence pr-body`. Replace only that section in `$TMPDIR/pr-body.md`, and keep the summary and `## Merge risk`. Then run `gh pr edit <n> --body-file "$TMPDIR/pr-body.md"`, because CI reads the body.
 4. Push. Then show the user the replies that you want to post, and post them only after the user says yes. Start each reply with "Agent:", and link the fix commit. Write each reply to a file, never in the command line:
-   - A reply in a line's thread: `gh api repos/<owner>/<repo>/pulls/<n>/comments/<databaseId>/replies -F body=@"$TMPDIR/reply.md"`.
+   - A reply in a line's thread: `gh api repos/<owner>/<repo>/pulls/<n>/comments/<databaseId>/replies -F body=@"$TMPDIR/reply.md"`. Use the `databaseId` of the thread's first comment: GitHub refuses a reply to a reply.
    - An answer to a comment that is not on a line: `gh pr comment <n> --body-file "$TMPDIR/reply.md"`.
-5. Mark the worksheet done again, and run `worksheet tag` (step 10).
+5. Mark the worksheet done again. Don't run `worksheet tag` again: the tag from step 10 stays, and the `Worksheet:` trailers link the new commits.
 
 **CI failed.**
 
@@ -160,8 +160,8 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 **Merge conflicts.**
 
 1. Resolve one file at a time. Before you commit the merge, run `git diff --cached --check`. It finds conflict markers that remain in staged files. (`git diff --check` without `--cached` doesn't see staged files.)
-2. A conflict in a file in `.shipinetics/test-paths`: send test-writer a `change` request with the conflicted paths. Say that a merge is in progress, and name both sides (`HEAD` and `MERGE_HEAD`). Stage its result yourself.
-3. A conflict in a protected file needs a person. Write the merged text that you propose to `.shipinetics/pending/<path>`, and ask the user to resolve that file.
+2. A conflict in a file in `.shipinetics/test-paths` that isn't protected: send test-writer a `change` request with the conflicted paths. Say that a merge is in progress, and name both sides (`HEAD` and `MERGE_HEAD`). Stage its result yourself.
+3. A conflict in a protected file, a protected test included, needs a person. Write the merged text that you propose to `.shipinetics/pending/<path>`, and ask the user to resolve that file.
 4. Don't use `git checkout --ours` or `--theirs`, or a Bash edit, on test files or protected files. That gets around the edit guard.
 5. After the merge, run `shipinetics-verify` again.
 

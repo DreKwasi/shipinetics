@@ -18,7 +18,7 @@ A PR description gives the reviewer what the diff can't. The diff shows what cha
 
 ## 2. Follow the repo's PR template
 
-Find the repo's template each time: `find . .github docs -maxdepth 2 -iname 'pull_request_template*'`. A `PULL_REQUEST_TEMPLATE/` folder holds several templates: use the one that matches the change. **The template's own instructions win over this file.**
+Find the repo's template each time: `find . -maxdepth 3 -ipath '*pull_request_template*' -not -path './node_modules/*'`. A `PULL_REQUEST_TEMPLATE/` folder holds several templates: use the one that matches the change. **The template's own instructions win over this file.**
 
 - Keep its headings, their words and their order. Reviewers and tools look for them.
 - Answer each section in your own words. Don't copy the template's questions, links or examples.
@@ -77,7 +77,7 @@ Add one if one of these is true:
 Good focus areas:
 
 - where you aren't sure,
-- a value or a name that looks wrong. Say whether it is deliberate, and ask,
+- a value or a name that looks wrong: say whether it is deliberate, and ask,
 - what a security change now permits, and who is now inside the boundary,
 - a decision where a reasonable engineer could choose the other way,
 - a change that is expensive to reverse, when you aren't sure of it.

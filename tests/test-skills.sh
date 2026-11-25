@@ -11,7 +11,7 @@ for f in skills/*/SKILL.md; do
   fm="$(frontmatter "$f")"
   name="$(printf '%s\n' "$fm" | sed -n 's/^name: //p' | head -n 1)"
   # The description, also when it is a YAML block (description: >- with indented lines below)
-  desc="$(printf '%s\n' "$fm" | awk '/^description:/{sub(/^description:[ ]*/,""); if ($0 ~ /^[>|]/) {b=1; next} print; exit} b && /^[ ]/{sub(/^[ ]+/,""); printf "%s ", $0; next} b{exit}')"
+  desc="$(printf '%s\n' "$fm" | awk '/^description:/{sub(/^description:[ ]*/,""); if ($0 ~ /^[>|]/) b=1; else printf "%s ", $0; d=1; next} d && (/^[ ]/ || (b && /^$/)){sub(/^[ ]+/,""); printf "%s ", $0; next} d{exit}' | sed 's/ *$//')"
   eq "$dir: name matches the folder" "$name" "$dir"
   [ -n "$desc" ] && [ "${#desc}" -le 1024 ] && ok "$dir: description is 1-1024 characters" || bad "$dir: description is 1-1024 characters" "${#desc} characters"
   printf '%s' "$desc" | grep -q 'Use ' && ok "$dir: description says when to use it" || bad "$dir: description says when to use it" "no 'Use ...' clause"
