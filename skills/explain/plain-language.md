@@ -1,5 +1,7 @@
 # Plain language for PR descriptions
 
+> Based on `references/plain-language.md` of `write-pr-description` in [warpdotdev/common-skills](https://github.com/warpdotdev/common-skills) (MIT License, Copyright (c) 2026 Denver Technologies, Inc.), with Shipinetics's additions. See NOTICE.
+
 ASD-STE100 (Simplified Technical English) is a controlled-language standard for technical
 writing that is read fast, under load, by someone who did not write the thing being
 described. That describes a PR description. Use it as a baseline, not a compliance

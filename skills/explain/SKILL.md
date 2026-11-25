@@ -157,6 +157,6 @@ Bespoke videos are starting to work well for concepts and systems. They cost tim
 | Review of a change (M and up) | Whiteboard, else HTML page |
 | "How does X work?" | Whiteboard scratchpad, else a Mermaid diagram plus prose, else HTML page |
 | Onboarding to a system, or a hard concept | Offer an explainer video |
-| PR description | Prose by [plain-language.md](plain-language.md), above the generated Evidence section: what changed and why, how you verified it, and what you did not verify. A diagram if there's flow |
+| PR description | By [pr-description.md](pr-description.md): the repo's PR template, what changed and why, the decisions with the alternatives that lost, what you did not verify, and a review guide when it helps. Prose by [plain-language.md](plain-language.md). A diagram if there's flow |
 | Commit message | The same rules. The first line says what changed. The body says why |
 | Comment on someone else's PR | One finding in one or two sentences: the problem, a failure case and the fix (shipinetics:pr-review) |

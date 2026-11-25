@@ -113,7 +113,7 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 
 1. If review fixes changed code since the evidence was recorded, re-record the affected criteria now (`evidence check` says which). Then the wrap-up review for S and up (shipinetics:review wrapup).
 2. Commit what's left: evidence, docs, the worksheet. The first line of the message says what changed, and the body says why. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Add the trailer line `Worksheet: <name>`.
-3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section. Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
+3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section, by the PR description guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`). Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
    - Each sentence names its actor.
    - Each verb is the specific verb, not "handles" or "supports".
    - The summary states results, not intent.
