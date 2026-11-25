@@ -16,6 +16,8 @@
 # personas_dir = docs/review/personas
 # evidence_dir = docs/evidence
 
+# ---- Evidence (shipinetics:evidence) is optional. An agent records it only when you ask for it.
+
 # ---- Evidence store (opt-in). Recordings never go in git. With this set, `evidence upload` runs the
 # command once per recording: $1 is the file, $2 a suggested name (<worksheet>/<file>). The command
 # uploads it to the team's store (SharePoint or OneDrive, S3, Google Drive...) and prints a link that

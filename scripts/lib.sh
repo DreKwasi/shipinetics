@@ -164,8 +164,8 @@ sy_in_list() {
   return 1
 }
 
-# Changes that need no evidence (shipinetics:evidence). The project's .shipinetics/no-evidence-paths
-# replaces these defaults. Keep them the same as templates/no-evidence-paths and the CI template.
+# Files whose changes don't make recorded evidence stale (evidence check): docs, Markdown, CI and
+# editor files. .shipinetics/ and tests (test-paths) don't either.
 SY_NO_EVIDENCE_DEFAULTS='docs/*
 *.md
 .github/*
@@ -175,14 +175,13 @@ SY_NO_EVIDENCE_DEFAULTS='docs/*
 .vscode/*
 LICENSE*'
 
-# sy_no_evidence <root> <path relative to root>: true if a change to this path needs no evidence.
-# That is .shipinetics/, a test file (test-paths), or a match in no-evidence-paths (else the defaults).
+# sy_no_evidence <root> <path relative to root>: true if a change to this path doesn't make recorded
+# evidence stale. That is .shipinetics/, a test file (test-paths), or a match in the defaults above.
 # Sets SY_MATCHED to the glob or the list that matched.
 sy_no_evidence() {
   local d="$1/$SY_DIR_NAME" glob
   case "$2" in "$SY_DIR_NAME"/*) SY_MATCHED="$SY_DIR_NAME/"; return 0 ;; esac
   sy_in_list "$d/test-paths" "$2" && return 0
-  if [ -f "$d/no-evidence-paths" ]; then sy_in_list "$d/no-evidence-paths" "$2"; return; fi
   SY_MATCHED=""
   while IFS= read -r glob; do
     # shellcheck disable=SC2053  # the right-hand side is meant to be a pattern

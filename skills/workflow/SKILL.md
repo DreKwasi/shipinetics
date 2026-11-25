@@ -80,7 +80,7 @@ Tests aren't enough. Start the app and run the doctor check from `docs/verificat
 
 For web apps, drive it with Playwright or the Playwright MCP and take a screenshot of the result. Look at the screenshot. For CLIs and APIs, run the real commands and read the output. Write what you checked, and what you saw, in the worksheet.
 
-Once it works, commit, then **record the evidence** (shipinetics:evidence) and set its Commit line to that commit: for UI changes one paced recording of the flow with the time of each acceptance criterion (screenshots only when it can't be recorded), or terminal transcripts for CLIs and APIs, in `docs/evidence/<worksheet>/` and checked with `evidence check`. Recordings never go in git: `evidence upload` puts them in the project's store, or the human attaches them to the PR. Recording now lets reviewers start from it. If a review fix later changes code, `evidence check` names the files, and you re-record the criteria they affect at wrap-up. Every PR needs it, and the hook won't let a PR open without it.
+Once it works, commit. **The user decides about evidence** (shipinetics:evidence). Ask the user once, "Record evidence for this change?", with your advice in one line. Nothing requires it. In an autonomous session, don't ask and don't record it. Write the answer in the worksheet's Verified section. Without evidence, write there what you ran and what you saw, and skip the rest of this paragraph. To record it, set its Commit line to that commit: for UI changes one paced recording of the flow with the time of each acceptance criterion (screenshots only when it can't be recorded), or terminal transcripts for CLIs and APIs, in `docs/evidence/<worksheet>/` and checked with `evidence check`. Recordings never go in git: `evidence upload` puts them in the project's store, or the human attaches them to the PR. Recording now lets reviewers start from it. If a review fix later changes code, `evidence check` names the files, and you re-record the criteria they affect at wrap-up.
 
 ## 7. Verify
 
@@ -111,9 +111,9 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 
 ## 10. Wrap up
 
-1. If review fixes changed code since the evidence was recorded, re-record the affected criteria now (`evidence check` says which). Then the wrap-up review for S and up (shipinetics:review wrapup).
+1. If you recorded evidence and review fixes changed code since, re-record the affected criteria now (`evidence check` says which). Then the wrap-up review for S and up (shipinetics:review wrapup).
 2. Commit what's left: evidence, docs, the worksheet. The first line of the message says what changed, and the body says why. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Add the trailer line `Worksheet: <name>`.
-3. If you're opening a PR: `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section. Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
+3. If you're opening a PR: write the body to `"$TMPDIR/pr-body.md"`. If you recorded evidence, start the file with `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section. Otherwise, say in the summary how you verified the change. Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
    - Each sentence names its actor.
    - Each verb is the specific verb, not "handles" or "supports".
    - The summary states results, not intent.

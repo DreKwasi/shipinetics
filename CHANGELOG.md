@@ -9,6 +9,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Changed
+- **Evidence is no longer a requirement.** You decide for each task: when the change works, the agent asks "Record evidence for this change?", with its advice, and records it only on your yes. In an autonomous session it doesn't record it. Without evidence, it says in the PR how it verified the change.
+  - The PR gate checks only the complete verify pass on this exact code. It no longer checks evidence or the `## Evidence` section. A branch with only docs and Markdown still needs nothing.
+  - The reviewer no longer treats missing evidence as a finding. merge-risk grades verification from the worksheet, the verify pass and the tests when there is no evidence.
+  - `SHIPINETICS_ALLOW_NO_EVIDENCE=1` still turns off the PR gate, as the old name of `SHIPINETICS_SKIP_VERIFY=1`.
+
+### Removed
+- **The CI evidence job** in `skills/setup/templates/github/workflows/verify.yml`. **Projects that copied the template:** delete the `evidence` job from `.github/workflows/verify.yml`, or CI keeps failing PRs without an Evidence section.
+- **`.shipinetics/no-evidence-paths`, the `no-evidence` label, the `None: <reason>` line and `evidence needed`.** They only decided when evidence was required. **Projects:** you can delete `.shipinetics/no-evidence-paths` and the `no-evidence` label.
+
 ## 0.9.6
 
 ### Added
