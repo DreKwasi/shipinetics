@@ -21,7 +21,7 @@ Each step up costs more to make and is usually faster to understand. Pick the lo
 | Format | Use it for |
 |---|---|
 | **Prose (plain language, ASD-STE100)** | Final messages, worksheet summaries, review findings, anything a few paragraphs long |
-| **Whiteboard** | Anything with structure or flow (call paths, data flow, state machines, architecture, before and after), a code change, or how part of the codebase works. The default visual when the Whiteboard tools (dev.fast) are available |
+| **Whiteboard** | Anything with structure or flow (call paths, data flow, state machines, architecture, before and after), a code change, how part of the codebase works, or a set of findings and numbered questions for the user (setup's audit and questions). The default visual when the Whiteboard tools (dev.fast) are available |
 | **Mermaid diagram** | The same, in a committed file (with a link to the Whiteboard), and the only visual when Whiteboard is not installed |
 | **HTML page** | Big changes, comparisons, anything the human will explore or click through |
 | **Explainer video** | Concepts, onboarding to a system, algorithms. Only when the user asks or agrees |
@@ -117,6 +117,8 @@ For a change or a system, if the Whiteboard MCP tools are available: call `sessi
 
 1. **Language.** Whiteboard's guidance names ASD-STE100 only for prose, at about 80%. Shipinetics applies its own rules ("Prose" and "Labels" above) to every word of the board. That includes the titles, the node and edge labels, the sequence steps, the table cells, the captions and the callouts.
 2. **The numbers under a node.** Whiteboard shows `+N` and `−M` under each flow node that has code attached. They count the added and removed lines of that code that the reader has not viewed yet. You can't change them. So, in the description of each flow diagram that has code attached, say once what they mean: "The numbers under a node count the added and removed lines of its code that you have not viewed yet."
+
+If the Whiteboard plugin is installed but `session_capabilities` doesn't answer, the dev.fast Whiteboard app is probably missing. Tell the user once, and recommend that they install the app and restart the session. Until then, use Mermaid.
 
 When you read the board back (Whiteboard's last step), also read each label alone. Rewrite each label that makes no sense without the diagram. Link the Whiteboard from the worksheet.
 
