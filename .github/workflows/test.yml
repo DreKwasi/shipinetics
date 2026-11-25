@@ -15,6 +15,11 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: A pull request doesn't set the version
+        if: github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release/')
+        run: bash scripts/check-pr-version.sh "origin/${{ github.base_ref }}"
       - name: Syntax check every script
         run: for f in scripts/*.sh bin/* skills/setup/templates/bin/* skills/setup/templates/pre-* skills/setup/templates/commit-msg tests/*.sh; do bash -n "$f" || exit 1; done
       - name: Tests (default bash)

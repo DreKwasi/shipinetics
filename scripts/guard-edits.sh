@@ -56,7 +56,7 @@ test_index="$(sy_cfg "$root" test_index_file)"
 
 # ---- 1. protected paths: existing files only ----
 if ! sy_flag UNLOCK && [ -e "$path" ] && sy_list_match "$root" protected-paths "$rel"; then
-  deny "$rel is protected (matches '$SY_MATCHED' in $dn/protected-paths). These files define what done means, so they don't change to fit the implementation. If you think the file is wrong, write the full new version to $dn/pending/$rel, add your reasoning under 'Test change requests' in your worksheet, and carry on with the rest of the task. A human reviews it and applies it with shipinetics-config apply."
+  deny "$rel is protected (matches '$SY_MATCHED' in $dn/protected-paths). These files define what done means, so they don't change to fit the implementation. If you think the file is wrong, write the full new version to $dn/pending/$rel, add your reasoning under 'Test change requests' in your worksheet, and carry on with the rest of the task. A human reviews it and applies it. At the end of the task, run shipinetics-config pending and give the user its output: it says why they must apply the change, and it gives the exact command."
 fi
 
 # ---- 2. test ownership ----

@@ -5,6 +5,39 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - Before 1.0.0, a **breaking** change increases the minor number (0.6.0 to 0.7.0). A breaking change removes or changes something that a project uses: a command, a setting, a file name or a hook rule. Its entry gives the steps for each project.
 - Other changes increase the last number (0.7.0 to 0.7.1).
 - Each release has a git tag, `vX.Y.Z`, on the commit that sets its version.
+- A pull request adds its entries under `## Unreleased`, and never changes the version. `scripts/release.sh` turns `## Unreleased` into the new version's section, and sets the version in both manifests. A breaking change says so in its entry, so that the release can increase the minor number.
+
+## Unreleased
+
+### Added
+- **`shipinetics-shims`** gives you short commands for the `shipinetics-*` tools in your own terminal. Run `shipinetics-shims install` once. It writes a small shim for each tool to `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`). Each shim finds the installed plugin when it runs, from Claude Code's `installed_plugins.json` or Antigravity's plugin folder, so it keeps working after an update. `status` lists the shims, and `remove` removes them. It never changes a file that it didn't write. It doesn't make shims for tools with common names, such as `evidence` and `worksheet`.
+- **`shipinetics-config -C <folder>`** runs the command for the project in that folder, like `git -C`. So you can apply pending changes from any folder: `shipinetics-config -C ~/code/my-app apply`.
+- **More ASD-STE100 rules in `shipinetics:explain`** (`SKILL.md` and `plain-language.md`). The rules now also cover:
+  - Semicolons (Rule 8.1), phrasal verbs (Rule 9.3) and noun forms of verbs (Rule 3.7).
+  - One part of speech for each word.
+  - The adjectives that claim quality, such as "seamless" and "powerful".
+  - The present perfect. It stays only when it says something that the simple past can't.
+  - The strength of each claim. A rewrite keeps each hedge and adds no fact.
+- **Hard rules for text that agents and programs read.** Skill text, agent prompts, tool descriptions, hook and error messages, and instructions from one agent to another follow the rules as hard rules, with one word for one action everywhere. Text for people still uses them as a baseline.
+- **`.shipinetics/no-evidence-paths`** lists the files that need no evidence. A PR that changes only these files, tests or `.shipinetics/` opens with no evidence, and CI passes it with no label. Without the file, the defaults are docs, Markdown, `.github/` and editor files. Setup writes it from `templates/no-evidence-paths`.
+- **`evidence needed`** lists the changed files on the branch that need evidence.
+- **`None: <reason>` in the Evidence section** lets a person skip evidence in CI without the label, for example a contributor who can't add labels. CI shows the reason.
+
+### Changed
+- **Pull requests don't set the version.** A pull request adds its entries under `## Unreleased` in `CHANGELOG.md`. `scripts/release.sh` turns that section into `## X.Y.Z` and sets the version in both manifests. Before, each pull request had to choose a version. Two open pull requests then took the same number, and their CHANGELOG headings conflicted. CI runs the new `scripts/check-pr-version.sh` on each pull request: it fails when a pull request changes the version in a manifest or adds a `## X.Y.Z` heading.
+- **Users learn why they apply changes to protected files, and get the exact command.** Users asked why they must always run a long `shipinetics-config apply` command.
+  - `shipinetics-config pending` now says why a person applies each change. The files hold the rules that check the agent's work, and the edit guard stops agents from changing them.
+  - It also prints the exact command for your own terminal, with `-C` and the project folder. With the shims, the command is `shipinetics-config -C <folder> apply`. Without them, it has the full path to the tool, and the output also gives the one-time command that installs the shims.
+  - `shipinetics-config apply` shows the same reasons before the first diff.
+  - The edit guard, `known-failing`, `bench-compare`, setup and the `AGENTS.md` template tell the agent to give the user the output of `shipinetics-config pending`, not only `shipinetics-config apply`.
+  - GETTING-STARTED.md explains the step and why the command is long.
+- **Setup shows its findings and questions on a Whiteboard.** Users found the ask-once message long and hard to read. With the dev.fast Whiteboard app, setup now makes one board in ASD-STE100: the audit table and the main findings, one card for each numbered question with its options and the recommended answer, and the phases that come next. The chat message has only the link and how to answer. The questions are also written in `docs/shipinetics-setup.md`.
+  - If the Whiteboard plugin is installed but the app doesn't answer, setup first asks the user to install the app and restart. The user can also continue with text.
+  - Each question says "Recommended:" and "Not confirmed:" in words, on the board and in text, and no longer uses codes such as "(rec)".
+  - shipinetics:explain also uses a Whiteboard for findings and questions, and tells the user when the Whiteboard app is missing.
+- **The PR hook and CI use the same rule.** Before, the hook let a docs-only branch open, but CI failed it until a person added the `no-evidence` label. Test-only and config-only branches needed evidence, although the evidence skill said they didn't. Branches that change only tests or config still need the complete verify.
+- **Clearer errors.** The hook and CI list the files that need evidence, and give the exact commands to skip it, also how to create the label when it's missing.
+- **Projects that use the CI template:** copy the new `evidence` job from `skills/setup/templates/github/workflows/verify.yml`. It needs `fetch-depth: 0` to compare the branch with its base.
 
 ## Unreleased
 

@@ -9,6 +9,7 @@
 #   evidence check [worksheet...]           check evidence for these worksheets (default: current)
 #   evidence check --branch [base]          check every worksheet with work on this branch since base
 #   evidence pr-body [base]                 print the "## Evidence" section for a PR from this branch
+#   evidence needed [base]                  list the changed files that need evidence. Exit 1 if none do
 #
 # Run it inside the git repo the PR comes from. Evidence lives in <evidence_dir>/<worksheet>/ in that
 # repo (default docs/evidence): EVIDENCE.md with one row per acceptance criterion, and the
@@ -19,9 +20,11 @@
 # store and writes the links in EVIDENCE.md. Without it, a person attaches them to the PR.
 # Screenshots are only for a change that can't be recorded, with the reason on a "> No recording:"
 # line. Never both.
+# A change needs evidence unless every changed file is in .shipinetics/, a test (test-paths) or a
+# path in .shipinetics/no-evidence-paths (default: docs, Markdown, .github/ and editor files).
 # Evidence must be fresh: EVIDENCE.md's Commit line names the commit it was recorded at, and no
-# code may have changed since. Changes to docs, Markdown, tests (.shipinetics/test-paths), worksheets,
-# .shipinetics/ and the evidence itself don't count, so they keep the evidence valid.
+# code may have changed since. Changes to files that need no evidence, worksheets and the evidence
+# itself don't count, so they keep the evidence valid.
 # Worksheets on a branch are found from "Worksheet:" commit trailers and from worksheet copies the
 # branch adds under package_worksheets_dir. Paths come from .shipinetics/config (see shipinetics-config).
 
@@ -87,6 +90,26 @@ branch_files() { # branch_files <base>: files changed since base, committed or n
   sy_changed_paths "$repo" "$1"
 }
 
+exempt_file() { # exempt_file <path relative to the repo>: true if a change to it needs no evidence
+  case "$1" in "$ev_base"/*) return 0 ;; esac
+  if [ -n "$pkg_ws" ]; then case "$1" in "$pkg_ws"/*) return 0 ;; esac; fi
+  sy_no_evidence "$root" "$prefix$1" && return 0
+  [ -n "$prefix" ] && sy_no_evidence "$root" "$1"
+}
+
+needs_evidence() { # needs_evidence <base>: the changed files on this branch that need evidence
+  local f
+  branch_files "$1" | while IFS= read -r f; do
+    [ -n "$f" ] && ! exempt_file "$f" && printf '%s\n' "$f"
+  done
+  return 0
+}
+
+docs_only() { # docs_only <base>: true if the branch changes something, and only docs and Markdown
+  local changed; changed="$(branch_files "$1")"
+  [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -vqE "^docs/|\.md\$|^$ev_base/${pkg_ws:+|^$pkg_ws/}"
+}
+
 branch_worksheets() { # branch_worksheets <base>
   {
     git log "$1..HEAD" --format='%(trailers:key=Worksheet,valueonly)' 2>/dev/null
@@ -112,8 +135,8 @@ changed_files_of() { # changed_files_of <worksheet> <base>: files under that wor
 }
 
 fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if code changed since recording
-  # Only files this branch changed count, so merging main doesn't make evidence stale. Docs and
-  # Markdown are skipped with the same rule as docs-only branches.
+  # Only files this branch changed count, so merging main doesn't make evidence stale. Files that
+  # need no evidence (exempt_file: docs, tests, no-evidence-paths) are skipped.
   local rec f stale="" n=0 mine
   rec="$(sed -n 's/^>[[:space:]]*Commit:[[:space:]]*\([0-9a-fA-F]\{7,40\}\).*/\1/p' "$2" | head -n 1)"
   if [ -z "$rec" ] || ! git rev-parse -q --verify "$rec^{commit}" >/dev/null 2>&1; then
@@ -123,10 +146,8 @@ fresh_one() { # fresh_one <worksheet> <EVIDENCE.md> <base>: prints a problem if 
   mine="$(branch_files "$3")"
   while IFS= read -r f; do
     [ -z "$f" ] && continue
-    case "$f" in "$ev_base"/*|docs/*|*.md|"$SY_DIR_NAME"/*) continue ;; esac
+    exempt_file "$f" && continue
     printf '%s\n' "$mine" | grep -qxF -- "$f" || continue
-    if [ -n "$pkg_ws" ]; then case "$f" in "$pkg_ws"/*) continue ;; esac; fi
-    sy_in_list "$root/$dn/test-paths" "$prefix$f" && continue
     n=$((n + 1)); [ "$n" -le 5 ] && stale="${stale:+$stale, }$f"
   done < <({ git -c core.quotePath=false diff --name-only --no-renames "$rec" -- . 2>/dev/null; git -c core.quotePath=false ls-files --others --exclude-standard; } | sort -u)
   [ "$n" -eq 0 ] && return 0
@@ -318,9 +339,10 @@ case "$cmd" in
     base=""
     if [ "${1:-}" = "--branch" ]; then
       base="${2:-$(default_base)}"
-      changed="$(branch_files "$base")"
-      if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -vqE "^docs/|\.md$|^$ev_base/${pkg_ws:+|^$pkg_ws/}"; then
-        echo "evidence: docs-only change, no evidence needed"; exit 0
+      if [ -n "$(branch_files "$base")" ] && [ -z "$(needs_evidence "$base")" ]; then
+        if docs_only "$base"; then echo "evidence: no evidence needed (docs only)"
+        else echo "evidence: no evidence needed. Every changed file is docs, tests or a path in $dn/no-evidence-paths"; fi
+        exit 0
       fi
       while IFS= read -r w; do [ -n "$w" ] && list+=("$w"); done < <(branch_worksheets "$base")
       [ "${#list[@]}" -gt 0 ] || die "no worksheets on this branch since $base, so there's no evidence to check. Agent work needs a worksheet (worksheet new <slug>) and evidence (evidence init)."
@@ -340,6 +362,15 @@ case "$cmd" in
       exit 1
     fi
     echo "evidence: complete for ${list[*]}"
+    ;;
+  needed)
+    base="${1:-$(default_base)}"
+    files="$(needs_evidence "$base")"
+    if [ -z "$files" ]; then
+      echo "evidence: no evidence needed. Every changed file is docs, tests or a path in $dn/no-evidence-paths" >&2
+      exit 1
+    fi
+    printf '%s\n' "$files"
     ;;
   pr-body)
     base="${1:-$(default_base)}"
@@ -374,6 +405,6 @@ case "$cmd" in
       done
     done < <(branch_worksheets "$base")
     ;;
-  ""|-h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
+  ""|-h|--help) sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) die "unknown command: $cmd (try --help)" ;;
 esac

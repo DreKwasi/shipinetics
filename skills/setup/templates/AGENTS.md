@@ -86,7 +86,7 @@ You don't write tests for code you wrote. The `shipinetics:test-writer` subagent
 
 ### Every PR carries evidence
 
-Before a PR opens, record proof it works from the real running app: for UI changes one paced recording of the flow, with the time of each acceptance criterion (screenshots only when it can't be recorded, never both), or terminal transcripts for CLIs and APIs, in `docs/evidence/<worksheet>/`. Recordings never go in git: `evidence upload` puts them in the team's store if `evidence_upload_cmd` is set, or you attach them to the PR. `evidence check` must pass, and the PR body is built with `evidence pr-body`. A hook blocks `gh pr create` without it, and CI fails PRs with no Evidence section (label `no-evidence` for docs-only changes). Every PR also gets an independent merge-risk grade (low, medium, high) under the Evidence section, so the human knows how closely to review it. Details: shipinetics:evidence, shipinetics:review.
+Before a PR opens, record proof it works from the real running app: for UI changes one paced recording of the flow, with the time of each acceptance criterion (screenshots only when it can't be recorded, never both), or terminal transcripts for CLIs and APIs, in `docs/evidence/<worksheet>/`. Recordings never go in git: `evidence upload` puts them in the team's store if `evidence_upload_cmd` is set, or you attach them to the PR. `evidence check` must pass, and the PR body is built with `evidence pr-body`. A hook blocks `gh pr create` without it, and CI fails PRs with no Evidence section. Changes only to docs, tests or paths in `.shipinetics/no-evidence-paths` need no evidence. Only a person skips evidence for other changes (the `no-evidence` label, or `None: <reason>` in the Evidence section). Every PR also gets an independent merge-risk grade (low, medium, high) under the Evidence section, so the human knows how closely to review it. Details: shipinetics:evidence, shipinetics:review.
 
 ### Security tools
 
@@ -109,5 +109,5 @@ Where there's structure or flow, or a code change, show it on a Whiteboard. In c
 
 ### Protected files
 
-Files matching `.shipinetics/protected-paths` (acceptance and e2e tests, baselines) can be created but not modified by agents. If one looks wrong, write the new version to `.shipinetics/pending/<path>`, explain why under "Test change requests" in your worksheet, and keep going. A human applies it with `shipinetics-config apply`. The guard only sees the file tools, but the rule covers Bash too: never `mv`, `cp`, `sed -i` or script your way around it.
+Files matching `.shipinetics/protected-paths` (acceptance and e2e tests, baselines) can be created but not modified by agents. If one looks wrong, write the new version to `.shipinetics/pending/<path>`, explain why under "Test change requests" in your worksheet, and keep going. A human applies it. At the end of the task, run `shipinetics-config pending` and give the user its output: it says why they must apply the change, and it gives the exact command. The guard only sees the file tools, but the rule covers Bash too: never `mv`, `cp`, `sed -i` or script your way around it.
 <!-- shipinetics:end -->

@@ -80,10 +80,23 @@ has "a .. path can't use the pending folder to reach a protected file" "$OUT" "i
 OUT="$(printf '{"tool_name":"Write","agent_type":"shipinetics:test-writer","tool_input":{"file_path":"%s","content":"x"}}' "$p/e2e/acceptance/a.spec.ts" |
   SHIPINETICS_UNLOCK=1 CLAUDE_PROJECT_DIR="$p" bash "$SY/scripts/guard-edits.sh" 2>/dev/null)"
 eq "SHIPINETICS_UNLOCK allows a protected edit" "$OUT" ""
-has "pending lists the proposal" "$(shipinetics-config pending 2>&1)" "e2e/acceptance/a.spec.ts (+1 -1 lines)"
+pending="$(shipinetics-config pending 2>&1)"
+has "pending lists the proposal" "$pending" "e2e/acceptance/a.spec.ts (+1 -1 lines)"
+has "pending says why a person applies it" "$pending" "Why you must apply these changes yourself"
+has "pending gives the full command for the user's terminal" "$pending" "$SY/bin/shipinetics-config -C $p apply"
+has "and the one-time command for the short commands" "$pending" "$SY/bin/shipinetics-shims install"
+has "-C runs pending for the project in that folder" "$(cd / && shipinetics-config -C "$p" pending 2>&1)" "e2e/acceptance/a.spec.ts (+1 -1 lines)"
+out="$(cd / && shipinetics-config -C "$scratch/no-such-folder" root 2>&1)"; rc=$?
+eq "-C with a folder that doesn't exist fails" "$rc" "2"
+shipinetics-shims install >/dev/null
+pending="$(shipinetics-config pending 2>&1)"
+has "with the shims, pending gives the short command" "$pending" "  shipinetics-config -C $p apply"
+hasnt "and no install command" "$pending" "shipinetics-shims install"
+shipinetics-shims remove >/dev/null
 out="$(shipinetics-config apply </dev/null 2>&1)"; rc=$?
 eq "apply without a terminal refuses" "$rc:$(cat e2e/acceptance/a.spec.ts)" "1:old"
-has "and says why" "$out" "needs a human at a terminal"
+has "and says why" "$out" "needs a person at a terminal"
+has "and tells the agent to give the user the pending output" "$out" "give the user its output"
 # The rest needs a pseudo-terminal. Some sandboxes have none; CI does.
 if ! python3 -c 'import os, pty; m, s = pty.openpty(); os.close(m); os.close(s)' 2>/dev/null; then
   printf '  skip  apply at a terminal (no pseudo-terminal here)\n'; done_testing; exit
