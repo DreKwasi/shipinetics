@@ -22,6 +22,17 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - The edit guard, `known-failing`, `bench-compare`, setup and the `AGENTS.md` template tell the agent to give the user the output of `shipinetics-config pending`, not only `shipinetics-config apply`.
   - GETTING-STARTED.md explains the step and why the command is long.
 
+## Unreleased
+
+### Added
+- **More ASD-STE100 rules in `shipinetics:explain`** (`SKILL.md` and `plain-language.md`). The rules now also cover:
+  - Semicolons (Rule 8.1), phrasal verbs (Rule 9.3) and noun forms of verbs (Rule 3.7).
+  - One part of speech for each word.
+  - The adjectives that claim quality, such as "seamless" and "powerful".
+  - The present perfect. It stays only when it says something that the simple past can't.
+  - The strength of each claim. A rewrite keeps each hedge and adds no fact.
+- **Hard rules for text that agents and programs read.** Skill text, agent prompts, tool descriptions, hook and error messages, and instructions from one agent to another follow the rules as hard rules, with one word for one action everywhere. Text for people still uses them as a baseline.
+
 ## 0.9.5
 
 ### Fixed
