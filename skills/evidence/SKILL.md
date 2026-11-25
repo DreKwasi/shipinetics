@@ -1,6 +1,6 @@
 ---
 name: evidence
-description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to a PR. Optional unless the project sets evidence = required. Recordings are uploaded and linked, never committed. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
+description: Capture proof that a change works (one paced recording of the flow for UI changes, with the time of each acceptance criterion; screenshots only when it can't be recorded, never both; terminal transcripts for CLIs and APIs) from the real running app, and attach it to a PR. The user decides for each task, unless the project sets evidence = required. Recordings are uploaded and linked, never committed. Use after implementing and verifying a task, before opening or updating a PR, when reviewing a PR, and when a hook blocks `gh pr create` for missing evidence.
 argument-hint: "[worksheet]"
 ---
 
@@ -12,7 +12,14 @@ argument-hint: "[worksheet]"
 
 Evidence shows a change working in the real, running app at the PR's code: one recording of the flow for anything visual, and terminal transcripts for CLIs, APIs and jobs. Tests can be wrong, and they never show what the user sees, so evidence helps a reviewer.
 
-**Evidence is optional.** Record it when the user asks for it, or when the project sets `evidence = required` in `.shipinetics/config`. Without it, say in the PR how you verified the change: the commands you ran, what you checked in the app, and what you didn't check. Check the setting with `shipinetics-config get evidence`.
+**The user decides whether a task gets evidence.** When the change works (shipinetics:workflow, step 6), ask the user one question: "Record evidence for this change?" Add your advice in one line: yes for a change that users see, no for a refactor, a config change or an internal change. Then:
+
+- **Yes:** record it by this skill, and write "Evidence: the user said yes" in the worksheet's Verified section.
+- **No:** don't record it. Write "Evidence: the user said no" in Verified, and say in the PR how you verified the change: the commands you ran, what you checked in the app, and what you didn't check.
+- Ask once for each task. If the user already answered, for example in the task's request, don't ask again.
+- In an autonomous session, don't ask and don't record evidence, unless the project requires it.
+
+**A project can require it on every PR** with `evidence = required` in `.shipinetics/config` (check with `shipinetics-config get evidence`). Then don't ask: record it. `.shipinetics/config` is a protected file, so only a person changes this setting. Never skip required evidence on your own: only a person adds the `no-evidence` label or writes a `None: <reason>` line.
 
 **Rules for media:**
 - **A recording first.** One recording of the whole flow. Each criterion's row names the time where its result shows: `walkthrough.webm @ 0:07`. People jump to that time. Agents can't watch a video, so `evidence frames` extracts the frame at each time, and agents look at those frames.

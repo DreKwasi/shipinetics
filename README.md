@@ -7,7 +7,7 @@ In a project that Shipinetics has set up, a task goes like this:
 1. The agent writes acceptance criteria, and you approve them.
 2. The agent writes the code and commits it.
 3. A second agent, `shipinetics:test-writer`, writes the tests from the criteria. It works in its own context, and it doesn't trust the code.
-4. The agent starts the real app and uses the feature. If you ask, or the project requires it, it also records evidence: a video of the flow, or the output of the commands.
+4. The agent starts the real app and uses the feature. It asks you whether to record evidence (a video of the flow, or the output of the commands), and records it on your yes.
 5. Read-only reviewers check the change, each one in its own context.
 6. The agent opens a PR. The PR body says how the change was verified, with the evidence if there is any, and a merge-risk grade: low, medium or high.
 
@@ -276,7 +276,7 @@ For an app that has few tests, `/shipinetics:test-backfill` adds them in batches
 
 ## Evidence
 
-Evidence is optional. The agent records it when you ask, or on every PR when `.shipinetics/config` sets `evidence = required`. Then the PR gate and the CI evidence job ask for it. Evidence shows the change working in the real app:
+You decide whether a change gets evidence. When the change works, the agent asks you, with its advice, and records evidence only on your yes. To have it on every PR without a question, set `evidence = required` in `.shipinetics/config`. Then the PR gate and the CI evidence job ask for it. Evidence shows the change working in the real app:
 
 - **A UI change** gets one recording of the whole flow, at a pace that a person can follow. Each acceptance criterion's row in `EVIDENCE.md` names the time where its result shows. Screenshots are only for a change that can't be recorded, and never beside a recording.
 - **A CLI or an API** gets terminal transcripts, recorded with `evidence run`.
@@ -478,7 +478,7 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 | The path keys: `worksheets_dir`, `feedback_file`, `systems_dir`, `conventions_file`, `testing_guide_file`, `test_index_file`, `tools_index_file`, `queue_file`, `personas_dir`, `evidence_dir` | `shipinetics-config` prints each default | Where the project keeps each kind of file. Use them to map Shipinetics onto a project with its own layout |
 | `verify_cmd` | `bin/verify` | The complete checks |
 | `verify_quick_cmd` | None | The checks for the changed files. Without it, the quick tier runs the complete checks |
-| `evidence` | `optional` | `required` makes the PR gate and the CI evidence job ask for evidence on every PR that changes code. With `optional`, the agent records evidence only when you ask |
+| `evidence` | `optional` | `required` makes the PR gate and the CI evidence job ask for evidence on every PR that changes code. With `optional`, the agent asks you for each task |
 | `evidence_upload_cmd` | None | A command that uploads a recording to the team's store and prints a link. Setting it is the team's yes to upload evidence there |
 | `launch` | `agent` | `user` when you start the dev servers yourself. Then agents don't start, restart or stop the servers. They run the doctor check before they use the app. They don't seed or reset data, they write only as the test account, and they remove what they create |
 | `hooks_off` | None | The hooks that are off for this project |
