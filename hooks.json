@@ -5,6 +5,16 @@
         "type": "command",
         "command": "./scripts/companions-notice.sh",
         "timeout": 10
+      },
+      {
+        "type": "command",
+        "command": "./scripts/shims-auto.sh",
+        "timeout": 10
+      },
+      {
+        "type": "command",
+        "command": "./scripts/worktree-notice.sh",
+        "timeout": 10
       }
     ],
     "PreToolUse": [

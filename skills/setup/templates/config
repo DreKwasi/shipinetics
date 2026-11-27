@@ -16,6 +16,8 @@
 # personas_dir = docs/review/personas
 # evidence_dir = docs/evidence
 
+# ---- Evidence (shipinetics:evidence) is optional. An agent records it only when you ask for it.
+
 # ---- Evidence store (opt-in). Recordings never go in git. With this set, `evidence upload` runs the
 # command once per recording: $1 is the file, $2 a suggested name (<worksheet>/<file>). The command
 # uploads it to the team's store (SharePoint or OneDrive, S3, Google Drive...) and prints a link that
@@ -45,9 +47,10 @@
 # harness_repo = ../my-workspace-harness
 
 # ---- Hooks
-# Switch hooks off for this project: edits, secrets, pr, installs, companions, usage. Without this key, the
+# Switch hooks off for this project: edits, secrets, pr, installs, worktrees, companions, usage. Without this key, the
 # user's own ~/.config/shipinetics/config applies. SHIPINETICS_HOOKS_OFF does the same for a session.
 # hooks_off = installs
+# The names are edits, secrets, pr, installs, shims, companions and usage.
 
 # ---- Companions (companions.tsv in the plugin)
 # Companions that this team does not use. The session-start notice and shipinetics-companions
