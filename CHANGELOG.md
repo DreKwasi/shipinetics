@@ -9,6 +9,16 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Fixed
+- **Shipinetics works in git worktrees.** Before, Shipinetics found the project by the nearest `.shipinetics/` folder. In a worktree inside the main checkout (`.claude/worktrees/`), it read every path from the main checkout. So some protected and test files weren't guarded, `worksheet new` wrote into the main checkout's branch, and `shipinetics-verify` stopped with "isn't one of the packages". In a worktree outside the main checkout, every guard was off.
+  - Now the first Shipinetics call in a worktree copies the main checkout's `.shipinetics/` into it, without `.cache/` and `pending/`. Paths, worksheets and verify passes are the worktree's own. The copy follows changes in the main checkout, and git ignores it.
+  - `shipinetics-config` shows where a worktree's settings come from. `shipinetics-config apply` in a worktree writes a change to `.shipinetics/` into the main checkout.
+  - In a container that can't reach the main checkout, the worktree uses its copy.
+- **A workspace package's worktree counts as the package** when its folder is directly in the workspace root. **Projects:** remove worktree folders that you added to `packages` by hand, for example `marketplace-app-AXM-3304`.
+
+### Added
+- **The worktree notice** (`scripts/worktree-notice.sh`). When a session starts in a worktree where Shipinetics finds no settings, it says why and what to do: a package worktree outside the workspace root, or a container that can't reach the main checkout. Switch it off with `hooks_off = worktrees`.
+
 ## 0.10.0
 
 ### Changed
