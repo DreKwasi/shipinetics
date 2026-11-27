@@ -15,7 +15,7 @@ jobs:
     timeout-minutes: 5
     if: ${{ !startsWith(github.head_ref, 'release/') && !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: A change that users can see has an entry under Unreleased
