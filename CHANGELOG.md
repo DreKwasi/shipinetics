@@ -9,24 +9,28 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Fixed
+- **Shipinetics works in git worktrees.** Before, Shipinetics found the project by the nearest `.shipinetics/` folder. In a worktree inside the main checkout (`.claude/worktrees/`), it read every path from the main checkout. So some protected and test files weren't guarded, `worksheet new` wrote into the main checkout's branch, and `shipinetics-verify` stopped with "isn't one of the packages". In a worktree outside the main checkout, every guard was off.
+  - Now the first Shipinetics call in a worktree copies the main checkout's `.shipinetics/` into it, without `.cache/` and `pending/`. Paths, worksheets and verify passes are the worktree's own. The copy follows changes in the main checkout, and git ignores it.
+  - `shipinetics-config` shows where a worktree's settings come from. `shipinetics-config apply` in a worktree writes a change to `.shipinetics/` into the main checkout.
+  - In a container that can't reach the main checkout, the worktree uses its copy.
+- **A workspace package's worktree counts as the package** when its folder is directly in the workspace root. **Projects:** remove worktree folders that you added to `packages` by hand, for example `marketplace-app-AXM-3304`.
+
 ### Added
-- **A PR description guide,** `skills/explain/pr-description.md`, adapted from Warp's `write-pr-description` (MIT, see NOTICE). It covers the repo's PR template, decisions with the alternative that lost, what you did not verify, a review guide when the blast radius is wide, and a pass that cuts what the reviewer doesn't need. Evidence, workflow and explain point to it.
-- **Workflow step 11, "After the PR opens":** review comments on your own PR (one Reviews row with a response to each comment, fixes through test-writer and verify, replies posted only after a yes), CI failures (read the failed log, reproduce, never add `no-evidence` yourself), and merge conflicts (test files go to test-writer, which now has an exception for a merge in progress, and protected files to a person).
-- **`tests/test-skills.sh`** checks the plugin's own skills and agents: names, descriptions and size, and that each `${CLAUDE_PLUGIN_ROOT}`/`${CLAUDE_SKILL_DIR}` path and each relative `.md` link in their Markdown files exists. CONTRIBUTING.md has the rules.
+- **The short commands install themselves.** A new session-start hook (`scripts/shims-auto.sh`) runs `shipinetics-shims auto`. It writes or refreshes the `shipinetics-*` shims in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your terminal can run `shipinetics-config` and the other tools by name with no manual step. It writes only when that folder exists and is on the PATH, never changes a file that `shipinetics-shims` didn't write, and tells you only when it wrote a shim. Switch it off with `hooks_off = shims`.
+- **The worktree notice** (`scripts/worktree-notice.sh`). When a session starts in a worktree where Shipinetics finds no settings, it says why and what to do: a package worktree outside the workspace root, or a container that can't reach the main checkout. Switch it off with `hooks_off = worktrees`.
+
+## 0.10.0
 
 ### Changed
-- **Specs** have a Design line for UI tasks, a fuller edge-case list (loading, cancelled, offline, a second instance, accessibility, the features next to this one), and two more kinds of criteria: who is refused, and what must not change.
-- **Reviews:** the reviewer checks migration and rollout steps that the spec names, and that each fix marked "fixed" is still in the code at HEAD. Two reviewers who disagree on a blocking finding get one cross-critique round. A new response, **spec updated**, needs the human's yes and a test-writer change request, and is never used for security, compatibility, migration or validation rules. The UI reviewer compares the screens with the spec's Design link.
-- **Bug fixes** record the version in the report and the one tested, try the exact steps and then at most two changes, record whether the bug reproduced, and stop when it didn't.
-- **Wrap-up** updates the spec when the code differs from it on purpose.
-- **Feedback** entries have a Workaround line, and project bugs go to the task queue. The ingest has a bar before it changes a skill or a doc, and replaces the text that failed instead of adding to it.
-- **pr-review** reads the review threads that are already on the PR, and checks each line comment against the diff before it posts.
-- **The task queue** has optional `Touches:` and `Interface:` lines, and a split L task keeps its end-to-end criteria as the last slice.
-- **Evidence** has a row for performance changes: a `bench-compare` transcript.
-- **Explain HTML pages** link to the commit when the page is shared, end with where the content came from, are checked before you hand them over, and big ones are built by a subagent.
+- **Evidence is no longer a requirement.** You decide for each task: when the change works, the agent asks "Record evidence for this change?", with its advice, and records it only on your yes. In an autonomous session it doesn't record it. Without evidence, it says in the PR how it verified the change.
+  - The PR gate checks only the complete verify pass on this exact code. It no longer checks evidence or the `## Evidence` section. A branch with only docs and Markdown still needs nothing.
+  - The reviewer no longer treats missing evidence as a finding. merge-risk grades verification from the worksheet, the verify pass and the tests when there is no evidence.
+  - `SHIPINETICS_ALLOW_NO_EVIDENCE=1` still turns off the PR gate, as the old name of `SHIPINETICS_SKIP_VERIFY=1`.
 
-### Fixed
-- **Credit for `skills/explain/plain-language.md`.** It started from Warp's `plain-language.md` but didn't credit it. The file and NOTICE now carry Warp's MIT notice.
+### Removed
+- **The CI evidence job** in `skills/setup/templates/github/workflows/verify.yml`. **Projects that copied the template:** delete the `evidence` job from `.github/workflows/verify.yml`, or CI keeps failing PRs without an Evidence section.
+- **`.shipinetics/no-evidence-paths`, the `no-evidence` label, the `None: <reason>` line and `evidence needed`.** They only decided when evidence was required. **Projects:** you can delete `.shipinetics/no-evidence-paths` and the `no-evidence` label.
 
 ## 0.9.6
 
