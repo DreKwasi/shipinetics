@@ -17,6 +17,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - **A workspace package's worktree counts as the package** when its folder is directly in the workspace root. **Projects:** remove worktree folders that you added to `packages` by hand, for example `marketplace-app-AXM-3304`.
 
 ### Added
+- **The short commands install themselves.** A new session-start hook (`scripts/shims-auto.sh`) runs `shipinetics-shims auto`. It writes or refreshes the `shipinetics-*` shims in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your terminal can run `shipinetics-config` and the other tools by name with no manual step. It writes only when that folder exists and is on the PATH, never changes a file that `shipinetics-shims` didn't write, and tells you only when it wrote a shim. Switch it off with `hooks_off = shims`.
 - **The worktree notice** (`scripts/worktree-notice.sh`). When a session starts in a worktree where Shipinetics finds no settings, it says why and what to do: a package worktree outside the workspace root, or a container that can't reach the main checkout. Switch it off with `hooks_off = worktrees`.
 
 ## 0.10.0
