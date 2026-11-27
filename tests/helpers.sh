@@ -50,6 +50,30 @@ V
   chmod +x "$1"
 }
 
+# with_tty <input> <command...>: run a command with a terminal on stdin, typing the input
+# (Not pty.spawn: it stops copying when the child exits, so output can go missing on macOS.)
+with_tty() {
+  python3 - "$@" <<'PY' 2>&1
+import os, pty, sys
+pid, fd = pty.fork()
+if pid == 0:
+    os.execvp(sys.argv[2], sys.argv[2:])
+os.write(fd, sys.argv[1].encode())
+out = b""
+while True:
+    try:
+        chunk = os.read(fd, 4096)
+    except OSError:    # Linux: EIO once the child has gone and the output is drained
+        break
+    if not chunk:      # macOS: end of file
+        break
+    out += chunk
+_, status = os.waitpid(pid, 0)
+sys.stdout.write(out.decode(errors="replace"))
+sys.exit((status >> 8) & 0xff)
+PY
+}
+
 # replace <file> <old> <new>: in-place literal replacement, portable across macOS and Linux
 replace() { python3 - "$@" <<'PY'
 import sys
