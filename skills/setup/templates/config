@@ -47,7 +47,7 @@
 # harness_repo = ../my-workspace-harness
 
 # ---- Hooks
-# Switch hooks off for this project: edits, secrets, pr, installs, companions, usage. Without this key, the
+# Switch hooks off for this project: edits, secrets, pr, installs, worktrees, companions, usage. Without this key, the
 # user's own ~/.config/shipinetics/config applies. SHIPINETICS_HOOKS_OFF does the same for a session.
 # hooks_off = installs
 

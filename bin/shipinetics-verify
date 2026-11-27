@@ -24,7 +24,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 
 die() { echo "shipinetics-verify: $*" >&2; exit 2; }
 repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
-root="$(sy_root "$repo")" || die "no .shipinetics/ folder here or above. Run /shipinetics:setup first."
+root="$(sy_root "$repo")" || die "$(sy_wt_hint "$repo" || echo "no .shipinetics/ folder here or above. Run /shipinetics:setup first.")"
 pkg=""
 if [ "$root" != "$repo" ]; then
   pkg="$(sy_rel "$root" "$repo")"

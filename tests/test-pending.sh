@@ -12,29 +12,6 @@ edit_hook() {
   OUT="$(printf '{"tool_name":"Write","agent_type":"%s","tool_input":{"file_path":"%s","content":"x"}}' "${2:-}" "$p/$1" |
     CLAUDE_PROJECT_DIR="$p" bash "$SY/scripts/guard-edits.sh" 2>/dev/null)"
 }
-# with_tty <input> <command...>: run a command with a terminal on stdin, typing the input
-# (Not pty.spawn: it stops copying when the child exits, so output can go missing on macOS.)
-with_tty() {
-  python3 - "$@" <<'PY' 2>&1
-import os, pty, sys
-pid, fd = pty.fork()
-if pid == 0:
-    os.execvp(sys.argv[2], sys.argv[2:])
-os.write(fd, sys.argv[1].encode())
-out = b""
-while True:
-    try:
-        chunk = os.read(fd, 4096)
-    except OSError:    # Linux: EIO once the child has gone and the output is drained
-        break
-    if not chunk:      # macOS: end of file
-        break
-    out += chunk
-_, status = os.waitpid(pid, 0)
-sys.stdout.write(out.decode(errors="replace"))
-sys.exit((status >> 8) & 0xff)
-PY
-}
 
 edit_hook e2e/acceptance/a.spec.ts shipinetics:test-writer
 has "protected file: the deny points at the pending folder" "$OUT" ".shipinetics/pending/e2e/acceptance/a.spec.ts"

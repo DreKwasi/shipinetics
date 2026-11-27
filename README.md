@@ -37,12 +37,13 @@ These rules are enforced:
 | The agent can't run `git push --force`, `git push -f`, `git reset --hard`, `gh pr merge`, `npm publish` or `gcloud secrets versions access`, or read `~/.config/gcloud`, `~/.aws` or `~/.ssh`. The rules match these command forms only: for example, `git push origin main --force` isn't covered | Deny rules in `.claude/settings.json` | Projects that use the settings template | Edit the settings |
 | A PR passes `bin/verify --full`. CI blocks the merge only if branch protection requires this job | CI (`.github/workflows/verify.yml`) | Projects that use the CI template | Branch protection settings |
 
-Two more hooks only inform you:
+Three more hooks only inform you:
 
 - **The companions notice.** When a new session starts and a required companion is missing, it lists the missing companions, and tells Claude too. A missing optional companion (tasteskill, Strix) shows only beside a missing required one.
+- **The worktree notice.** When a new session starts in a git worktree where Shipinetics can't find the project's settings, it says why and what to do. "Git worktrees" below has the cases.
 - **The usage log.** When a session ends, it records the tokens that the session used.
 
-To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `installs`, `companions` or `usage`. Put it in a project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. A project's `hooks_off` replaces yours. `SHIPINETICS_HOOKS_OFF="secrets installs"` does the same for one session.
+To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `installs`, `worktrees`, `companions` or `usage`. Put it in a project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. A project's `hooks_off` replaces yours. `SHIPINETICS_HOOKS_OFF="secrets installs"` does the same for one session.
 
 The guards see the text of each command, and the paths in Claude's file tools. They don't see what a script does when it runs. So an agent can get around a guard with a script that it writes. The guards make that a deliberate act, and the reviewers look for it. "Known limits" lists the gaps.
 
@@ -497,6 +498,18 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 - `shipinetics-verify` in a package runs `package_verify_cmd` for it. `shipinetics-verify quick` runs `package_verify_quick_cmd`.
 - The PR gate and `evidence` work in the package repo that the PR comes from.
 - The root's own files (`.shipinetics/`, the queue, the worksheets, the docs) must be in a git repo too. Make the root a repo that ignores the package folders, or set `harness_repo` to a separate repo. `shipinetics-config` warns you when neither is true.
+- A git worktree of a package, in its own folder directly in the root, counts as that package. For example, `marketplace-app-AXM-3304` is a worktree of `marketplace-app`. You don't add it to `packages`. `package_verify_cmd` gets the worktree's folder name as `{package}`.
+
+### Git worktrees
+
+Shipinetics works in a git worktree as it works in the main checkout. The first Shipinetics tool or hook that runs in a worktree copies the main checkout's `.shipinetics/` into it. Only the worktree that you work in gets a copy.
+
+- The rules, worksheets and verify passes then use paths in the worktree. A protected `e2e/acceptance/*` file is protected in the worktree too, and `worksheet new` writes into the worktree's branch.
+- The copy leaves out `.cache/` and `pending/`, because each checkout keeps its own. `.shipinetics/.copied-from` names the source. Git ignores the copy: if the project's `.gitignore` doesn't ignore `.shipinetics/`, Shipinetics adds it to `.git/info/exclude`.
+- The copy follows the main checkout. When a file in the main checkout's `.shipinetics/` changes, the next Shipinetics call in the worktree copies it again. Change settings in the main checkout. `shipinetics-config apply` in a worktree writes a change to `.shipinetics/` into the main checkout.
+- If `.shipinetics/` is in git, each worktree has its own from git, and nothing is copied.
+- **Containers.** A worktree's `.git` file points to its main checkout's git folder by a host path. A container that mounts only the worktree can't reach it. If a copy is already in the worktree, Shipinetics uses it. If not, the worktree notice says what to do: mount the main checkout at the same path as on the host, or run `shipinetics-config` once in the worktree on the host.
+- **Workspace packages.** Put a package's worktree in a folder directly in the workspace root (see Workspace mode). Shipinetics can't find a package worktree in another place, and the worktree notice says so.
 
 ## Environment variables
 
@@ -567,8 +580,8 @@ hooks/            hooks.json: which script runs at which event (Claude Code)
 hooks.json        root lifecycle hooks for Antigravity
 plugin.json       root plugin manifest for Antigravity
 scripts/          the hooks (guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh,
-                  companions-notice.sh, usage-record.sh), lib.sh with the shared helpers, and
-                  usage.py with usage-page.html for the token usage
+                  companions-notice.sh, worktree-notice.sh, usage-record.sh), lib.sh with the
+                  shared helpers, and usage.py with usage-page.html for the token usage
 skills/           the 22 skills. setup/templates/ holds the files that setup writes into a project.
                   review/personas/ holds the reviewer personas. explain/plain-language.md is the
                   writing guide. worksheet/template.md is the worksheet template, and
