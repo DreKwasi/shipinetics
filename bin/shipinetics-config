@@ -114,7 +114,7 @@ apply_cmd() {
 }
 
 apply_pending() {
-  local f t reply applied=0 dir
+  local f t reply applied=0 dir dest
   if [ ! -t 0 ]; then
     {
       echo "shipinetics-config: apply needs a person at a terminal, so an agent cannot run it."
@@ -128,15 +128,22 @@ apply_pending() {
   dir="$(sy_dir "$root")/pending"
   while IFS="$(printf '\t')" read -r f t <&3; do
     echo "== $t"
-    if [ -L "$root/$t" ]; then echo "$root/$t is a symlink, so apply this one by hand."; continue; fi
-    if [ -e "$root/$t" ]; then diff -u --label "$t (current)" --label "$t (proposed)" "$root/$t" "$f" || true
+    # In a git worktree, .shipinetics/ is a copy of the main checkout's. A change to it goes to the
+    # main checkout, and the worktree's copy follows on the next run.
+    dest="$root/$t"
+    case "$t" in "$SY_DIR_NAME"/*)
+      [ -f "$(sy_dir "$root")/.copied-from" ] && dest="$(head -n 1 "$(sy_dir "$root")/.copied-from")/$t" ;;
+    esac
+    if [ -L "$dest" ]; then echo "$dest is a symlink, so apply this one by hand."; continue; fi
+    if [ -e "$dest" ]; then diff -u --label "$t (current)" --label "$t (proposed)" "$dest" "$f" || true
     else echo "(new file)"; sed 's/^/+ /' "$f"; fi
+    [ "$dest" = "$root/$t" ] || echo "(This changes the main checkout's file: $dest)"
     printf 'Apply this change to %s? [y/N/q] ' "$t"
     read -r reply || reply=q
     case "$reply" in
       y|Y|yes)
-        mkdir -p "$(dirname "$root/$t")"
-        cat "$f" >"$root/$t" && rm -f "$f" && applied=$((applied + 1))
+        mkdir -p "$(dirname "$dest")"
+        cat "$f" >"$dest" && rm -f "$f" && applied=$((applied + 1))
         echo "applied." ;;
       q|Q) break ;;
       *) echo "left pending." ;;
@@ -153,7 +160,8 @@ if [ "${1:-}" = -C ]; then
   shift 2
 fi
 
-root="$(sy_root "$PWD")" || { echo "shipinetics-config: no .shipinetics/ folder in $PWD or above. Run /shipinetics:setup first." >&2; exit 1; }
+root="$(sy_root "$PWD")" || {
+  echo "shipinetics-config: $(sy_wt_hint "$PWD" || echo "no .shipinetics/ folder in $PWD or above. Run /shipinetics:setup first.")" >&2; exit 1; }
 
 case "${1:-}" in
   get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
@@ -174,6 +182,9 @@ case "${1:-}" in
   apply) shift; apply_pending "$@" ;;
   ""|list)
     echo "root: $root"
+    if [ -f "$(sy_dir "$root")/.copied-from" ]; then
+      echo "settings: copied from $(head -n 1 "$(sy_dir "$root")/.copied-from"), because this is a git worktree. Change them there."
+    fi
     if sy_workspace "$root"; then
       echo "mode: workspace (packages: $(sy_cfg "$root" packages))"
       if h="$(sy_harness_repo "$root")"; then echo "harness files versioned in: $h"
