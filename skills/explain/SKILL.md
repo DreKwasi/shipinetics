@@ -129,7 +129,10 @@ A single self-contained `.html` file: inline CSS and JS, no external requests, n
 - Put it in `.shipinetics/explainers/YYYY-MM-DD-<slug>.html`. That folder is gitignored because these are throwaway. Commit one only if the user asks.
 - Structure: the one-line answer at the top, then a diagram, then detail the reader can expand. Make it interactive where that helps understanding: toggles between before and after, collapsible sections, step-through animations of a flow, sortable tables, a filter on findings.
 - Draw diagrams with inline SVG, or an inline Mermaid render if you embed the library source. Don't link a CDN.
-- Link to code with relative paths and line numbers. Use real data from the repo, not placeholders.
+- Link to code with line numbers. If the page leaves this machine, link to the commit on the remote (`<repo URL>/blob/<sha>/<path>#L10-L25`), because a relative path breaks when someone else opens the page. Use real data from the repo, not placeholders.
+- End the page with where it came from: the date, the commit, and the sources it uses. Mark what you verified apart from what you inferred.
+- Before you give the user the path, check the page's own markup, not an embedded library. `grep -nE '(src|<link[^>]*href)="https?:' <file>` finds content loaded from outside: remove each one (links in `<a href>` are fine). `grep -nE '\{\{|TODO|lorem' <file>` finds placeholders: check each hit, and keep the ones that are real content, such as quoted code.
+- For a big page, give the build to a subagent with a short brief: pointers to the files and findings, not their contents. This keeps your own context small.
 - Make it look good. If the `impeccable` skill is installed, use it for the visual design.
 - Tell the user the path. You can't open it for them inside the sandbox, so give them the command: `open <path>`.
 - Never put secrets, tokens or personal data in an explainer.
@@ -157,6 +160,6 @@ Bespoke videos are starting to work well for concepts and systems. They cost tim
 | Review of a change (M and up) | Whiteboard, else HTML page |
 | "How does X work?" | Whiteboard scratchpad, else a Mermaid diagram plus prose, else HTML page |
 | Onboarding to a system, or a hard concept | Offer an explainer video |
-| PR description | Prose by [plain-language.md](plain-language.md), above the generated Evidence section: what changed and why, how you verified it, and what you did not verify. A diagram if there's flow |
+| PR description | By [pr-description.md](pr-description.md): the repo's PR template, what changed and why, the decisions with the alternatives that lost, what you did not verify, and a review guide when it helps. Prose by [plain-language.md](plain-language.md). A diagram if there's flow |
 | Commit message | The same rules. The first line says what changed. The body says why |
 | Comment on someone else's PR | One finding in one or two sentences: the problem, a failure case and the fix (shipinetics:pr-review) |

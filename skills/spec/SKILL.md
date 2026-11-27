@@ -54,6 +54,7 @@ Keep it under 4,000 characters.
 # <Feature name>
 > Summary: <one or two sentences on what changes for the user>
 > Task: <T-ID or issue link> | Worksheet: <name> | Status: draft, approved, done
+> Design: <link to the design, or "none provided"> (UI tasks only, so the UI reviewer knows what to compare against)
 
 ## Problem
 <What's wrong or missing today, for whom. Evidence if any.>
@@ -72,7 +73,7 @@ IDs are stable: never renumber. A new criterion takes the next free number. A re
 <A few lines: which systems change and how. Enough for a plan review, not a design doc.>
 
 ## Risks and edge cases
-<Data migration, permissions, concurrency, empty and error states, performance. If the change adds or changes a state or a transition: which transitions are now valid, and what a retry or a second request at the same time does. Each rule that must hold is an acceptance criterion above, or it gets no test.>
+<Check each item in this list, and keep the ones that apply. Data migration. Permissions, and who is refused. Concurrency: a second instance or tab, a double submit. Empty, loading, error and cancelled states. Timeouts and offline. Stale data. Keyboard, focus and accessibility. The features next to this one that share its data or its screen. Performance. If the change adds or changes a state or a transition: which transitions are now valid, and what a retry or a second request at the same time does. Each rule that must hold is an acceptance criterion above, or it gets no test.>
 
 ## Open questions
 <Decisions made without the human, so they can overrule them.>
@@ -90,5 +91,7 @@ IDs are stable: never renumber. A new criterion takes the next free number. A re
 - **Observable:** "the invoice shows the total including tax", not "tax is calculated correctly".
 - **Specific:** real values. "Given a cart with two items at $10 and 8% tax, the total shows $21.60."
 - **Includes the unhappy path:** at least one criterion for invalid input, an empty state or a failure.
+- **Includes the refused case:** each permission or access rule has a criterion for who is refused and what they see. Without it, no test checks the refusal.
+- **Names what must not change:** when the change sits next to existing behaviour that users rely on, a criterion says that it still works. "Given <existing state>, when <action>, then <result> still shows."
 - **Complete:** each case that must not break is in a criterion, with its values (a limit, the currencies, an error). Test-writer tests nothing else. It proposes the criteria that it finds missing, and the human decides.
 - **No implementation detail:** criteria survive a rewrite of the code.

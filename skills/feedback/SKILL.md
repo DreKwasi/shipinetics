@@ -27,6 +27,10 @@ Be specific and actionable. Name files, commands and minutes lost. Write the ent
 
 Include instruction problems too: rules that contradicted each other, rules that didn't fit the situation, steps you skipped and why. If nothing slowed you down, write one line saying so. That's useful signal too.
 
+- Add a `- Workaround:` line to the entry: what got you unstuck. It is often the fix: a command for `bin/`, a missing doc line.
+- One root cause for each bullet. If three symptoms came from one cause, write the cause once.
+- A bug in the project's own code is not feedback. Add it to the task queue (shipinetics:task-queue).
+
 ## Ingesting (interactive, with the user)
 
 Run this with the user every week or two, or when the backlog gets long.
@@ -41,6 +45,13 @@ Run this with the user every week or two, or when the backlog gets long.
    4. A doc or skill change (it explains)
    5. An `AGENTS.md` routing line (it points)
    Keep a proposed fix only if it passes three tests: it's **durable** (it will still matter next month, not just for one task), the problem happened while the relevant skill or doc was **actually in use** (a fix to a skill nobody loaded won't help), and it's **not already covered** somewhere else. Also ask what would have let the agent do this without asking or guessing: a missing script or a missing doc line is often the real fix. For a new lint rule or hook, prove it fails on a real past mistake from git history before you add it, and say which commit.
+   Don't propose a change to a skill or a doc when:
+   - The rule was already there and the agent didn't follow it. Learn the cause first. A skill that didn't load usually has a description that doesn't match the task.
+   - It happened once and looks like chance.
+   - The change only says the same rule again, or adds a hedge.
+   - The real fix is in code, a script or the environment.
+
+   When you change a skill, replace the text that failed. Don't add a paragraph next to it. State the rule and the file that owns it in one sentence, then make the smallest change. An ingest that proposes no change is a good result when nothing passes these tests.
 5. Show the user the ranked list as a table: cluster, how often, minutes lost, proposed fix and file. Write it in ASD-STE100. When one root cause makes several clusters, or one fix closes several clusters, show the clusters and their fixes on a Whiteboard. Without Whiteboard, use a Mermaid flowchart from the clusters to the fixes. Apply the fixes that the user approves. Changes to the plugin itself (skills, reviewer, hooks) go in the plugin repo, not the project: note them as a list the user can take there.
 6. **Look at the numbers.** Read the Metrics blocks of worksheets since the last ingest. Summarize per accepted task: tokens (output tokens and the total), API calls, cost when the user filled it in, review rounds, corrections after human review, human review minutes, and the share of tasks accepted. Show the numbers as a table, with one row for each batch. `shipinetics-usage html --days 90` shows the token trend for each session and each agent. Tell the user about each trend in one ASD-STE100 sentence, and name the feedback cluster that it can explain. Also compare merge-risk grades with what actually happened: if low-risk tasks keep needing corrections, the grading (or the evidence behind it) can't be trusted yet, and that's worth fixing before anyone reviews less.
 7. **Change one thing at a time.** When a fix changes the setup itself (effort level, a skill, a reviewer, a model), say so in the commit and note the date. Compare the next batch of accepted tasks against the previous one on the same metrics before changing anything else. Two changes at once make the numbers unreadable.

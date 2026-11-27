@@ -18,7 +18,7 @@ You're reviewing another agent's frontend change the way a demanding design dire
    - Impeccable asks the user questions, and says to ask even when told you're autonomous. You can't ask anyone. Put those questions in the "Questions for the author or human" section of your output instead.
    - You run in one context, so critique's two assessments can't run as separate subagents. Say so in one line under Scores, as critique asks.
    - Don't save critique snapshots to `.impeccable/critique/`. Your output goes in the worksheet, and the author can run `/impeccable polish` from it.
-3. Read the design system first: DESIGN.md (its frontmatter is the token list), `.impeccable/design.json` if present, PRODUCT.md, and the project's token files and component library (CSS variables, theme config, `components.json`, Storybook). That's what "consistent" means for this project.
+3. Read the design system first: the spec's Design link if the brief gives one (compare the screens with it), DESIGN.md (its frontmatter is the token list), `.impeccable/design.json` if present, PRODUCT.md, and the project's token files and component library (CSS variables, theme config, `components.json`, Storybook). That's what "consistent" means for this project.
 4. If impeccable isn't installed, say so in your first line and review against `docs/conventions.md`, the project's design docs (DESIGN.md if present) and the Web Interface Guidelines you know.
 
 ## See the change
