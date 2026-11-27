@@ -50,6 +50,8 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 ## Install
 
+You need macOS or Linux (on Windows, use WSL), bash, git, and python3 or `jq`. The hooks read their input with python3 or `jq`: with neither, the guards can't read the input and let each action through.
+
 1. Install the plugin, from GitHub (recommended):
 
    ```bash
@@ -73,9 +75,9 @@ It does this only when `~/.local/bin` exists and is on your PATH. If it isn't, r
 
 To stop the automatic install, add `hooks_off = shims` to `~/.config/shipinetics/config`. To remove the shims, run `shipinetics-shims remove`.
 
-### Antigravity
+### Antigravity (experimental)
 
-Shipinetics also runs as an Antigravity plugin. From a clone of this repo:
+Shipinetics also runs as an Antigravity plugin. Support is experimental: Antigravity doesn't fill in `${CLAUDE_PLUGIN_ROOT}` in skill text, so some paths in skills don't resolve there yet. From a clone of this repo:
 
 ```bash
 ./bin/shipinetics-antigravity install
@@ -501,7 +503,7 @@ Every setting is optional. A project sets its own in `.shipinetics/config`, one 
 - `shipinetics-verify` in a package runs `package_verify_cmd` for it. `shipinetics-verify quick` runs `package_verify_quick_cmd`.
 - The PR gate and `evidence` work in the package repo that the PR comes from.
 - The root's own files (`.shipinetics/`, the queue, the worksheets, the docs) must be in a git repo too. Make the root a repo that ignores the package folders, or set `harness_repo` to a separate repo. `shipinetics-config` warns you when neither is true.
-- A git worktree of a package, in its own folder directly in the root, counts as that package. For example, `marketplace-app-AXM-3304` is a worktree of `marketplace-app`. You don't add it to `packages`. `package_verify_cmd` gets the worktree's folder name as `{package}`.
+- A git worktree of a package, in its own folder directly in the root, counts as that package. For example, `web-PROJ-123` is a worktree of `web`. You don't add it to `packages`. `package_verify_cmd` gets the worktree's folder name as `{package}`.
 
 ### Git worktrees
 
@@ -599,6 +601,8 @@ tests/            the tests of the hooks and tools
 ```
 
 ## Work on Shipinetics
+
+[CONTRIBUTING.md](CONTRIBUTING.md) has the full guide: what you need, the rules for each kind of change, and what a pull request needs. In short:
 
 - **Run the tests** with `bash tests/run.sh`. Also run `/bin/bash tests/run.sh` on macOS: the scripts must work in bash 3.2. CI runs both, on Linux and on macOS.
 - **Try a change** in one session with `claude --plugin-dir <path to this repo>`, or add the marketplace from your clone. Then `/reload-plugins` loads each edit.

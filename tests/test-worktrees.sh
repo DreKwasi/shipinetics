@@ -62,11 +62,16 @@ has "and says to mount the main checkout or run it on the host" "$OUT" "mount th
 
 # A change to the settings, proposed in a worktree, goes to the main checkout
 mkdir -p "$in/.shipinetics/pending/.shipinetics"; printf 'e2e/acceptance/*\nsrc/other.ts\n' >"$in/.shipinetics/pending/.shipinetics/protected-paths"
-OUT="$(cd "$in" && with_tty 'y
+# apply needs a pseudo-terminal. Some sandboxes have none; CI does.
+if python3 -c 'import os, pty; m, s = pty.openpty(); os.close(m); os.close(s)' 2>/dev/null; then
+  OUT="$(cd "$in" && with_tty 'y
 ' shipinetics-config apply)"
-has "apply says it changes the main checkout's file" "$OUT" "the main checkout's file: $m/.shipinetics/protected-paths"
-has "the main checkout gets the change" "$(cat "$m/.shipinetics/protected-paths")" "src/other.ts"
-has "and the worktree's copy follows" "$(cd "$in" && shipinetics-config root >/dev/null; cat "$in/.shipinetics/protected-paths")" "src/other.ts"
+  has "apply says it changes the main checkout's file" "$OUT" "the main checkout's file: $m/.shipinetics/protected-paths"
+  has "the main checkout gets the change" "$(cat "$m/.shipinetics/protected-paths")" "src/other.ts"
+  has "and the worktree's copy follows" "$(cd "$in" && shipinetics-config root >/dev/null; cat "$in/.shipinetics/protected-paths")" "src/other.ts"
+else
+  printf '  skip  apply in a worktree changes the main checkout (no pseudo-terminal here)\n'
+fi
 
 # ---- settings tracked in git: the worktree has its own, and nothing is copied
 t="$scratch/tracked"; new_repo "$t"; cd "$t" || exit 1

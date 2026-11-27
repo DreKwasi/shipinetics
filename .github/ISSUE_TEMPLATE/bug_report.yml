@@ -1,0 +1,55 @@
+name: Bug report
+description: Something in Shipinetics doesn't work as the docs say.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. For a security problem, don't use this form: follow SECURITY.md.
+        Remove secrets, private paths and names from logs before you paste them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest steps that show the problem. Include the command or the prompt, and the hook or skill involved, if you know it.
+      placeholder: |
+        1. In a project set up with /shipinetics:setup ...
+        2. Run ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or logs
+      description: Error messages, hook output, or the output of `shipinetics-config`.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Shipinetics version
+      description: The version in `.claude-plugin/plugin.json`, or the output of `shipinetics-update`.
+    validations:
+      required: true
+  - type: dropdown
+    id: harness
+    attributes:
+      label: Harness
+      options:
+        - Claude Code
+        - Antigravity
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Operating system and bash version
+      placeholder: macOS 15, /bin/bash 3.2.57

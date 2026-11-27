@@ -35,7 +35,7 @@ The audit's findings and the ask-once questions are long. A person understands t
    - **The Whiteboard plugin is installed, but the tool doesn't answer** (the MCP server fails to connect, or the tool isn't there): the dev.fast Whiteboard app is probably missing. Ask the user one question before anything else: "Setup shows its findings and questions on a Whiteboard. The Whiteboard plugin is installed, but the dev.fast Whiteboard app does not answer. Do you want to install the app and restart this session, or continue with the questions as text?" Recommend the install. If they install it, run setup again after the restart. If they choose text, continue with text, and put the app install on the For you list.
    - **The Whiteboard plugin isn't installed:** use text. Row R of the audit already lists the missing companion.
 2. **Write every word in ASD-STE100.** shipinetics:explain ("Prose" and "Labels") has the rules. They apply to each title, card, table cell and option. Two rules matter most here:
-   - **No private codes.** Write "Recommended:", not "(rec)". Write "Not confirmed:", not "?". The project's own names (`AXM`, `seed_admins`, a port number) stay as they are.
+   - **No private codes.** Write "Recommended:", not "(rec)". Write "Not confirmed:", not "?". The project's own names (a ticket prefix such as `PROJ`, a table name, a port number) stay as they are.
    - **One question for each card,** as a sentence that ends with "?".
 
 ### On a Whiteboard

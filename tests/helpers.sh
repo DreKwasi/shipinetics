@@ -2,7 +2,9 @@
 # Every test works in a scratch folder under $TMPDIR and never touches this repo.
 
 set -uo pipefail
-SY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The physical path (pwd -P): the tools resolve symlinks (/tmp -> /private/tmp on macOS), so the
+# tests must compare against the same path.
+SY="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 fails=0
 t="${TMPDIR:-/tmp}"; scratch="$(mktemp -d "${t%/}/shipinetics-test.XXXXXX")"   # macOS runners end TMPDIR in /
 trap 'rm -rf "$scratch"' EXIT
