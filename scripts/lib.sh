@@ -193,7 +193,7 @@ sy_harness_repo() {
 
 # sy_package_of <root> <path relative to root>: the package folder the path belongs to, if any.
 # A linked git worktree of a package, in its own folder directly in the root (for example
-# marketplace-app-AXM-3304 for marketplace-app), counts as a package too: it prints that folder.
+# web-PROJ-123 for web), counts as a package too: it prints that folder.
 sy_package_of() {
   local p first m
   for p in $(sy_cfg "$1" packages); do

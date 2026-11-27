@@ -10,6 +10,8 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 ## Unreleased
 
 ### Added
+- **Standards for contributors.** CONTRIBUTING.md has what you need, how Shipinetics is built, the rules for each kind of change, and what a pull request needs. The repo has a pull request template, issue forms for bugs and features, a code of conduct, and `AGENTS.md` for agents that work on Shipinetics itself.
+- **CI checks each pull request for a CHANGELOG entry** (`.github/workflows/pr-checks.yml`), when it changes what users get. A maintainer can add the `no-changelog` label. Dependabot keeps the GitHub Actions up to date.
 - **A PR description guide,** `skills/explain/pr-description.md`, adapted from Warp's `write-pr-description` (MIT, see NOTICE). It covers the repo's PR template, decisions with the alternative that lost, what you did not verify, a review guide when the blast radius is wide, and a pass that cuts what the reviewer doesn't need. Evidence, workflow and explain point to it.
 - **Workflow step 11, "After the PR opens":** review comments on your own PR (one Reviews row with a response to each comment, fixes through test-writer and verify, replies posted only after a yes), CI failures (read the failed log, reproduce, never add `no-evidence` yourself), and merge conflicts (test files go to test-writer, which now has an exception for a merge in progress, and protected files to a person).
 - **`tests/test-skills.sh`** checks the plugin's own skills and agents: names, descriptions and size, and that each `${CLAUDE_PLUGIN_ROOT}`/`${CLAUDE_SKILL_DIR}` path and each relative `.md` link in their Markdown files exists. CONTRIBUTING.md has the rules.
@@ -17,6 +19,9 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - **The worktree notice** (`scripts/worktree-notice.sh`). When a session starts in a worktree where Shipinetics finds no settings, it says why and what to do: a package worktree outside the workspace root, or a container that can't reach the main checkout. Switch it off with `hooks_off = worktrees`.
 
 ### Changed
+- **CI** runs with read-only permissions, cancels an old run when you push again, and tests on `macos-latest` instead of the Intel image.
+- **The README** lists what you need (macOS or Linux, bash, git, python3 or `jq`) and marks Antigravity support as experimental. SECURITY.md supports the latest release, not a version number.
+- Examples use `web-PROJ-123` and neutral names.
 - **Specs** have a Design line for UI tasks, a fuller edge-case list (loading, cancelled, offline, a second instance, accessibility, the features next to this one), and two more kinds of criteria: who is refused, and what must not change.
 - **Reviews:** the reviewer checks migration and rollout steps that the spec names, and that each fix marked "fixed" is still in the code at HEAD. Two reviewers who disagree on a blocking finding get one cross-critique round. A new response, **spec updated**, needs the human's yes and a test-writer change request, and is never used for security, compatibility, migration or validation rules. The UI reviewer compares the screens with the spec's Design link.
 - **Bug fixes** record the version in the report and the one tested, try the exact steps and then at most two changes, record whether the bug reproduced, and stop when it didn't.
@@ -32,7 +37,7 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
   - Now the first Shipinetics call in a worktree copies the main checkout's `.shipinetics/` into it, without `.cache/` and `pending/`. Paths, worksheets and verify passes are the worktree's own. The copy follows changes in the main checkout, and git ignores it.
   - `shipinetics-config` shows where a worktree's settings come from. `shipinetics-config apply` in a worktree writes a change to `.shipinetics/` into the main checkout.
   - In a container that can't reach the main checkout, the worktree uses its copy.
-- **A workspace package's worktree counts as the package** when its folder is directly in the workspace root. **Projects:** remove worktree folders that you added to `packages` by hand, for example `marketplace-app-AXM-3304`.
+- **A workspace package's worktree counts as the package** when its folder is directly in the workspace root. **Projects:** remove worktree folders that you added to `packages` by hand, for example `web-PROJ-123`.
 - **Credit for `skills/explain/plain-language.md`.** It started from Warp's `plain-language.md` but didn't credit it. The file and NOTICE now carry Warp's MIT notice.
 
 ## 0.10.0

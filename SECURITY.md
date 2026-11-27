@@ -2,12 +2,7 @@
 
 ## Supported versions
 
-Shipinetics fixes security issues on the latest release on `main`.
-
-| Version | Supported |
-|---|---|
-| `0.9.x` (latest on `main`) | Yes |
-| `< 0.9.0` | No |
+Shipinetics fixes security issues in the latest release only. Update to it before you report a problem, if you can.
 
 ## Reporting a vulnerability
 
