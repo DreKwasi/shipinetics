@@ -1,6 +1,6 @@
 ---
 name: workflow
-description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting and choosing a route (with the companion skills each route uses) through spec, implementation, tests, running the app, verification, review and wrap-up. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (the fix comes first, then a regression test from test-writer), and whenever you're unsure what step comes next.
+description: The standard task loop for any coding task in a shipinetics-set-up repo, from orienting and choosing a route (with the companion skills each route uses) through spec, implementation, tests, running the app, verification, review, wrap-up, and then the review comments, CI failures and merge conflicts on your PR. Use at the start of any feature, bug fix or refactor, including bug reports, error reports and Sentry issues (the fix comes first, then a regression test from test-writer), and whenever you're unsure what step comes next.
 ---
 
 # The task loop
@@ -96,7 +96,7 @@ You run verify yourself. No hook runs it when you stop.
 
 ## 8. Review
 
-Implementation review is required for every task above XS (shipinetics:review impl). That includes the security reviewer when the change touches anything security-relevant and the UI reviewer when it touches UI. Respond to every finding in the worksheet: fixed, disagree with a reason, or deferred to the queue.
+Implementation review is required for every task above XS (shipinetics:review impl). That includes the security reviewer when the change touches anything security-relevant and the UI reviewer when it touches UI. Respond to every finding in the worksheet: fixed, disagree with a reason, deferred to the queue, or spec updated (shipinetics:review).
 
 For UI changes, run `design-check` yourself before review and fix what it finds. A value outside DESIGN.md either becomes the documented token, or, if the design really needs something new, goes in the worksheet's "Design-system change requests" for a human to approve. Don't add tokens or edit DESIGN.md to make a finding go away.
 
@@ -111,9 +111,16 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 
 ## 10. Wrap up
 
-1. If you recorded evidence and review fixes changed code since, re-record the affected criteria now (`evidence check` says which). Then the wrap-up review for S and up (shipinetics:review wrapup).
+1. If you recorded evidence and review fixes changed code since, re-record the affected criteria now (`evidence check` says which).
+   If the code differs from the spec on purpose, the spec must describe what ships:
+   - Get the human's yes for the change to the spec.
+   - Update the spec in this branch. Keep the criterion IDs, and strike through the removed ones.
+   - Send test-writer a `change` request for the tests of the changed criteria. A protected test goes through `.shipinetics/pending/`.
+   - Set the spec's Status to done.
+
+   Then run the wrap-up review for S and up (shipinetics:review wrapup).
 2. Commit what's left: evidence, docs, the worksheet. The first line of the message says what changed, and the body says why. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Add the trailer line `Worksheet: <name>`.
-3. If you're opening a PR: write the body to `"$TMPDIR/pr-body.md"`. If you recorded evidence, start the file with `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section. Otherwise, say in the summary how you verified the change. Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
+3. If you're opening a PR: write the body to `"$TMPDIR/pr-body.md"`. If you recorded evidence, start the file with `evidence pr-body > "$TMPDIR/pr-body.md"`, and add your summary above the Evidence section, by the PR description guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`). Otherwise, say in the summary how you verified the change. Write the summary and the PR title by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). Before you go on, read the summary once against the guide, and check these four points:
    - Each sentence names its actor.
    - Each verb is the specific verb, not "handles" or "supports".
    - The summary states results, not intent.
@@ -124,6 +131,38 @@ For tasks M and up, also author a Whiteboard of the change for the human (shipin
 5. Update the task queue: done, or follow-ups added.
 6. Append feedback to `docs/agent-feedback.md` (shipinetics:feedback).
 7. Tell the user, in ASD-STE100 (shipinetics:explain), what changed, what you verified and how, and anything not done or not verified. If test-writer reported slow test runs, say it again in one line with the time it cost this task. No hedging on what's verified, no claiming what isn't. Pick the format that makes it fastest to understand (shipinetics:explain): plain controlled English for short reports, a diagram when there's structure or flow, a Whiteboard or an HTML page for anything bigger.
+
+## 11. After the PR opens
+
+**Review comments on your PR.**
+
+1. Get the threads, with whether each one is resolved:
+
+   ```bash
+   gh api graphql -F owner=<owner> -F repo=<repo> -F n=<n> -f query='query($owner:String!,$repo:String!,$n:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$n){reviewThreads(first:100){nodes{isResolved path line comments(first:50){nodes{databaseId author{login} body}}}}}}}'
+   ```
+
+   The query reads the first 100 threads. `gh pr view <n> --comments` shows the comments that are not on a line. Skip comments from bots, resolved threads, and threads where the last comment is your answer. If you aren't sure, keep the comment.
+2. Set the worksheet's Status back to in progress. Add one row to its Reviews table: Stage `PR comments`, Reviewer the people who commented, and in the last column each comment with its response (shipinetics:review): fixed, disagree, deferred or spec updated. If two comments have the same cause, give them one response.
+3. Make the fixes. A comment that asks for a test change goes to test-writer (step 5). Then run `shipinetics-verify`, and re-record the evidence that `evidence check` names. Regenerate the Evidence section with `evidence pr-body`. Replace only that section in `$TMPDIR/pr-body.md`, and keep the summary and `## Merge risk`. Then run `gh pr edit <n> --body-file "$TMPDIR/pr-body.md"`, because CI reads the body.
+4. Push. Then show the user the replies that you want to post, and post them only after the user says yes. Start each reply with "Agent:", and link the fix commit. Write each reply to a file, never in the command line:
+   - A reply in a line's thread: `gh api repos/<owner>/<repo>/pulls/<n>/comments/<databaseId>/replies -F body=@"$TMPDIR/reply.md"`. Use the `databaseId` of the thread's first comment: GitHub refuses a reply to a reply.
+   - An answer to a comment that is not on a line: `gh pr comment <n> --body-file "$TMPDIR/reply.md"`.
+5. Mark the worksheet done again. Don't run `worksheet tag` again: the tag from step 10 stays, and the `Worksheet:` trailers link the new commits.
+
+**CI failed.**
+
+1. Find the failed job: `gh pr checks <n>`, then `GH_PAGER=cat gh run view <run-id> --log-failed`.
+2. Group the errors by cause. Reproduce each cause on your machine with the command that CI runs (`bin/verify --full` by default) before you fix it.
+3. A test that fails only sometimes follows the flaky-test rules in shipinetics:testing.
+
+**Merge conflicts.**
+
+1. Resolve one file at a time. Before you commit the merge, run `git diff --cached --check`. It finds conflict markers that remain in staged files. (`git diff --check` without `--cached` doesn't see staged files.)
+2. A conflict in a file in `.shipinetics/test-paths` that isn't protected: send test-writer a `change` request with the conflicted paths. Say that a merge is in progress, and name both sides (`HEAD` and `MERGE_HEAD`). Stage its result yourself.
+3. A conflict in a protected file, a protected test included, needs a person. Write the merged text that you propose to `.shipinetics/pending/<path>`, and ask the user to resolve that file.
+4. Don't use `git checkout --ours` or `--theirs`, or a Bash edit, on test files or protected files. That gets around the edit guard.
+5. After the merge, run `shipinetics-verify` again.
 
 ## Choose a route
 
@@ -145,7 +184,7 @@ Use the companion skills at these steps. Where a companion's rules and Shipineti
 | `research` | The task depends on external facts: an API, a limit, a version | 2 | Its findings go in the claims table, with the URL and the date |
 | `prototype` | A question needs a runnable answer: a state model, a screen | 3, interactive | Write the answer in the spec or in the worksheet's Decisions. Delete the prototype before the PR |
 | `codebase-design` | A change needs a new module or seam | 3 | Reviewers use the same words (depth, seam, adapter). Its advice to delete old tests goes to test-writer |
-| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Fix the bug first. Write the correct behaviour as a criterion in the worksheet (or name the spec criterion that the bug broke). Then test-writer writes the regression test (phase 5) in `regression` mode, from that criterion, your smallest repro and the fix commit |
+| `diagnosing-bugs` | A bug, an error report or a slow path | bug fixes | Before you fix a reported bug, reproduce it. Write in the worksheet the version and the environment in the report, and the ones you tested. Follow the report's steps exactly first, then try at most two changes to them, each based on the report. Record the result: reproduced, partly reproduced, not reproduced, or blocked. If it isn't reproduced or is blocked, don't fix a guess: ask the user, or mark the task blocked with what you need. Then phases 1-4 and 6 as written. Put its loop scripts in `$TMPDIR` or `bin/`, not in test paths. Fix the bug first. Write the correct behaviour as a criterion in the worksheet (or name the spec criterion that the bug broke). Then test-writer writes the regression test (phase 5) in `regression` mode, from that criterion, your smallest repro and the fix commit |
 | `wait-what` | The user types `/wait-what` | any | Explain again: a little context first, ASD-STE100 (shipinetics:explain), and the terms in `GLOSSARY.md` |
 | Impeccable | UI work | 3, 4, 8 | `shape` for the brief, `polish` before review, `detect` and `audit` in review (shipinetics:review) |
 | tasteskill (optional) | UI work that builds or redesigns a page or an app screen: a landing page, a company site, a dashboard. Offer it as a route, with its cost: 30 to 45 minutes and a few hundred thousand tokens for a page | 4, 6 | `DESIGN.md` wins over its kit: give it the project's tokens and fonts, and put a value that the page really needs in "Design-system change requests". Without `DESIGN.md`, run `/impeccable document` after the build. Commit only the kit files that the page loads, as one vendored commit before the page's commits (`SHIPINETICS_ALLOW_BIG_COMMIT=1`, and say why in the message). Point its screenshots and browser profile at `$TMPDIR`, never into git. The prices, hours and addresses that its report says it assumed go in the worksheet's open questions. Its checkers are part of step 6. They do not replace `design-check`, the UI reviewer or the evidence |

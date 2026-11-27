@@ -42,6 +42,7 @@ Worksheet: `$ARGUMENTS` (default: the current one).
 | CLI | A terminal transcript per criterion: the real command and its real output, via `evidence run` |
 | API | A transcript of real requests against the running service (curl or httpie through `evidence run`), showing status and body |
 | Background job, data change | A transcript of triggering it and of the resulting state (a query, a log line, a file) |
+| Performance change | A transcript of `bench-compare` (shipinetics:perf) through `evidence run`, with the numbers before and after. A claim that it is faster needs this |
 | Bug fix | The same, showing the bug's reproduction steps now producing the right result. If you can, also the "before" from the base commit |
 
 Evidence is real or it's nothing. The verification map's evidence standards apply (shipinetics:verification-map): the real user path, the action *and* the resulting state, changes read back from a second view, every entry point the feature lists, each artifact labeled with its feature ID and entry point. In short:
@@ -72,7 +73,7 @@ Evidence is real or it's nothing. The verification map's evidence standards appl
 evidence pr-body > "$TMPDIR/pr-body.md"
 ```
 
-Put your summary above the generated `## Evidence` section in that file: what changed and why, how you verified it, and what you did not verify. Write it by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). The PR title follows the same guide, and says what changed. In particular:
+Put your summary above the generated `## Evidence` section in that file. Write it by the PR description rules in `${CLAUDE_PLUGIN_ROOT}/skills/explain/pr-description.md`: they cover the repo's PR template, the review guide, the decisions and what you did not verify. Write its sentences by the plain-language guide (`${CLAUDE_PLUGIN_ROOT}/skills/explain/plain-language.md`). The PR title follows the same guide, and says what changed. In particular:
 
 - Name each actor.
 - Use the specific verb.
@@ -86,7 +87,7 @@ Add a `## Merge risk` section after it with the independent grade (shipinetics:r
 gh pr create --title "<title>" --body-file "$TMPDIR/pr-body.md"
 ```
 
-Push the branch first so the `terminal.log` link resolves. If a recording isn't uploaded, the section says so: drag the file into the PR description. If evidence changes after review, regenerate the section and update the PR body (`gh pr edit --body-file`).
+Push the branch first so the `terminal.log` link resolves. If a recording isn't uploaded, the section says so: drag the file into the PR description. If evidence changes after review, regenerate the section and update the PR body (`gh pr edit --body-file`). After a rework, also rewrite the summary for the branch as it is now.
 
 ## Reviewing a PR
 
