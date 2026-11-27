@@ -9,6 +9,8 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+## 0.11.0
+
 ### Added
 - **Standards for contributors.** CONTRIBUTING.md has what you need, how Shipinetics is built, the rules for each kind of change, and what a pull request needs. The repo has a pull request template, issue forms for bugs and features, a code of conduct, and `AGENTS.md` for agents that work on Shipinetics itself.
 - **CI checks each pull request for a CHANGELOG entry** (`.github/workflows/pr-checks.yml`), when it changes what users get. A maintainer can add the `no-changelog` label. Dependabot keeps the GitHub Actions up to date.
