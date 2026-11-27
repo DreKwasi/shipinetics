@@ -52,13 +52,13 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
    Also install the dev.fast Whiteboard app. The Whiteboard plugin starts it.
 
-4. Get short commands in your terminal. The plugin's tools are on the PATH of Claude Code's Bash tool only. Run this once:
+4. Short commands in your terminal. The plugin's tools are on the PATH of Claude Code's Bash tool only. So when a session starts, Shipinetics puts short commands for them in `~/.local/bin`, and tells you once. Then `shipinetics-config`, `shipinetics-update` and the other `shipinetics-*` tools work in your terminal, also after each update.
+
+   This happens only when `~/.local/bin` exists and is on your PATH. If your terminal doesn't find `shipinetics-config` after your first session, run this once. It tells you how to add the folder to your PATH:
 
    ```bash
    ~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-shims install
    ```
-
-   Then `shipinetics-config`, `shipinetics-update` and the other `shipinetics-*` tools work in your terminal, also after each update. If your terminal doesn't find them, add `~/.local/bin` to your PATH.
 
 5. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a required companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.
 

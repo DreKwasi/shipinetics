@@ -37,13 +37,14 @@ These rules are enforced:
 | The agent can't run `git push --force`, `git push -f`, `git reset --hard`, `gh pr merge`, `npm publish` or `gcloud secrets versions access`, or read `~/.config/gcloud`, `~/.aws` or `~/.ssh`. The rules match these command forms only: for example, `git push origin main --force` isn't covered | Deny rules in `.claude/settings.json` | Projects that use the settings template | Edit the settings |
 | A PR passes `bin/verify --full`. CI blocks the merge only if branch protection requires this job | CI (`.github/workflows/verify.yml`) | Projects that use the CI template | Branch protection settings |
 
-Three more hooks only inform you:
+Four more hooks only inform you:
 
+- **The short commands.** When a new session starts, it installs or refreshes the `shipinetics-*` short commands in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your own terminal can run them. It writes only when that folder exists and is on your PATH, and never changes a file that it didn't write. It tells you when it writes, and says nothing otherwise.
 - **The companions notice.** When a new session starts and a required companion is missing, it lists the missing companions, and tells Claude too. A missing optional companion (tasteskill, Strix) shows only beside a missing required one.
 - **The worktree notice.** When a new session starts in a git worktree where Shipinetics can't find the project's settings, it says why and what to do. "Git worktrees" below has the cases.
 - **The usage log.** When a session ends, it records the tokens that the session used.
 
-To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `installs`, `worktrees`, `companions` or `usage`. Put it in a project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. A project's `hooks_off` replaces yours. `SHIPINETICS_HOOKS_OFF="secrets installs"` does the same for one session.
+To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `installs`, `shims`, `worktrees`, `companions` or `usage`. Put it in a project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. A project's `hooks_off` replaces yours. `SHIPINETICS_HOOKS_OFF="secrets installs"` does the same for one session.
 
 The guards see the text of each command, and the paths in Claude's file tools. They don't see what a script does when it runs. So an agent can get around a guard with a script that it writes. The guards make that a deliberate act, and the reviewers look for it. "Known limits" lists the gaps.
 
@@ -62,13 +63,15 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 To try the plugin for one session without an install, run `claude --plugin-dir <path to a clone of this repo>`.
 
-The plugin puts its tools (`bin/`) on the PATH of Claude Code's Bash tool only. In your own terminal, the full path contains the plugin version, so it changes after each update. To get short commands in your terminal, run this once:
+The plugin puts its tools (`bin/`) on the PATH of Claude Code's Bash tool only. In your own terminal, the full path contains the plugin version, so it changes after each update. So at the start of each new session, Shipinetics writes a small shim for each `shipinetics-*` tool to `~/.local/bin`. Each shim finds the installed plugin when it runs, so it keeps working after an update. Your terminal can then run `shipinetics-config` and the other tools by name.
+
+It does this only when `~/.local/bin` exists and is on your PATH. If it isn't, run this once. It creates the folder and tells you the line to add to your shell's startup file:
 
 ```bash
 ~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-shims install
 ```
 
-It writes a small shim for each `shipinetics-*` tool to `~/.local/bin`. Each shim finds the installed plugin when it runs, so it keeps working after an update. If your terminal doesn't find `shipinetics-config` after that, add `~/.local/bin` to your PATH.
+To stop the automatic install, add `hooks_off = shims` to `~/.config/shipinetics/config`. To remove the shims, run `shipinetics-shims remove`.
 
 ### Antigravity
 
@@ -221,7 +224,7 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `shipinetics-antigravity` | `install`, `link-skills` and `status`: links this repo into Antigravity's plugins folder, generates Antigravity-native subagents, and shares companion skills through `skills.json` |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
 | `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
-| `shipinetics-shims` | `install`, `status` and `remove`: short commands for the `shipinetics-*` tools in your own terminal, in `~/.local/bin`. It never changes a file that it didn't write |
+| `shipinetics-shims` | `install`, `status` and `remove`: short commands for the `shipinetics-*` tools in your own terminal, in `~/.local/bin`. The session-start hook runs `auto` to keep them current. It never changes a file that it didn't write |
 | `shipinetics-usage` | Shows the tokens that each session used, from Claude Code and Antigravity transcripts. `html` makes a page with charts |
 
 ## When the checks run
@@ -515,7 +518,7 @@ Shipinetics works in a git worktree as it works in the main checkout. The first 
 
 | Variable | Effect |
 |---|---|
-| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Turns off the named hooks for a session: `edits`, `secrets`, `pr`, `installs`, `companions` or `usage` |
+| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Turns off the named hooks for a session: `edits`, `secrets`, `pr`, `installs`, `shims`, `companions` or `usage` |
 | `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` | Lets any agent edit test files, and test-writer edit source files, for a session. For example, for a rename of many files |
 | `SHIPINETICS_UNLOCK=1` | Lets agents edit protected files for a session |
 | `SHIPINETICS_ALLOW_ENV_READ=1` | Turns off the secrets guard for a session |
