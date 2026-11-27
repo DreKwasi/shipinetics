@@ -23,7 +23,7 @@ Stage and personas from the arguments: `$ARGUMENTS`. If no stage is given, infer
 | **impl** | The diff against the base | Always, before the task is done |
 | **wrapup** | The whole task: diff, docs, worksheet, queue, commit messages | End of a task over size S |
 | **docs** | A system doc, spec or explainer whose factual content changed | Whenever factual claims in docs change, especially external facts |
-| **merge-risk** | The whole PR, after its evidence is recorded | Every PR, just before it opens or is marked ready |
+| **merge-risk** | The whole PR, after the wrap-up review | Every PR, just before it opens or is marked ready |
 
 Research and docs reviews return a **claims table** instead of findings: every claim with a verdict (verified, incorrect, unresolved), the evidence the reviewer opened (`file:line`, or a primary source URL with the date checked), and the correction. Apply corrections, recheck neighbouring sentences whose meaning changed, and keep unresolved claims visibly marked.
 
@@ -72,7 +72,7 @@ A release security pass also includes `scan-skills` and, with the user's approva
 
 Review time is the bottleneck. A merge-risk grade tells the human where to spend it. Every PR gets one, from an independent reviewer, never from the author:
 
-1. After evidence is recorded and `evidence check` passes, spawn `shipinetics:reviewer` with stage `merge-risk`, the base ref and the worksheet. It loads the `merge-risk` skill (install it with `npx skills add warpdotdev/common-skills --skill merge-risk`), which grades alignment, impact, verification, rollback cost and error detection, and rolls them up into low, medium or high.
+1. Before the PR opens (after `evidence check` passes, if you recorded evidence), spawn `shipinetics:reviewer` with stage `merge-risk`, the base ref and the worksheet. It loads the `merge-risk` skill (install it with `npx skills add warpdotdev/common-skills --skill merge-risk`), which grades alignment, impact, verification, rollback cost and error detection, and rolls them up into low, medium or high.
 2. Put its output in the PR body under a `## Merge risk` heading, after the Evidence section. Put the overall grade in the Whiteboard's top callout and in the worksheet's Metrics.
 3. If a gap it lists is cheap to close (missing before-and-after screenshots, an unlogged error path, an undocumented assumption), close it and grade again before opening the PR.
 

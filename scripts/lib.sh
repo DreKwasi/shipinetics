@@ -59,16 +59,98 @@ sy_state_dir() {
   printf '%s\n' "$p"
 }
 
+# sy_wt_main <dir>: if dir is the top of a linked git worktree, print its main checkout. It reads
+# the .git file and the commondir file only, with no git call, because hooks call it often. Fails
+# for a main checkout, a submodule, a bare repo, or a worktree whose git folder isn't reachable
+# (for example from inside a container that mounts only the worktree).
+sy_wt_main() {
+  local g c
+  [ -f "$1/.git" ] || return 1
+  g="$(sed -n 's/^gitdir: //p' "$1/.git" | head -n 1)"
+  [ -n "$g" ] || return 1
+  case "$g" in /*) ;; *) g="$1/$g" ;; esac
+  [ -f "$g/commondir" ] || return 1
+  c="$(head -n 1 "$g/commondir")"
+  case "$c" in /*) ;; *) c="$g/$c" ;; esac
+  c="$(cd "$c" 2>/dev/null && pwd)" || return 1
+  [ "$(basename "$c")" = .git ] || return 1
+  dirname "$c"
+}
+
+# sy_wt_sync <worktree> <main checkout>: copy the main checkout's .shipinetics/ into the worktree,
+# without .cache/ and pending/ (they belong to each checkout). The copy gives the worktree the same
+# settings and lists, with paths relative to the worktree. .shipinetics/.copied-from names the
+# source, so the copy is refreshed when the source changes. Git is told to ignore the copy.
+sy_wt_sync() {
+  local src="$2/$SY_DIR_NAME" dst="$1/$SY_DIR_NAME" f ex
+  [ -d "$src" ] || return 1
+  mkdir -p "$dst" || return 1
+  if [ -f "$dst/.copied-from" ]; then   # remove files that the source no longer has
+    (cd "$dst" && find . \( -path ./.cache -o -path ./pending \) -prune -o -type f ! -name .copied-from -print) |
+      while IFS= read -r f; do [ -e "$src/$f" ] || rm -f "$dst/$f"; done
+  fi
+  (cd "$src" && find . \( -path ./.cache -o -path ./pending \) -prune -o -type f -print) |
+    while IFS= read -r f; do mkdir -p "$dst/$(dirname "$f")" && cp -p "$src/$f" "$dst/$f"; done
+  printf '%s\n' "$2" >"$dst/.copied-from"
+  if ! git -C "$1" check-ignore -q "$SY_DIR_NAME/.copied-from" 2>/dev/null &&
+     ex="$(git -C "$1" rev-parse --git-path info/exclude 2>/dev/null)"; then
+    case "$ex" in /*) ;; *) ex="$1/$ex" ;; esac
+    mkdir -p "$(dirname "$ex")" && printf '/%s/\n' "$SY_DIR_NAME" >>"$ex"
+  fi
+}
+
+# sy_wt_stale <worktree>: true if the worktree's copy of .shipinetics/ is older than its source
+sy_wt_stale() {
+  local m d="$1/$SY_DIR_NAME"
+  m="$(head -n 1 "$d/.copied-from" 2>/dev/null)" || return 1
+  [ -d "$m/$SY_DIR_NAME" ] || return 1
+  [ -n "$(find "$m/$SY_DIR_NAME" \( -path "$m/$SY_DIR_NAME/.cache" -o -path "$m/$SY_DIR_NAME/pending" \) -prune -o \
+          -type f -newer "$d/.copied-from" -print 2>/dev/null | head -n 1)" ]
+}
+
 # sy_root [start]: nearest folder at or above start (default: the project dir, else PWD) holding
-# .shipinetics/
+# .shipinetics/. A linked git worktree of a set-up repo is a root too: the first call there copies
+# the main checkout's settings into it (sy_wt_sync), so its paths, worksheets and verify passes are
+# its own. That works for a worktree anywhere: inside the main checkout (.claude/worktrees/) or
+# outside it. A worktree of a workspace package has no settings of its own: the walk goes on to
+# the workspace root, which holds the worktree folder (sy_package_of).
 sy_root() {
-  local d="${1:-${CLAUDE_PROJECT_DIR:-$PWD}}"
+  local d="${1:-${CLAUDE_PROJECT_DIR:-$PWD}}" m
   d="$(cd "$d" 2>/dev/null && pwd)" || return 1
   while :; do
+    if [ -f "$d/.git" ]; then
+      if [ -f "$d/$SY_DIR_NAME/.copied-from" ]; then
+        sy_wt_stale "$d" && sy_wt_sync "$d" "$(head -n 1 "$d/$SY_DIR_NAME/.copied-from")"
+        printf '%s\n' "$d"; return 0
+      fi
+      if [ ! -f "$d/$SY_DIR_NAME/config" ] && m="$(sy_wt_main "$d")" && [ -d "$m/$SY_DIR_NAME" ] &&
+         sy_wt_sync "$d" "$m"; then
+        printf '%s\n' "$d"; return 0
+      fi
+    fi
     if [ -d "$d/$SY_DIR_NAME" ]; then printf '%s\n' "$d"; return 0; fi
     [ "$d" = "/" ] && return 1
     d="$(dirname "$d")"
   done
+}
+
+# sy_wt_hint [start]: when sy_root finds no root, say why if start is in a linked git worktree,
+# and what to do. Prints nothing and fails in any other case.
+sy_wt_hint() {
+  local d m r g
+  d="$(cd "${1:-$PWD}" 2>/dev/null && pwd)" || return 1
+  while [ "$d" != / ] && [ ! -e "$d/.git" ]; do d="$(dirname "$d")"; done
+  [ -f "$d/.git" ] || return 1
+  if m="$(sy_wt_main "$d")"; then
+    r="$(sy_root "$m" 2>/dev/null)" || return 1
+    [ "$r" != "$m" ] || return 1
+    printf '%s\n' "This git worktree belongs to $(basename "$m"), a package of the Shipinetics workspace in $r. Shipinetics finds a package worktree only in a folder directly in $r. Create it there, for example: git -C $m worktree add $r/$(basename "$m")-<branch> <branch>"
+  else
+    g="$(sed -n 's/^gitdir: //p' "$d/.git" | head -n 1)"
+    [ -n "$g" ] || return 1
+    case "$g" in */.git/worktrees/*) ;; *) return 1 ;; esac
+    printf '%s\n' "This git worktree's git folder ($g) isn't reachable from here, so Shipinetics can't find the main checkout's settings. In a container, mount the main checkout at the same path as on the host. Or run shipinetics-config once in this worktree on the host: it copies the settings into $d/$SY_DIR_NAME/, and the container then uses that copy."
+  fi
 }
 
 # sy_cfg_file <file> <key>: the key's value in a config file, empty if it's not set
@@ -109,11 +191,20 @@ sy_harness_repo() {
   git -C "$h" rev-parse --show-toplevel 2>/dev/null
 }
 
-# sy_package_of <root> <path relative to root>: the package folder the path belongs to, if any
+# sy_package_of <root> <path relative to root>: the package folder the path belongs to, if any.
+# A linked git worktree of a package, in its own folder directly in the root (for example
+# marketplace-app-AXM-3304 for marketplace-app), counts as a package too: it prints that folder.
 sy_package_of() {
-  local p
+  local p first m
   for p in $(sy_cfg "$1" packages); do
     case "$2" in "$p"/*|"$p") printf '%s\n' "$p"; return 0 ;; esac
+  done
+  first="${2%%/*}"
+  case "$first" in ""|.|..|/*) return 1 ;; esac
+  m="$(sy_wt_main "$1/$first")" || return 1
+  m="$(cd "$m" && pwd -P)"
+  for p in $(sy_cfg "$1" packages); do
+    if [ -d "$1/$p" ] && [ "$(cd "$1/$p" && pwd -P)" = "$m" ]; then printf '%s\n' "$first"; return 0; fi
   done
   return 1
 }
@@ -164,8 +255,8 @@ sy_in_list() {
   return 1
 }
 
-# Changes that need no evidence (shipinetics:evidence). The project's .shipinetics/no-evidence-paths
-# replaces these defaults. Keep them the same as templates/no-evidence-paths and the CI template.
+# Files whose changes don't make recorded evidence stale (evidence check): docs, Markdown, CI and
+# editor files. .shipinetics/ and tests (test-paths) don't either.
 SY_NO_EVIDENCE_DEFAULTS='docs/*
 *.md
 .github/*
@@ -175,14 +266,13 @@ SY_NO_EVIDENCE_DEFAULTS='docs/*
 .vscode/*
 LICENSE*'
 
-# sy_no_evidence <root> <path relative to root>: true if a change to this path needs no evidence.
-# That is .shipinetics/, a test file (test-paths), or a match in no-evidence-paths (else the defaults).
+# sy_no_evidence <root> <path relative to root>: true if a change to this path doesn't make recorded
+# evidence stale. That is .shipinetics/, a test file (test-paths), or a match in the defaults above.
 # Sets SY_MATCHED to the glob or the list that matched.
 sy_no_evidence() {
   local d="$1/$SY_DIR_NAME" glob
   case "$2" in "$SY_DIR_NAME"/*) SY_MATCHED="$SY_DIR_NAME/"; return 0 ;; esac
   sy_in_list "$d/test-paths" "$2" && return 0
-  if [ -f "$d/no-evidence-paths" ]; then sy_in_list "$d/no-evidence-paths" "$2"; return; fi
   SY_MATCHED=""
   while IFS= read -r glob; do
     # shellcheck disable=SC2053  # the right-hand side is meant to be a pattern
@@ -199,7 +289,7 @@ sy_no_evidence() {
 sy_user_dir() { printf '%s/shipinetics\n' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
 
 # sy_hook_off <name> [root]: true if the hook is switched off. The names are edits,
-# secrets, pr, installs, companions and usage. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
+# secrets, pr, installs, worktrees, companions and usage. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
 # project's config, or (when the project doesn't set hooks_off) in the user's config.
 sy_hook_off() {
   local off
