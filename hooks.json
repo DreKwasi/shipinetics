@@ -8,7 +8,7 @@
       },
       {
         "type": "command",
-        "command": "./scripts/shims-auto.sh",
+        "command": "./scripts/worktree-notice.sh",
         "timeout": 10
       }
     ],

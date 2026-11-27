@@ -9,8 +9,27 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Fixed
+- **Shipinetics works in git worktrees.** Before, Shipinetics found the project by the nearest `.shipinetics/` folder. In a worktree inside the main checkout (`.claude/worktrees/`), it read every path from the main checkout. So some protected and test files weren't guarded, `worksheet new` wrote into the main checkout's branch, and `shipinetics-verify` stopped with "isn't one of the packages". In a worktree outside the main checkout, every guard was off.
+  - Now the first Shipinetics call in a worktree copies the main checkout's `.shipinetics/` into it, without `.cache/` and `pending/`. Paths, worksheets and verify passes are the worktree's own. The copy follows changes in the main checkout, and git ignores it.
+  - `shipinetics-config` shows where a worktree's settings come from. `shipinetics-config apply` in a worktree writes a change to `.shipinetics/` into the main checkout.
+  - In a container that can't reach the main checkout, the worktree uses its copy.
+- **A workspace package's worktree counts as the package** when its folder is directly in the workspace root. **Projects:** remove worktree folders that you added to `packages` by hand, for example `marketplace-app-AXM-3304`.
+
 ### Added
-- **The short commands install themselves.** A new session-start hook (`scripts/shims-auto.sh`) runs `shipinetics-shims auto`. It writes or refreshes the `shipinetics-*` shims in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your terminal can run `shipinetics-config` and the other tools by name with no manual step. It writes only when that folder exists and is on the PATH, never changes a file that `shipinetics-shims` didn't write, and tells you only when it wrote a shim. Switch it off with `hooks_off = shims`.
+- **The worktree notice** (`scripts/worktree-notice.sh`). When a session starts in a worktree where Shipinetics finds no settings, it says why and what to do: a package worktree outside the workspace root, or a container that can't reach the main checkout. Switch it off with `hooks_off = worktrees`.
+
+## 0.10.0
+
+### Changed
+- **Evidence is no longer a requirement.** You decide for each task: when the change works, the agent asks "Record evidence for this change?", with its advice, and records it only on your yes. In an autonomous session it doesn't record it. Without evidence, it says in the PR how it verified the change.
+  - The PR gate checks only the complete verify pass on this exact code. It no longer checks evidence or the `## Evidence` section. A branch with only docs and Markdown still needs nothing.
+  - The reviewer no longer treats missing evidence as a finding. merge-risk grades verification from the worksheet, the verify pass and the tests when there is no evidence.
+  - `SHIPINETICS_ALLOW_NO_EVIDENCE=1` still turns off the PR gate, as the old name of `SHIPINETICS_SKIP_VERIFY=1`.
+
+### Removed
+- **The CI evidence job** in `skills/setup/templates/github/workflows/verify.yml`. **Projects that copied the template:** delete the `evidence` job from `.github/workflows/verify.yml`, or CI keeps failing PRs without an Evidence section.
+- **`.shipinetics/no-evidence-paths`, the `no-evidence` label, the `None: <reason>` line and `evidence needed`.** They only decided when evidence was required. **Projects:** you can delete `.shipinetics/no-evidence-paths` and the `no-evidence` label.
 
 ## 0.9.6
 
