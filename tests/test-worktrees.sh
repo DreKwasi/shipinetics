@@ -75,7 +75,8 @@ fi
 
 # A delete of a settings file, proposed in a worktree, deletes the main checkout's file too
 echo old >"$m/.shipinetics/old-list"; (cd "$in" && shipinetics-config root >/dev/null)
-printf '.shipinetics/old-list\n' >"$in/.shipinetics/pending/.delete"
+# apply above removes pending/ once it is empty, so make it again: this block must not depend on that one
+mkdir -p "$in/.shipinetics/pending"; printf '.shipinetics/old-list\n' >"$in/.shipinetics/pending/.delete"
 if python3 -c 'import os, pty; m, s = pty.openpty(); os.close(m); os.close(s)' 2>/dev/null; then
   OUT="$(cd "$in" && with_tty 'y
 ' shipinetics-config apply)"
