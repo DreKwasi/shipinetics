@@ -24,11 +24,46 @@ for v in $(compgen -e); do
   case "$v" in SHIPINETICS_*|CLAUDE_PROJECT_DIR|CLAUDE_PLUGIN_ROOT|CLAUDECODE|CLAUDE_CODE_*|PLUGIN_ROOT|PLUGIN_DATA|GEMINI_CONFIG_DIR|GEMINI_HOME) unset "$v" ;; esac
 done
 tool_dirs="$(dirname "${BASH:-/bin/bash}")"
-for t in git jq python3 perl ffmpeg; do
+tools="git jq python3 perl ffmpeg"
+case "${OSTYPE:-}" in msys*|cygwin*|win*) tools="$tools python py cygpath" ;; esac   # compat.sh may pick python or py
+for t in $tools; do
   t="$(command -v "$t" 2>/dev/null)" && tool_dirs="$tool_dirs:$(dirname "$t")"
 done
 export PATH="$SY/bin:$tool_dirs:/usr/bin:/bin:/usr/sbin:/sbin"
-unset t v tool_dirs
+unset t v tool_dirs tools
+# The tests' own python3 and jq behave like the tools' (on Windows: no "\r" in their output). After
+# PATH is set: compat.sh defines python3 as a function, so command -v python3 above must run first.
+# On macOS and Linux it does nothing.
+# shellcheck source=../scripts/compat.sh
+. "$SY/scripts/compat.sh"
+
+# on_windows: true in Git Bash (or Cygwin) on Windows
+on_windows() { case "${OSTYPE:-}" in msys*|cygwin*|win*) return 0 ;; esac; return 1; }
+
+# same_path <path>: a path in one form, to compare a path that a native Windows program printed
+# (C:\x, C:/x, 8.3 short names such as RUNNER~1) with the shell's (/tmp/x, /c/x). Long names first,
+# so the /tmp mount (a short name) and its long name give the same result. Use it on both sides of a
+# comparison, on paths that exist. Elsewhere the path comes back unchanged, so comparisons stay exact.
+same_path() {
+  if on_windows && command -v cygpath >/dev/null 2>&1; then
+    cygpath -u "$(cygpath -l -w "$1" 2>/dev/null || cygpath -w "$1")"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# native_path <path>: the path as a native program writes it in a transcript or hook input:
+# C:\x\y on Windows (long names when the path exists), unchanged elsewhere.
+native_path() {
+  if on_windows && command -v cygpath >/dev/null 2>&1; then
+    cygpath -l -w "$1" 2>/dev/null || cygpath -w "$1"
+  else
+    printf '%s\n' "$1"
+  fi
+}
+
+# json_path <path>: native_path, escaped for a JSON string (backslashes doubled)
+json_path() { native_path "$1" | sed 's/\\/\\\\/g'; }
 
 # new_repo <dir>: an empty git repo on main with a test identity
 new_repo() {

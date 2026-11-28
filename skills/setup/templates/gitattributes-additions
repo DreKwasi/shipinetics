@@ -1,0 +1,5 @@
+# shipinetics: the scripts and git hooks must keep LF line endings in a Windows checkout
+bin/* text eol=lf
+.githooks/* text eol=lf
+*.sh text eol=lf
+.shipinetics/** text eol=lf

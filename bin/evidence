@@ -33,7 +33,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 . "$here/scripts/lib.sh"
 
 die() { echo "evidence: $*" >&2; exit 1; }
-repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+repo="$(sy_git_top)" || die "run this inside a git repo"
 cd "$repo"
 root="$(sy_env ROOT)"; [ -n "$root" ] || root="$(sy_root "$repo" || echo "$repo")"
 dn="$SY_DIR_NAME"

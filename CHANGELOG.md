@@ -9,6 +9,12 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Added
+- **Native Windows,** with Git for Windows (Git Bash) and Python 3. CI now runs every test on Windows too. WSL 2 works as Linux. The README's "Windows" section has the steps and what is different (no sandbox, line endings, symlinks).
+  - `scripts/compat.sh` makes `python3` and `jq` work as on macOS and Linux: it finds `python3`, `python` or `py -3` (a Microsoft Store stub doesn't count), and removes the `\r` that Windows Python and jq add to each line.
+  - `.gitattributes` keeps LF line endings in a Windows checkout. Setup adds the same rule for a project's `bin/`, git hooks and `.shipinetics/` (`templates/gitattributes-additions`). **Projects with teammates on Windows:** add those lines to `.gitattributes`.
+- **Two more session warnings,** in any project: when neither `jq` nor python3 runs (a macOS `python3` stub counts as missing) (the guards can't read their input, so they let every action through), and when the project was set up with a newer Shipinetics than the plugin on this machine.
+
 ### Changed
 - **Companions are `recommended` or `optional`.** `required` was wrong: Shipinetics works without any of them. `companions.tsv` uses the new word, and the old word `required` still counts as recommended.
 - **The companions notice shows at most once in 7 days outside set-up projects.** In a set-up project it still shows in each new session. The stamp is in `${XDG_CACHE_HOME:-~/.cache}/shipinetics/`. The model now gets only the names of the missing companions, not the full list, which saves about 1,500 tokens in each session.
@@ -18,10 +24,11 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 - **A shared task queue:** claims and new task IDs go through the default branch (pull, commit, push), so two people never take the same task or ID.
 - **The README's Effort section** says how to run every agent on Sonnet at medium effort, for a Pro plan or API billing (`CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, `CLAUDE_CODE_EFFORT_LEVEL`).
 
-### Added
-- **Two more session warnings,** in any project: when neither `jq` nor python3 runs (a macOS `python3` stub counts as missing) (the guards can't read their input, so they let every action through), and when the project was set up with a newer Shipinetics than the plugin on this machine.
-
 ### Fixed
+- **The edit guard on Windows.** Claude Code passes Windows paths (`C:\Users\...`). The guard read them as relative paths, found no project, and let every edit through, also to protected files and tests. Paths from hook input are now converted (`sy_unix_path`), and git's paths are compared in the shell's own form (`sy_git_top`). Worktrees on Windows are found again too.
+- **The usage log on Windows:** a lock without `fcntl`, a background recording without `fork`, paths from the environment, Windows paths in transcripts, LF line endings in the log, and `serve`'s output.
+- **The short commands** find Python under any of its names, convert a Windows install path, and no longer need a here-document, which bash 3.2 can't write in some sandboxes.
+- **`explain`** gives the command to open a file on each system: `open`, `xdg-open` or `start`.
 - **A session-start reply without jq or python3.** The reply now falls back to JSON written in bash, so the notice reaches the user.
 
 ## 0.11.0

@@ -22,6 +22,8 @@
 # or bad usage.
 
 set -uo pipefail
+# shellcheck source=../scripts/compat.sh
+compat="$(cd "$(dirname "$0")/.." && pwd)/scripts/compat.sh"; [ -f "$compat" ] && . "$compat"
 case "${1:-}" in -h|--help) sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 upstream="${SHIPINETICS_UPSTREAM:-https://github.com/DreKwasi/shipinetics.git}"
@@ -124,7 +126,7 @@ fetch_tags() {
 
 find_clone() {
   if [ -z "$clone" ]; then
-    is_clone "$PWD" && clone="$(git -C "$PWD" rev-parse --show-toplevel)" ||
+    is_clone "$PWD" && clone="$(cd "$(git -C "$PWD" rev-parse --show-toplevel)" && pwd)" ||
       die "no clone given, and this folder isn't a Shipinetics clone. Use -C <path to your clone>"
   fi
   is_clone "$clone" || die "$clone isn't a git clone of Shipinetics"

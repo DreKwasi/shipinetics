@@ -41,13 +41,14 @@ os.utime(f, (e, e))
 PY
 }
 # asst <time> <cwd> <message id> <model> <input> <cache write> <cache read> <output> [effort]
-# (the line gets "sessionId" when $ASID is set)
+# (the line gets "sessionId" when $ASID is set). The cwd goes in as Claude Code writes it: the
+# native path (C:\x\y on Windows).
 asst() {
   local eff="" sid=""
   [ -n "${9:-}" ] && eff="\"effort\":\"$9\","
   [ -n "${ASID:-}" ] && sid="\"sessionId\":\"$ASID\","
   printf '{"type":"assistant","timestamp":"%s","cwd":"%s","gitBranch":"main","entrypoint":"cli",%s%s"requestId":"req_%s","message":{"id":"%s","model":"%s","usage":{"input_tokens":%s,"cache_creation_input_tokens":%s,"cache_read_input_tokens":%s,"output_tokens":%s}}}\n' \
-    "$1" "$2" "$sid" "$eff" "$3" "$3" "$4" "$5" "$6" "$7" "$8"
+    "$1" "$(json_path "$2")" "$sid" "$eff" "$3" "$3" "$4" "$5" "$6" "$7" "$8"
 }
 # quick <cwd> <session id> <title> <time> <input> <cache write> <cache read> <output>: one-call session
 # (in the folder $QF when it is set, else the one Claude Code would use)
@@ -91,7 +92,7 @@ build_s1() {
     asst "$T0" "$proj" msg_1 claude-opus-5-5 2 100 1000 7 low
     asst "$T0" "$proj" msg_1 claude-opus-5-5 2 60 1000 50 low
     asst "$T0" "$proj" msg_1 claude-opus-5-5 1 100 900 7 low
-    printf '{"type":"user","timestamp":"%s","cwd":"%s","message":{"role":"user","content":"hi"}}\n' "$T1" "$proj"
+    printf '{"type":"user","timestamp":"%s","cwd":"%s","message":{"role":"user","content":"hi"}}\n' "$T1" "$(json_path "$proj")"
     printf '{"type":"custom-title","customTitle":"My task"}\n'
     asst "$T2" "$proj" msg_2 claude-opus-5-5 3 200 2000 70 high
     asst "$T3" "$proj" msg_syn "<synthetic>" 999999 999999 999999 999999 high
@@ -131,7 +132,7 @@ eq "a subagent has its own row, named by its agentType" "$(col "$S1" tester $O a
 eq "a subagent without meta.json is called subagent" "$(col "$S1" subagent $N api_calls)/$(col "$S1" subagent $N input)/$(col "$S1" subagent $N effort)" "1/5/-"
 eq "synthetic and all-zero messages, and a message in two files, make no extra rows" "$(nrows "$S1")" 4
 eq "the title is the custom-title entry before custom-title.json" "$(scol "$S1" title)" "My task"
-eq "the project is the cwd of the main transcript" "$(scol "$S1" project)" "$proj"
+eq "the project is the cwd of the main transcript" "$(scol "$S1" project)" "$(native_path "$proj")"
 # the copied lines (other sessionId) are before and after the real ones: they set no time and no tokens
 eq "the session starts at its first own timestamp" "$(scol "$S1" start)" "$T0"
 eq "the session ends at its last own timestamp" "$(scol "$S1" end)" "$T5"
@@ -176,7 +177,7 @@ reset; build_s1
 rec "$S1_FILE"
 before="$(cat "$log")"
 rm -rf "${S1_FILE%.jsonl}"      # no subagents, and a main transcript with no API call
-printf '{"type":"user","timestamp":"%s","cwd":"%s","message":{"role":"user","content":"hi"}}\n' "$(ts 0 0)" "$proj" >"$S1_FILE"
+printf '{"type":"user","timestamp":"%s","cwd":"%s","message":{"role":"user","content":"hi"}}\n' "$(ts 0 0)" "$(json_path "$proj")" >"$S1_FILE"
 rec "$S1_FILE"
 eq "a record with no rows exits 0" "$RC" 0
 eq "a record with no rows leaves the log as it was" "$(cat "$log")" "$before"
@@ -193,11 +194,12 @@ eq "a missing transcript records nothing" "$([ -e "$log" ] && echo log || echo n
 reset; build_s1
 rec "$S1_FILE"
 bad1="this is not a row"
-bad2="$(awk -F'\t' -v OFS='\t' 'NR == 1 { for (i = 1; i <= NF; i++) h[$i] = i; next } NR == 2 { $h["api_calls"] = "x"; print; exit }' "$log")"
+bad2="$(tr -d '\r' <"$log" | awk -F'\t' -v OFS='\t' 'NR == 1 { for (i = 1; i <= NF; i++) h[$i] = i; next } NR == 2 { $h["api_calls"] = "x"; print; exit }')"
 printf '%s\n%s\n' "$bad1" "$bad2" >>"$log"
 quick "$proj" "$S2" "Other session" "$(ts 1 0)" 11 12 13 14
 rec "$(tpath "$proj" "$S2")"
-eq "malformed log lines stay after the valid rows when the log is rewritten" "$(tail -n 2 "$log")" "$bad1
+# (tr: Windows Python ends the log's lines with \r\n; the lines are what must stay)
+eq "malformed log lines stay after the valid rows when the log is rewritten" "$(tail -n 2 "$log" | tr -d '\r')" "$bad1
 $bad2"
 eq "and the valid rows are all there" "$(grep -v "	x	" "$log" | grep -c "^$S1	")/$(nrows "$S2")" "4/1"
 
@@ -226,11 +228,19 @@ eq "backfill records a session again when its file changed over 2 minutes after 
 # ---- the hook returns without waiting for the work (Claude Code gives SessionEnd 1.5 s)
 reset; build_s1
 python3 - "$log" "$scratch/held" "$scratch/release" >/dev/null 2>&1 <<'PY' &
-import fcntl, os, sys, time
+import os, sys, time
+try:
+    import fcntl
+except ImportError:  # Windows: lock the way usage.py does there
+    fcntl = None
+    import msvcrt
 log, held, release = sys.argv[1:4]
 os.makedirs(os.path.dirname(log), exist_ok=True)
 lock = open(log + ".lock", "w")
-fcntl.flock(lock, fcntl.LOCK_EX)
+if fcntl:
+    fcntl.flock(lock, fcntl.LOCK_EX)
+else:
+    msvcrt.locking(lock.fileno(), msvcrt.LK_LOCK, 1)
 open(held, "w").write("held")
 end = time.time() + 20
 while not os.path.exists(release) and time.time() < end:
@@ -400,8 +410,9 @@ evil='</script><script>alert(1)</script>'
 quick "$proj" "$S1" "$evil" "$(ts 1 0)" 5 6 7 8
 quick "$proj" "$S2" "Old one" "$(ts 60 0)" 1 1 1 1
 usage html
-page="$(printf '%s\n' "$OUT" | head -n 1)"
-case "$page" in "$scratch/tmpout/"*) ok "html prints a path in \$TMPDIR when there is no .shipinetics folder" ;; *) bad "html path in TMPDIR" "got [$page]" ;; esac
+# same_path: on Windows, Python prints C:\... paths (8.3 short names too), the shell has /tmp/...
+page="$(same_path "$(printf '%s\n' "$OUT" | head -n 1)")"
+case "$page" in "$(same_path "$scratch/tmpout")/"*) ok "html prints a path in \$TMPDIR when there is no .shipinetics folder" ;; *) bad "html path in TMPDIR" "got [$page]" ;; esac
 eq "html writes the page it names" "$([ -f "$page" ] && echo file || echo none)" file
 eq "the page keeps no __USAGE_ placeholder" "$(grep -c '__USAGE_' "$page" || true)" 0
 eq "a title cannot add a script element to the page" "$(grep -o '<script' "$page" | wc -l | tr -d ' ')" "$(grep -o '<script' "$SY/scripts/usage-page.html" | wc -l | tr -d ' ')"
@@ -429,17 +440,17 @@ usage html --days 0
 eq "html --days 0 is all time" "$(embed "$(printf '%s\n' "$OUT" | head -n 1)" days)" 0
 
 usage html --out "$scratch/chosen.html"
-eq "html --out writes there and prints the path" "$(printf '%s\n' "$OUT" | head -n 1)/$([ -f "$scratch/chosen.html" ] && echo file)" "$scratch/chosen.html/file"
+eq "html --out writes there and prints the path" "$(same_path "$(printf '%s\n' "$OUT" | head -n 1)")/$([ -f "$scratch/chosen.html" ] && echo file)" "$(same_path "$scratch/chosen.html")/file"
 
 mkdir -p "$proj/.shipinetics"
 usage html
-page="$(printf '%s\n' "$OUT" | head -n 1)"
-case "$page" in "$proj/.shipinetics/explainers/"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-token-usage.html) ok "html defaults to .shipinetics/explainers/<date>-token-usage.html" ;; *) bad "html default path" "got [$page]" ;; esac
+page="$(same_path "$(printf '%s\n' "$OUT" | head -n 1)")"
+case "$page" in "$(same_path "$proj")/.shipinetics/explainers/"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-token-usage.html) ok "html defaults to .shipinetics/explainers/<date>-token-usage.html" ;; *) bad "html default path" "got [$page]" ;; esac
 eq "and writes the page there" "$([ -f "$page" ] && echo file || echo none)" file
 rm -rf "$proj/.shipinetics"; mkdir -p "$ws/.shipinetics"
 usage html
-page="$(printf '%s\n' "$OUT" | head -n 1)"
-case "$page" in "$ws/.shipinetics/explainers/"*-token-usage.html) ok "html finds a .shipinetics folder above the project" ;; *) bad "html .shipinetics above the project" "got [$page]" ;; esac
+page="$(same_path "$(printf '%s\n' "$OUT" | head -n 1)")"
+case "$page" in "$(same_path "$ws")/.shipinetics/explainers/"*-token-usage.html) ok "html finds a .shipinetics folder above the project" ;; *) bad "html .shipinetics above the project" "got [$page]" ;; esac
 
 # =================================================================== the command line
 usage --help

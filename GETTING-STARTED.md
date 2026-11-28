@@ -10,6 +10,8 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
 ## 1. Install on each machine (one time)
 
+**On Windows,** first install Git for Windows and Python 3, or use WSL 2. The README's "Windows" section has the steps. Run the commands below in Git Bash (or in WSL), not in PowerShell or cmd.
+
 1. Install the plugin. Choose one of these four ways:
 
    | Way | Commands | How you update | Good for |

@@ -34,7 +34,7 @@ if [[ "$cmd" =~ $cd_re ]]; then
   case "$d" in /*) ;; *) d="$cwd/$d" ;; esac
   [ -d "$d" ] && cwd="$d"
 fi
-repo="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || noop
+repo="$(sy_git_top "$cwd")" || noop
 root="$(sy_root "$repo")" || noop
 sy_hook_off pr "$root" && noop
 

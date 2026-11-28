@@ -11,7 +11,7 @@ If you are not sure that a change is wanted, open an issue first (a bug report o
 - **Claude Code** or **Antigravity**, to try a change in a real session. The tests don't need either.
 - Optional: `ffmpeg` (evidence frames), `uv` (some companions), `shellcheck` (lint for scripts).
 
-Shipinetics runs on macOS and Linux. On Windows, use WSL.
+Shipinetics runs on macOS, Linux, WSL 2 and native Windows with Git for Windows (Git Bash). CI tests all three systems. On Windows, run the tests in Git Bash: `bash tests/run.sh`.
 
 ## Local setup
 
@@ -61,7 +61,9 @@ bash tests/run.sh test-config.sh
 
 - **A script or a tool** (`scripts/`, `bin/`, `skills/setup/templates/`):
   - It must run in bash 3.2 and in Linux bash. Don't use associative arrays (`declare -A`), `${var,,}`, `mapfile`, or empty array expansions under `set -u` without a guard.
-  - Python helpers use the standard library only.
+  - Python helpers use the standard library only. Call `python3`: on Windows, `scripts/compat.sh` (loaded by `scripts/lib.sh`) makes it work when only `python` or `py` exists. A tool that doesn't load `lib.sh` sources `scripts/compat.sh` itself, and never runs `exec python3`.
+  - Paths from hook input can be Windows paths (`C:\\Users\\...`). Read them through `sy_hook_file_path` and `sy_hook_cwd`, which convert them with `sy_unix_path`.
+  - Use only commands that Git Bash also has, or give a fallback: GNU and BSD `date`, `stat` and `sed -i` differ. Never depend on `ln -s` making a real link.
   - A hook must never fail in a way that blocks the person's work. When a hook can't decide, it lets the action through, and the tests prove which case is which.
 - **A hook:** keep Claude Code (`hooks/hooks.json`) and Antigravity (`hooks.json`) in step. Each hook has a name that `hooks_off` can turn off. Add the name to the README's list.
 - **A skill:**

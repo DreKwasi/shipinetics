@@ -60,6 +60,9 @@ case "$cmd" in
         ln -s "$here/$item" "$target/$item" || die "failed to link $item"
       fi
     done
+    # On Windows, Git Bash's ln -s copies unless Developer Mode allows real links. Record the source,
+    # so status can say it's a copy, and that install must run again after each update.
+    printf '%s\n' "$here" >"$target/.source"
 
     python3 -I - "$here" "$target/agents" <<'PY' || die "failed to generate Antigravity agents"
 import glob, os, sys
@@ -180,6 +183,8 @@ PY
     if [ -L "$target/hooks.json" ] && [ -f "$target/plugin.json" ]; then
       dest="$(readlink "$target/hooks.json")"
       echo "Plugin: installed ($target -> $(dirname "$dest"))"
+    elif [ -f "$target/plugin.json" ] && [ -f "$target/.source" ]; then
+      echo "Plugin: installed as a copy of $(head -n 1 "$target/.source") (this system made copies, not links: run 'shipinetics-antigravity install' again after each update)"
     elif [ -f "$target/plugin.json" ]; then
       echo "Plugin: static copy at $target (run 'shipinetics-antigravity install' to link live repo)"
       ok=1

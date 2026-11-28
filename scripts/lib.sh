@@ -7,6 +7,9 @@
 # In workspace mode (packages is set), the root holds several package repos and isn't one itself.
 # Run `shipinetics-config` to print a project's effective settings.
 
+# shellcheck source=compat.sh
+. "${BASH_SOURCE[0]%/*}/compat.sh"
+
 SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir evidence_upload_cmd personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every"
 
 sy_default() {
@@ -65,11 +68,11 @@ sy_state_dir() {
 sy_wt_main() {
   local g c
   [ -f "$1/.git" ] || return 1
-  g="$(sed -n 's/^gitdir: //p' "$1/.git" | head -n 1)"
+  g="$(sed -n 's/^gitdir: //p' "$1/.git" | head -n 1)"; g="$(sy_unix_path "$g")"   # C:/x on Windows
   [ -n "$g" ] || return 1
   case "$g" in /*) ;; *) g="$1/$g" ;; esac
   [ -f "$g/commondir" ] || return 1
-  c="$(head -n 1 "$g/commondir")"
+  c="$(head -n 1 "$g/commondir")"; c="$(sy_unix_path "$c")"
   case "$c" in /*) ;; *) c="$g/$c" ;; esac
   c="$(cd "$c" 2>/dev/null && pwd)" || return 1
   [ "$(basename "$c")" = .git ] || return 1
@@ -145,7 +148,7 @@ sy_wt_hint() {
     [ "$r" != "$m" ] || return 1
     printf '%s\n' "This git worktree belongs to $(basename "$m"), a package of the Shipinetics workspace in $r. Shipinetics finds a package worktree only in a folder directly in $r. Create it there, for example: git -C $m worktree add $r/$(basename "$m")-<branch> <branch>"
   else
-    g="$(sed -n 's/^gitdir: //p' "$d/.git" | head -n 1)"
+    g="$(sed -n 's/^gitdir: //p' "$d/.git" | head -n 1)"; g="$(sy_unix_path "$g")"   # C:/x on Windows
     [ -n "$g" ] || return 1
     case "$g" in */.git/worktrees/*) ;; *) return 1 ;; esac
     printf '%s\n' "This git worktree's git folder ($g) isn't reachable from here, so Shipinetics can't find the main checkout's settings. In a container, mount the main checkout at the same path as on the host. Or run shipinetics-config once in this worktree on the host: it copies the settings into $d/$SY_DIR_NAME/, and the container then uses that copy."
@@ -180,14 +183,14 @@ sy_workspace() { [ -n "$(sy_cfg "$1" packages)" ]; }
 # (its top level mirrors the root's harness files, which the root links to). Fails if neither.
 sy_harness_repo() {
   local top h
-  if top="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" &&
+  if top="$(sy_git_top "$1")" &&
      [ "$(cd "$top" && pwd -P)" = "$(cd "$1" && pwd -P)" ]; then
     printf '%s\n' "$1"; return 0
   fi
   h="$(sy_cfg "$1" harness_repo)"
   [ -n "$h" ] || return 1
   case "$h" in /*) ;; *) h="$1/$h" ;; esac
-  git -C "$h" rev-parse --show-toplevel 2>/dev/null
+  sy_git_top "$h"
 }
 
 # sy_package_of <root> <path relative to root>: the package folder the path belongs to, if any.
@@ -209,6 +212,30 @@ sy_package_of() {
 }
 
 # sy_norm_path <absolute path>: the same path without . and .. parts (no symlinks resolved)
+# sy_unix_path <path>: a Windows path (C:\x\y or C:/x/y) in the form that Git Bash uses (/c/x/y).
+# On Windows it also turns backslashes into slashes. Other paths come back unchanged.
+sy_unix_path() {
+  local p="$1" d
+  case "$p" in
+    [A-Za-z]:|[A-Za-z]:[\\/]*)
+      if command -v cygpath >/dev/null 2>&1; then cygpath -u "$p"; return 0; fi
+      d="$(printf '%s' "${p%%:*}" | tr '[:upper:]' '[:lower:]')"; p="${p#?:}"
+      printf '/%s%s\n' "$d" "${p//\\//}"; return 0 ;;
+  esac
+  case "${OSTYPE:-}" in msys*|cygwin*|win*) p="${p//\\//}" ;; esac
+  printf '%s\n' "$p"
+}
+
+# sy_git_top [dir]: the top folder of the git repo at dir (default: here), in the shell's own path
+# form. On Windows, git prints C:/x/y and the shell's pwd prints /c/x/y: cd and pwd make them one
+# form, so paths compare as text. Elsewhere it prints what git prints.
+sy_git_top() {
+  local t
+  t="$(git -C "${1:-.}" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  [ -n "$t" ] || return 1
+  (cd "$t" 2>/dev/null && pwd) || printf '%s\n' "$t"
+}
+
 sy_norm_path() {
   local part parts out=()
   IFS=/ read -r -a parts <<<"$1"
@@ -826,7 +853,7 @@ if isinstance(v, dict):
     fi
   fi
   [ -n "$d" ] || d="${CLAUDE_PROJECT_DIR:-$PWD}"
-  printf '%s\n' "$d"
+  sy_unix_path "$d"
 }
 
 # sy_hook_tool <json>: tool name from Claude Code or Antigravity PreToolUse input
@@ -850,7 +877,7 @@ sy_hook_file_path() {
   local v k
   for k in tool_input.file_path tool_input.notebook_path toolCall.args.Path toolCall.args.TargetFile toolCall.args.AbsolutePath toolCall.args.NotebookPath; do
     v="$(sy_json_field "$1" "$k")"
-    if [ -n "$v" ]; then printf '%s\n' "$v"; return 0; fi
+    if [ -n "$v" ]; then sy_unix_path "$v"; return 0; fi
   done
   return 0
 }

@@ -50,7 +50,12 @@ The guards see the text of each command, and the paths in Claude's file tools. T
 
 ## Install
 
-You need macOS or Linux (on Windows, use WSL), bash, git, and python3 or `jq`. The hooks read their input with python3 or `jq`: with neither, the guards can't read the input and let each action through.
+You need bash, git, and python3 or `jq`. The hooks read their input with python3 or `jq`: with neither, the guards can't read the input and let each action through.
+
+- **macOS and Linux:** nothing more.
+- **Windows:** use one of the two ways below. "Windows" further down has the details.
+  - **WSL 2 (recommended).** Install Claude Code inside WSL, and keep your projects on the Linux file system (`~/code`, not `/mnt/c`). Shipinetics then works as on Linux.
+  - **Native Windows,** with [Git for Windows](https://git-scm.com/download/win) (it brings Git Bash) and Python 3 from [python.org](https://www.python.org/downloads/windows/). Claude Code runs the Shipinetics hooks and tools in Git Bash. Without Git Bash, Claude Code runs hooks in PowerShell, and the Shipinetics hooks fail.
 
 1. Install the plugin, from GitHub (recommended):
 
@@ -85,6 +90,23 @@ Shipinetics also runs as an Antigravity plugin. Support is experimental: Antigra
 ```
 
 Then add `<path to this clone>/bin` to your shell `PATH` (`~/.zshrc` or `~/.bashrc`). `install` links `skills/`, `scripts/`, `bin/`, `plugin.json`, `hooks.json` and `companions.tsv` into `~/.gemini/config/plugins/shipinetics` and generates Antigravity-native subagents in `agents/`. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares companions installed with the `skills` CLI. Re-run `./bin/shipinetics-antigravity install` when `agents/*.md` changes. Run `shipinetics-antigravity status` to check the setup.
+
+### Windows
+
+**WSL 2** works as Linux. Install Claude Code inside WSL with the Linux installer, and keep the projects on the Linux file system: projects under `/mnt/c` are slow, and file watching breaks there.
+
+**Native Windows** needs Git for Windows and Python 3:
+
+1. Install [Git for Windows](https://git-scm.com/download/win). Claude Code uses its Git Bash for the Bash tool and for the hooks. If Git isn't in the default folder, set `CLAUDE_CODE_GIT_BASH_PATH` (for example `C:\Program Files\Git\bin\bash.exe`) in `env` of `~/.claude/settings.json`.
+2. Install Python 3 from [python.org](https://www.python.org/downloads/windows/). Shipinetics finds `python3`, `python` or the `py` launcher. The `python3` that Windows itself offers is often only a link to the Microsoft Store: Shipinetics notices that and uses `python` or `py` instead.
+3. Install the plugin as above, in a Claude Code session.
+
+What is different on native Windows:
+
+- **No sandbox.** Claude Code's sandbox isn't available on native Windows, so the guards and `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` are the only protection. Use WSL 2 for the sandbox.
+- **Line endings.** This repo's `.gitattributes` keeps LF line endings in the scripts. Setup adds the same rule for a project's `bin/` and git hooks. A script with CRLF line endings fails.
+- **Symlinks.** Git Bash's `ln -s` copies a folder unless Windows Developer Mode is on. `shipinetics-antigravity install` then makes copies: run it again after each update.
+- **The short commands** (`shipinetics-shims`) work in Git Bash, not in PowerShell or cmd.
 
 ## Update
 
@@ -569,6 +591,7 @@ The reviews then find less. To keep Opus for the agents that set it, leave out `
 - **The guards match words, not intent.** The PR gate and the install gate react to their command words anywhere in a command: in a heredoc, a quoted string, a comment or a commit message. The secrets guard skips a heredoc only in the case that "Secrets" describes.
 - **Each guard watches some tools only.** The edit guard watches Edit, Write and NotebookEdit in Claude Code (`edit_file`, `write_file`, `replace_file_content`, `multi_replace_file_content`, `write_to_file` and `notebook_edit` in Antigravity). The secrets guard watches Bash and Read (`run_command`, `read_file` and `view_file` in Antigravity), not Grep or Glob.
 - **Antigravity omits subagent identity on `PreToolUse`.** The edit guard still enforces `.shipinetics/protected-paths` in Antigravity, and skips the `.shipinetics/test-paths` owner check unless the hook payload includes `agentType` (otherwise `test-writer` would be blocked too). The reviewer's `test-integrity` persona still checks test diffs.
+- **No sandbox on native Windows.** Claude Code's sandbox runs on macOS, Linux and WSL 2 only. On native Windows, nothing below the guards stops a script that the agent writes.
 - **The install gate knows some install commands only.** It doesn't see `uv tool install`, `npm install -g`, `curl ... | bash` or an edit of `.mcp.json`.
 - **Bash can write.** The reviewers have no Edit or Write tool, but they have Bash. Claude Code ignores the `hooks` field in a plugin agent's frontmatter, and no hook checks what a reviewer writes through Bash.
 - **Some changes need a person.** When a baseline or the list of known failures exists, `bench-compare --init` and `known-failing init` write a proposal to `.shipinetics/pending/`. Only `shipinetics-config apply` applies a proposal, and it needs a terminal, so an agent's Bash tool can't run it by accident. `shipinetics-config pending` lists the proposals, says why a person applies them, and gives the exact command to run in your own terminal. This slows an agent down. It isn't a lock.

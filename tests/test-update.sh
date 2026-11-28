@@ -93,8 +93,9 @@ out="$(SHIPINETICS_UPSTREAM="$scratch/nowhere" shipinetics-update -C "$fork" che
 eq "no way to fetch the releases: can't check" "$rc" 2
 
 # steps reads this plugin's CHANGELOG: point it at a copy with the test releases
-plug="$scratch/plugin"; mkdir -p "$plug/bin" "$plug/.claude-plugin"
+plug="$scratch/plugin"; mkdir -p "$plug/bin" "$plug/scripts" "$plug/.claude-plugin"
 cp "$SY/bin/shipinetics-update" "$plug/bin/"
+cp "$SY/scripts/compat.sh" "$plug/scripts/"    # the tool sources it, as in the real plugin
 git -C "$up" show v0.3.0:CHANGELOG.md >"$plug/CHANGELOG.md"
 printf '{"name": "shipinetics", "version": "0.3.0"}\n' >"$plug/.claude-plugin/plugin.json"
 out="$("$plug/bin/shipinetics-update" steps 0.1.0)"

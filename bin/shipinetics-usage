@@ -20,7 +20,16 @@
 # Exit codes: 0 success, 1 no session found, 2 bad usage or no python3.
 
 set -uo pipefail
+# shellcheck source=../scripts/compat.sh
+compat="$(cd "$(dirname "$0")/.." && pwd)/scripts/compat.sh"; [ -f "$compat" ] && . "$compat"
 case "${1:-}" in -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 command -v python3 >/dev/null 2>&1 || { echo "shipinetics-usage: python3 is required" >&2; exit 2; }
-exec python3 -I "$here/scripts/usage.py" "$@"
+# On Windows, compat.sh sets SY_PYTHON, and python3 is a function that removes the "\r" from the
+# output. exec can't run a function, and the "\r" filter holds a server's output in a buffer. So
+# serve (and every command elsewhere) runs the interpreter with exec, and it stops with this process.
+if [ -z "${SY_PYTHON:-}" ] || [ "${1:-}" = serve ]; then
+  # shellcheck disable=SC2086  # SY_PYTHON can be "py -3"
+  exec ${SY_PYTHON:-python3} -I "$here/scripts/usage.py" "$@"
+fi
+python3 -I "$here/scripts/usage.py" "$@"

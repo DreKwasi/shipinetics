@@ -21,13 +21,18 @@ overrides it). Python 3.7 or later, standard library only.
 import argparse
 import collections
 import datetime
-import fcntl
 import glob
 import html
 import json
 import os
 import re
 import subprocess
+
+try:
+    import fcntl  # Unix
+except ImportError:  # Windows has no fcntl: lock with msvcrt instead
+    fcntl = None
+    import msvcrt
 import sys
 
 FIELDS = ["session_id", "start", "end", "project", "branch", "title", "entrypoint", "agent", "model",
@@ -66,18 +71,18 @@ DEFAULT_PRICING = {
 
 
 def log_path():
-    p = os.environ.get("SHIPINETICS_USAGE_LOG")
+    p = env_path("SHIPINETICS_USAGE_LOG")
     if p:
         return p
-    base = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+    base = env_path("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
     return os.path.join(base, "shipinetics", "usage.tsv")
 
 
 def pricing_path():
-    p = os.environ.get("SHIPINETICS_PRICING_FILE")
+    p = env_path("SHIPINETICS_PRICING_FILE")
     if p:
         return p
-    base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+    base = env_path("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
     return os.path.join(base, "shipinetics", "pricing.json")
 
 
@@ -190,11 +195,11 @@ def fmt_cost(v):
 
 
 def claude_dir():
-    return os.environ.get("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
+    return env_path("CLAUDE_CONFIG_DIR") or os.path.join(os.path.expanduser("~"), ".claude")
 
 
 def gemini_home():
-    return os.environ.get("GEMINI_HOME") or os.path.join(os.path.expanduser("~"), ".gemini")
+    return env_path("GEMINI_HOME") or os.path.join(os.path.expanduser("~"), ".gemini")
 
 
 def is_antigravity_transcript(path):
@@ -211,7 +216,7 @@ def transcript_sid(path):
     name = os.path.basename(path)
     if name in ("transcript.jsonl", "transcript_full.jsonl"):
         d = os.path.dirname(os.path.abspath(path))
-        while d and d != "/":
+        while d and os.path.dirname(d) != d:  # stops at / and at a Windows drive (C:\\)
             base = os.path.basename(d)
             if base not in ("logs", ".system_generated", "brain", "antigravity", "antigravity-cli", "antigravity-ide", ""):
                 return base
@@ -239,23 +244,27 @@ def _skip_inferred_path(p):
     """Ignore agent-internal and OS directories when inferring a session's workspace path."""
     home = os.path.expanduser("~")
     prefixes = (
-        gemini_home().rstrip("/") + "/",
-        claude_dir().rstrip("/") + "/",
+        gemini_home().rstrip("/\\") + "/",
+        claude_dir().rstrip("/\\") + "/",
         os.path.join(home, ".gemini") + "/",
         os.path.join(home, ".claude") + "/",
         "/usr/", "/etc/", "/System/", "/bin/", "/sbin/",
     )
+    if os.name == "nt":  # compare Windows paths in one form and one case
+        q = p.replace("\\", "/").lower()
+        win = ("c:/windows/", "c:/program files/", "c:/program files (x86)/", "c:/programdata/")
+        return any(q.startswith(pre.replace("\\", "/").lower()) for pre in prefixes + win)
     return any(p.startswith(pre) for pre in prefixes)
 
 
 def _resolve_project_from_path(p, git_cache):
-    if not p or not p.startswith("/") or _skip_inferred_path(p):
+    if not p or not os.path.isabs(p) or _skip_inferred_path(p):
         return ""
     d = p if os.path.isdir(p) else os.path.dirname(p)
     # Walk up if a file or its folder was deleted so the enclosing git repo is still found.
-    while d and d != "/" and not os.path.isdir(d):
+    while d and os.path.dirname(d) != d and not os.path.isdir(d):  # stops at / and at C:\\
         d = os.path.dirname(d)
-    if not d or d == "/" or _skip_inferred_path(d + "/"):
+    if not d or os.path.dirname(d) == d or _skip_inferred_path(d + "/"):
         return ""
     if d not in git_cache:
         git_cache[d] = git(d, "rev-parse", "--show-toplevel")
@@ -546,13 +555,43 @@ def load_log(path):
     return read_log(path)[0]
 
 
+def env_path(name):
+    """A path from the environment variable name, in this system's own form. On Windows, Git Bash
+    passes environment variables unchanged, so a value such as /tmp/x or /c/x must be converted
+    before Windows Python opens it (it would read /tmp/x as C:\\tmp\\x)."""
+    p = os.environ.get(name) or ""
+    if os.name != "nt" or not p.startswith("/"):
+        return p
+    try:
+        out = subprocess.run(["cygpath", "-w", p], capture_output=True, text=True)
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except OSError:
+        pass
+    m = re.match(r"^/([A-Za-z])(/.*)?$", p)
+    return (m.group(1).upper() + ":" + (m.group(2) or "/")) if m else p
+
+
+def lock_file(f):
+    """Hold an exclusive lock on the open file f until it is closed: flock on Unix, msvcrt on Windows."""
+    if fcntl is not None:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        return
+    while True:
+        try:
+            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # retries for 10 seconds, then raises
+            return
+        except OSError:
+            continue
+
+
 def write_sessions(path, sessions, only_if_newer=False):
     """Record sessions ({id: rows}) in the log under a lock. A session with no rows changes nothing.
     New rows replace the rows with the same agent and model; the session's other old rows stay.
     only_if_newer (backfill): skip a session that the log already has with the same or a later end."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path + ".lock", "w") as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
+    with open(path + ".lock", "a") as lock:
+        lock_file(lock)
         rows, bad = read_log(path)
         current = collections.OrderedDict()
         for r in rows:
@@ -592,7 +631,7 @@ def write_sessions(path, sessions, only_if_newer=False):
         out = sorted((r for rs in current.values() for r in rs),
                      key=lambda r: (r["start"], r["session_id"], r["agent"], r["model"]))
         tmp = "%s.%d.tmp" % (path, os.getpid())
-        with open(tmp, "w", encoding="utf-8") as f:
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
             f.write("\t".join(FIELDS) + "\n")
             for r in out:
                 f.write("\t".join(str(int(r[k])) if k in NUM else clean(r.get(k)) for k in FIELDS) + "\n")
@@ -614,7 +653,7 @@ def git(start, *args):
 def project_roots():
     """The folders that make up this project: the git main checkout and every worktree of the
     repo, or the folder itself outside git. The project starts at CLAUDE_PROJECT_DIR, else PWD."""
-    start = os.path.abspath(os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
+    start = os.path.abspath(env_path("CLAUDE_PROJECT_DIR") or os.getcwd())
     top = git(start, "rev-parse", "--show-toplevel")
     if not top:
         return [start]
@@ -637,17 +676,26 @@ def project_roots():
     return out
 
 
+def same_form(path):
+    """A path in one form for comparing: resolved, with / as the separator, and on Windows in one case."""
+    if os.name == "nt":
+        m = re.match(r"^/([A-Za-z])(/.*)?$", path)
+        if m:
+            path = m.group(1) + ":" + (m.group(2) or "/")
+    return os.path.normcase(os.path.realpath(path)).replace("\\", "/").rstrip("/") or "/"
+
+
 def in_project(project, roots):
     if roots is None:
         return True
     if not project or project == "-":
         return False
-    p_real = os.path.realpath(project)
+    p_real = same_form(project)
     for root in roots:
         r = root.rstrip("/")
         if project == r or project.startswith(r + "/"):
             return True
-        rr = os.path.realpath(r).rstrip("/")
+        rr = same_form(r)
         if p_real == rr or p_real.startswith(rr + "/"):
             return True
     return False
@@ -950,7 +998,7 @@ def cmd_html(args):
         if sroot:
             out = os.path.join(sroot, ".shipinetics", "explainers", "%s-token-usage.html" % today)
         else:
-            out = os.path.join(os.environ.get("TMPDIR") or "/tmp", "shipinetics-token-usage-%s.html" % today)
+            out = os.path.join(env_path("TMPDIR") or "/tmp", "shipinetics-token-usage-%s.html" % today)
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         f.write(page)
@@ -1068,6 +1116,12 @@ def cmd_serve(args):
 
 def detach():
     """Go on in the background, so the SessionEnd hook returns at once."""
+    if not hasattr(os, "fork"):  # Windows: a detached copy of this command does the work
+        argv = [a for a in sys.argv if a != "--detach"]
+        flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        subprocess.Popen([sys.executable, "-I"] + argv, creationflags=flags, close_fds=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        os._exit(0)
     if os.fork() > 0:
         os._exit(0)
     os.setsid()
