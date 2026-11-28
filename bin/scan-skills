@@ -35,7 +35,7 @@ done
 plugin_root="$(cd "$(dirname "$0")/.." && pwd)"
 # shellcheck source=../scripts/lib.sh
 . "$plugin_root/scripts/lib.sh"
-root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null || true)"
+root="$(sy_root "$PWD")" || root="$(sy_git_top)" || root=""
 
 if [ "${#targets[@]}" -eq 0 ]; then
   gdir="$(sy_gemini_dir)"

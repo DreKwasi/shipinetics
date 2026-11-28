@@ -21,6 +21,18 @@ eq "test-writer can revise its proposal" "$OUT" ""
 edit_hook .shipinetics/pending/e2e/acceptance/a.spec.ts
 has "a proposal for a test file is still test-writer's" "$OUT" "is a test file"
 
+# Claude Code on Windows gives native paths (C:\x\y) in the hook input and CLAUDE_PROJECT_DIR. The
+# guard must still find the protected file, or it lets the edit through. Only on Windows: elsewhere
+# there is no C: drive, so a C:\ path can't name an existing file.
+if on_windows; then
+  OUT="$(printf '{"tool_name":"Write","agent_type":"shipinetics:test-writer","cwd":"%s","tool_input":{"file_path":"%s","content":"x"}}' "$(json_path "$p")" "$(json_path "$p/e2e/acceptance/a.spec.ts")" |
+    CLAUDE_PROJECT_DIR="$(native_path "$p")" bash "$SY/scripts/guard-edits.sh" 2>/dev/null)"
+  has "protected file given as a Windows path (C:\\...): the edit is denied" "$OUT" "is protected"
+  has "and the deny points at the pending folder" "$OUT" ".shipinetics/pending/e2e/acceptance/a.spec.ts"
+else
+  printf '  skip  protected file given as a Windows path (only on Windows: no C: drive here)\n'
+fi
+
 edit_hook e2e/acceptance/new.spec.ts shipinetics:test-writer
 eq "a new file in a protected path is allowed" "$OUT" ""
 edit_hook e2e/unit.spec.ts

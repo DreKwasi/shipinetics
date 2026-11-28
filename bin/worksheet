@@ -26,7 +26,7 @@ case "$cmd" in ""|-h|--help) sed -n '2,15p' "$0" | sed 's/^# \{0,1\}//'; exit 0 
 
 # Only new and use write anything, and they create their folders themselves. No command creates
 # .shipinetics/ in a repo that isn't set up: the current worksheet goes in sy_state_dir.
-root="$(sy_root "$PWD" || git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a Shipinetics project or a git repo"
+root="$(sy_root "$PWD")" || root="$(sy_git_top)" || die "run this inside a Shipinetics project or a git repo"
 dir="$root/$(sy_cfg "$root" worksheets_dir)"
 sdir="$(sy_state_dir "$root")" || die "can't find a place to keep the current worksheet in $root"
 state="$sdir/current-worksheet"
@@ -82,7 +82,7 @@ case "$cmd" in
       path="$(cat "$state")"
     fi
     [ -f "$path" ] || die "no worksheet at $path"
-    repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run worksheet tag inside the git repo you committed to"
+    repo="$(sy_git_top)" || die "run worksheet tag inside the git repo you committed to"
     custom="$(sy_cfg "$root" worksheet_tag_cmd)"
     if [ -n "$custom" ]; then
       pkg="$(sy_package_of "$root" "$(sy_rel "$root" "$repo")" || true)"

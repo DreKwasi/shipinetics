@@ -10,6 +10,8 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
 ## 1. Install on each machine (one time)
 
+**On Windows,** first install Git for Windows and Python 3, or use WSL 2. The README's "Windows" section has the steps. Run the commands below in Git Bash (or in WSL), not in PowerShell or cmd.
+
 1. Install the plugin. Choose one of these four ways:
 
    | Way | Commands | How you update | Good for |
@@ -54,10 +56,11 @@ The [README](README.md) says what each part does, and which rules code enforces.
 
 4. Short commands in your terminal. The plugin's tools are on the PATH of Claude Code's Bash tool only. So when a session starts, Shipinetics puts short commands for them in `~/.local/bin`, and tells you once. Then `shipinetics-config`, `shipinetics-update` and the other `shipinetics-*` tools work in your terminal, also after each update.
 
-   This happens only when `~/.local/bin` exists and is on your PATH. If your terminal doesn't find `shipinetics-config` after your first session, run this once. It tells you how to add the folder to your PATH:
+   This happens only when `~/.local/bin` exists and is on your PATH. If your terminal doesn't find `shipinetics-config` after your first session, ask the agent in a Claude Code session to run `shipinetics-shims install`: the tool is on the agent's PATH. Or run it yourself, once. First find the installed version, then run the tool from that folder. It tells you how to add the folder to your PATH:
 
    ```bash
-   ~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-shims install
+   ls ~/.claude/plugins/cache/shipinetics/shipinetics/     # for example 0.11.0
+   ~/.claude/plugins/cache/shipinetics/shipinetics/0.11.0/bin/shipinetics-shims install
    ```
 
 5. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a recommended companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.

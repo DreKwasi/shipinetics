@@ -18,6 +18,8 @@
 # Exit codes: 0 ok, 1 validation/test failure, 2 bad usage.
 
 set -uo pipefail
+# shellcheck source=compat.sh
+compat="$(dirname "$0")/compat.sh"; [ -f "$compat" ] && . "$compat"
 usage() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; }
 case "${1:-}" in -h|--help|"") usage; exit 0 ;; esac
 

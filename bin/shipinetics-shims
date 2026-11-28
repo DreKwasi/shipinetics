@@ -50,9 +50,10 @@ name="\$(basename "\$0")"
 find_root() {
   if [ -n "\${SHIPINETICS_HOME:-}" ]; then echo "\$SHIPINETICS_HOME"; return; fi
   local list="\${CLAUDE_CONFIG_DIR:-\$HOME/.claude}/plugins/installed_plugins.json" p
-  if [ -f "\$list" ] && command -v python3 >/dev/null 2>&1; then
-    p="\$(python3 - "\$list" <<'PY' 2>/dev/null || true
-import json, sys
+  if [ -f "\$list" ]; then
+    # python3, or on Windows python or the py launcher
+    for py in python3 python "py -3"; do
+      p="\$(\$py -c 'import json, sys
 data = json.load(open(sys.argv[1]))
 plugins = data.get("plugins", data)
 entries = []
@@ -63,9 +64,11 @@ entries.sort(key=lambda e: e.get("scope") != "user")
 for e in entries:
     if e.get("installPath"):
         print(e["installPath"])
-        break
-PY
-)"
+        break' "\$list" 2>/dev/null | tr -d '\r' || true)"
+      [ -n "\$p" ] && break
+    done
+    # Windows: the installed path is C:\\x\\y. Turn it into the form that Git Bash uses.
+    [ -n "\$p" ] && command -v cygpath >/dev/null 2>&1 && p="\$(cygpath -u "\$p")"
     if [ -n "\$p" ] && [ -d "\$p" ]; then echo "\$p"; return; fi
   fi
   if [ -d "\$HOME/.gemini/config/plugins/shipinetics" ]; then echo "\$HOME/.gemini/config/plugins/shipinetics"; return; fi

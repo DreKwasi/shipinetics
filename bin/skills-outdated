@@ -12,6 +12,8 @@
 # Exit 0 if every tracked skill is current, 1 if any is outdated or gone upstream, 2 if it can't check.
 
 set -uo pipefail
+# shellcheck source=../scripts/compat.sh
+compat="$(cd "$(dirname "$0")/.." && pwd)/scripts/compat.sh"; [ -f "$compat" ] && . "$compat"
 case "${1:-}" in -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 lock="${1:-$HOME/.agents/.skill-lock.json}"
 die() { echo "skills-outdated: $*" >&2; exit 2; }

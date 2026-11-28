@@ -25,7 +25,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 . "$here/scripts/lib.sh"
 
 die() { echo "design-check: $*" >&2; exit 2; }
-repo="$(git rev-parse --show-toplevel 2>/dev/null)" || die "run this inside a git repo"
+repo="$(sy_git_top)" || die "run this inside a git repo"
 repo="$(cd "$repo" && pwd -P)"
 cd "$repo"
 root="$(sy_root "$repo" || echo "$repo")"

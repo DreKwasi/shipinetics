@@ -1,0 +1,8 @@
+# Shell scripts, hooks and tools must keep LF line endings, also in a Windows checkout:
+# with CRLF, bash reads "bash\r" on the first line and every script fails.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.gif binary
+*.webm binary
+*.mp4 binary

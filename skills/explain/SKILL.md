@@ -134,7 +134,7 @@ A single self-contained `.html` file: inline CSS and JS, no external requests, n
 - Before you give the user the path, check the page's own markup, not an embedded library. `grep -nE '(src|<link[^>]*href)="https?:' <file>` finds content loaded from outside: remove each one (links in `<a href>` are fine). `grep -nE '\{\{|TODO|lorem' <file>` finds placeholders: check each hit, and keep the ones that are real content, such as quoted code.
 - For a big page, give the build to a subagent with a short brief: pointers to the files and findings, not their contents. This keeps your own context small.
 - Make it look good. If the `impeccable` skill is installed, use it for the visual design.
-- Tell the user the path. You can't open it for them inside the sandbox, so give them the command: `open <path>`.
+- Tell the user the path. You can't open it for them inside the sandbox, so give them the command for their system: `open <path>` (macOS), `xdg-open <path>` (Linux) or `start <path>` (Windows).
 - Never put secrets, tokens or personal data in an explainer.
 
 ## Explainer videos

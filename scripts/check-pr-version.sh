@@ -10,6 +10,8 @@
 # Exit codes: 0 ok, 1 the pull request sets the version, 2 bad usage.
 
 set -uo pipefail
+# shellcheck source=compat.sh
+compat="$(dirname "$0")/compat.sh"; [ -f "$compat" ] && . "$compat"
 base="${1:-}"
 [ -n "$base" ] || { echo "usage: scripts/check-pr-version.sh <base ref>" >&2; exit 2; }
 repo="$(cd "$(dirname "$0")/.." && pwd -P)"

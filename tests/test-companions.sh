@@ -237,9 +237,31 @@ for dir in /usr/bin /bin /usr/sbin /sbin; do
     [ -e "$nojq/${f##*/}" ] || ln -s "$f" "$nojq/${f##*/}"
   done
 done
-for c in jq python3; do PATH="$nojq" command -v "$c" >/dev/null && bad "the scratch PATH has no $c" "found $c"; done
-# stubpy: a python3 that exists but fails, like the macOS stub that only offers to install tools
+# without_compat <command...>: run a command (a test function too) with no python3 or jq functions
+# and no SY_PYTHON, in this shell and in the child's environment, then put them back as they were
+# (exported or not). On Windows, helpers.sh sources compat.sh, which defines python3 and jq as
+# functions: a trimmed PATH doesn't remove those, so a command -v here would still find them, and an
+# exported one would reach the child. On macOS and Linux there are none, and it only runs the command.
+without_compat() {
+  local saved names="" exported="" f sp="${SY_PYTHON-}" had_sp="${SY_PYTHON+x}" exp_sp="" rc
+  for f in python3 jq; do
+    declare -F "$f" >/dev/null || continue
+    names="$names $f"
+    "$BASH" -c "declare -F $f" >/dev/null 2>&1 && exported="$exported $f"   # a child sees it: exported
+  done
+  [ -n "$had_sp" ] && "$BASH" -c '[ -n "${SY_PYTHON+x}" ]' && exp_sp=1
+  saved="$(declare -f python3 jq 2>/dev/null)"
+  unset -f python3 jq; unset SY_PYTHON
+  "$@"; rc=$?
+  if [ -n "$names" ]; then eval "$saved"; for f in $exported; do export -f "$f"; done; fi
+  if [ -n "$had_sp" ]; then SY_PYTHON="$sp"; [ -z "$exp_sp" ] || export SY_PYTHON; fi
+  return "$rc"
+}
+for c in jq python3; do PATH="$nojq" without_compat command -v "$c" >/dev/null && bad "the scratch PATH has no $c" "found $c"; done
+# stubpy, stubjq: a python3 and a jq that exist but fail, like the macOS stub that only offers to
+# install tools
 stubpy="$scratch/stubpy"; mkdir -p "$stubpy"; printf '#!/bin/sh\nexit 1\n' >"$stubpy/python3"; chmod +x "$stubpy/python3"
+stubjq="$scratch/stubjq"; mkdir -p "$stubjq"; printf '#!/bin/sh\nexit 1\n' >"$stubjq/jq"; chmod +x "$stubjq/jq"
 # The reply is read from the test side, with the python of the test's own PATH (not the scratch one).
 py="$(command -v python3)"
 # jpath <key...>: the value at that path in OUT, or "invalid JSON: ..." (numbers index lists)
@@ -256,12 +278,12 @@ no_parser_case() {
   local label="teams-and-plans AC4: $1" pre="$2"
   reset; [ "$3" = setup ] && setup_proj; [ "$4" = all ] && all_installed
   if [ "$5" = agy ]; then
-    PATH="$pre$nojq:$clibin" agy_notice
+    PATH="$pre$nojq:$clibin" without_compat agy_notice
     eq "$label: exit 0" "$RC" 0
     has "$label: the person's message warns" "$(jpath injectSteps 0 systemMessage metadata user_markdown)" "$noparser_warn"
     has "$label: the model's context warns" "$(jpath injectSteps 0 systemMessage systemMessage)" "$noparser_warn"
   else
-    PATH="$pre$nojq:$clibin" notice
+    PATH="$pre$nojq:$clibin" without_compat notice
     eq "$label: exit 0" "$RC" 0
     has "$label: systemMessage warns" "$(jpath systemMessage)" "$noparser_warn"
     has "$label: additionalContext warns" "$(jpath hookSpecificOutput additionalContext)" "$noparser_warn"
@@ -276,7 +298,9 @@ no_parser_case "no jq or python3, in a set-up project (Antigravity)" "" setup no
 no_parser_case "a python3 that fails and no jq, outside a set-up project (Claude)" "$stubpy:" proj all claude
 no_parser_case "a python3 that fails and no jq, in a set-up project (Claude)" "$stubpy:" setup none claude
 no_parser_case "a python3 that fails and no jq, in a set-up project (Antigravity)" "$stubpy:" setup none agy
-reset; notice; PATH="$nojq:$clibin" notice
+no_parser_case "a jq that fails and no python3, in a set-up project (Claude)" "$stubjq:" setup none claude
+no_parser_case "a jq that fails and no python3, in a set-up project (Antigravity)" "$stubjq:" setup none agy
+reset; notice; PATH="$nojq:$clibin" without_compat notice
 has "teams-and-plans AC4: no jq or python3, weekly stamp fresh: the notice still warns" "$(jpath systemMessage)" "$noparser_warn"
 reset; all_installed; notice
 eq "teams-and-plans AC4: with a parser and nothing missing there is no warning" "$RC:$OUT" "0:"

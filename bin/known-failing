@@ -44,7 +44,7 @@ else
 fi
 die() { echo "known-failing: $*" >&2; exit 2; }
 
-root="$(sy_root 2>/dev/null)" || root="$(git rev-parse --show-toplevel 2>/dev/null)" || root="$PWD"
+root="$(sy_root 2>/dev/null)" || root="$(sy_git_top)" || root="$PWD"
 list="$(sy_dir "$root")/known-failing"
 command -v python3 >/dev/null 2>&1 || die "python3 is required"
 

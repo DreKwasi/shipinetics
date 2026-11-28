@@ -1,0 +1,6 @@
+# shipinetics: the scripts and git hooks must keep LF line endings in a Windows checkout.
+# text=auto keeps git's binary detection, so a binary file in bin/ stays as it is.
+bin/* text=auto eol=lf
+.githooks/* text=auto eol=lf
+*.sh text=auto eol=lf
+.shipinetics/** text=auto eol=lf

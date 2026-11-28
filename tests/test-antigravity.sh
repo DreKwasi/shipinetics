@@ -157,8 +157,18 @@ target="$gdir/plugins/shipinetics"
 out="$(shipinetics-antigravity install --target "$target" 2>&1)"; rc=$?
 eq "shipinetics-antigravity install exits 0" "$rc" 0
 has "install reports generated agents" "$out" "Generated 6 Antigravity agent(s)"
-eq "install symlinks skills to repo" "$(readlink "$target/skills")" "$SY/skills"
-eq "install symlinks hooks.json to repo" "$(readlink "$target/hooks.json")" "$SY/hooks.json"
+if [ -L "$target/skills" ] || ! on_windows; then
+  eq "install symlinks skills to repo" "$(readlink "$target/skills")" "$SY/skills"
+  eq "install symlinks hooks.json to repo" "$(readlink "$target/hooks.json")" "$SY/hooks.json"
+  copied=""
+else
+  # Windows without Developer Mode: Git Bash's ln -s copies. The install says where the copy came from.
+  printf '  skip  install symlinks skills and hooks.json (Windows: ln -s made copies)\n'
+  eq "install copies skills from the repo" "$(diff -r "$SY/skills" "$target/skills" >/dev/null 2>&1 && echo same || echo differs)" same
+  eq "install copies hooks.json from the repo" "$(cmp -s "$SY/hooks.json" "$target/hooks.json" && echo same || echo differs)" same
+  eq "install records the repo that it copied" "$(head -n 1 "$target/.source" 2>/dev/null)" "$SY"
+  copied=yes
+fi
 
 rev="$(cat "$target/agents/reviewer.md")"
 has "generated reviewer sets subagent: true" "$rev" "subagent: true"
@@ -189,6 +199,7 @@ has "link-skills is idempotent" "$out2" "already includes"
 out="$(shipinetics-antigravity status --target "$target" 2>&1)"; rc=$?
 eq "status exits 0 when installed, agents native, PATH set and skills linked" "$rc" 0
 has "status reports 6/6 native agents" "$out" "Agents: 6/6 Antigravity-native"
+[ -z "$copied" ] || has "status says the plugin is a copy of the repo" "$out" "installed as a copy of $SY"
 
 # ---- shipinetics-usage reads Antigravity transcripts (backfill, report, session, Stop hook)
 ag_home="$scratch/gemini-home"
@@ -199,7 +210,7 @@ mkdir -p "$ag_tdir"
 ag_t="$ag_tdir/transcript.jsonl"
 t_now="$(python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc) - d.timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
 t_end="$(python3 -c 'import datetime as d; print((d.datetime.now(d.timezone.utc) - d.timedelta(minutes=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
-python3 - "$ag_t" "$p/src/app.ts" "$t_now" "$t_end" <<'PY'
+python3 - "$ag_t" "$(native_path "$p/src/app.ts")" "$t_now" "$t_end" <<'PY'
 import json, sys
 out, fpath, t0, t1 = sys.argv[1:5]
 lines = [
@@ -245,11 +256,13 @@ with open(out, "w") as f:
     f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "created_at": t0, "model": "gemini-4-neon-high",
                         "input_tokens": 500, "cache_read_tokens": 100, "output_tokens": 50}) + "\n")
 PY
-(cd "$SY" && printf '{"hookEventName":"Stop","conversationId":"%s","transcriptPath":"%s","workspacePaths":["%s"]}' "$ag_sid2" "$ag_tdir2/transcript.jsonl" "$p" |
+(cd "$SY" && printf '{"hookEventName":"Stop","conversationId":"%s","transcriptPath":"%s","workspacePaths":["%s"]}' "$ag_sid2" "$(json_path "$ag_tdir2/transcript.jsonl")" "$(json_path "$p")" |
   GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" bash "$SY/scripts/usage-record.sh" >/dev/null 2>&1)
 i=0
 while [ "$i" -lt 50 ] && ! grep -q "^$ag_sid2	" "$ag_log" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
-has "Antigravity Stop hook records session into usage log with workspace path" "$(grep "^$ag_sid2	" "$ag_log" 2>/dev/null || true)" "$p"
+# the project column (4th); same_path: on Windows the log holds C:/... (8.3 short names too)
+ag_proj="$(grep "^$ag_sid2	" "$ag_log" 2>/dev/null | head -n 1 | cut -f 4)"
+has "Antigravity Stop hook records session into usage log with workspace path" "$([ -z "$ag_proj" ] || same_path "$ag_proj")" "$(same_path "$p")"
 
 # Antigravity Stop hook with flat transcript.jsonl path (no .system_generated/logs) still uses real conversationId, never "transcript"
 ag_flat="$scratch/flat-session-id/transcript.jsonl"; mkdir -p "$(dirname "$ag_flat")"
@@ -298,7 +311,7 @@ has "custom pricing.json overrides built-in rates cleanly" "$ag_cost_sess" "| Es
 ag_sid3="cccccccc-3333-4333-8333-0000000000cc"
 ag_tdir3="$ag_home/antigravity/brain/$ag_sid3/.system_generated/logs"
 mkdir -p "$ag_tdir3"
-python3 -I - "$ag_tdir3/transcript.jsonl" "$p/src/app.ts" "$t_now" <<'PY'
+python3 -I - "$ag_tdir3/transcript.jsonl" "$(native_path "$p/src/app.ts")" "$t_now" <<'PY'
 import json, sys
 out, fpath, t0 = sys.argv[1:4]
 with open(out, "w") as f:
