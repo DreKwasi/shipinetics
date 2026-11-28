@@ -341,7 +341,7 @@ The rules of the flow, from [`bin/shipinetics-config`](../bin/shipinetics-config
 - `apply` refuses a path that leads outside the root, and a target that is a symlink.
 - At the end of the task, the agent gives the person the output of `shipinetics-config pending`. That output gives the reason and the exact command, with the full path when the short commands are not installed.
 
-**Worktrees.** A git worktree of a set-up repo can have no `.shipinetics/config` of its own, for example when the settings are not committed. Then the first Shipinetics script that runs there copies the main checkout's `.shipinetics/` into the worktree ([`sy_root` and `sy_wt_sync` in `scripts/lib.sh`](../scripts/lib.sh)). The copy does not include `.cache/` or `pending/`, because each checkout has its own. `.shipinetics/.copied-from` names the source, and the copy refreshes when the source changes. In a worktree with such a copy, `apply` writes a change to a file under `.shipinetics/` to the main checkout's file, and the worktree's copy follows at the next run. A change to any other file goes to the worktree's file.
+**Worktrees.** A git worktree of a set-up repo can have no `.shipinetics/config` of its own, for example when the settings are not committed. Then the first Shipinetics script that runs there copies the main checkout's `.shipinetics/` into the worktree ([`sy_root` and `sy_wt_sync` in `scripts/lib.sh`](../scripts/lib.sh)). The copy does not include `.cache/`, `pending/` or `explainers/`, because each checkout has its own. The copy holds a `.gitignore` with the line `*`, so git ignores the copy in that worktree only. When the worktree's branch tracks files in `.shipinetics/`, Shipinetics stops the copy and uses the tracked files. `.shipinetics/.copied-from` names the source, and the copy refreshes when the source changes. In a worktree with such a copy, `apply` writes a change to a file under `.shipinetics/` to the main checkout's file, and the worktree's copy follows at the next run. A change to any other file goes to the worktree's file.
 
 ## 8. Docs before /compact
 
@@ -381,7 +381,8 @@ When the hook stops `/compact`, it exits with code 2 and tells the person the tw
 | `shipinetics install <harness>` | Installs into the harness. The install gate asks the person first |
 | `shipinetics refresh [<harness>]` | Makes the generated copies match the clone again |
 | `shipinetics status [<harness>]` | Shows what is installed, whether the copies are current, and what each harness enforces, from `harnesses.tsv` |
-| `shipinetics uninstall <harness>` | Removes the install |
+| `shipinetics uninstall <harness>` | Removes the files that the install wrote. Another file in the folder stays |
+| `shipinetics uninstall --all` | Removes Shipinetics from this machine, after one confirmation. The README section [Remove Shipinetics](../README.md#remove-shipinetics) also gives the steps for a project |
 | `shipinetics link-skills antigravity` | Adds `~/.agents/skills` and `~/.claude/skills` to Antigravity's `skills.json` |
 | `--dry-run` | Says what the command would do, and changes nothing |
 
@@ -440,14 +441,17 @@ Antigravity sends no agent type for main agents or subagents. So the edit guard 
 | `.shipinetics/pending/` | Pending changes, and `.delete` for pending deletions | Not ignored. `apply` removes each file that it applies |
 | `.shipinetics/.cache/` | Recorded passes, `docs-checkpoint`, `compact-blocked`, `current-worksheet`, `verify-times.tsv`, `flaky.tsv` and the verify log | No |
 | `.shipinetics/.copied-from` | In a worktree with a copy of the settings: the main checkout that they came from | No. The worktree's git ignores the copy |
+| `.shipinetics/.gitignore` (in a worktree with a copy) | The line `*`, so that git ignores the copy in that worktree only | No |
 | `docs/worksheets/` | The worksheets | Yes |
 | `docs/evidence/` | `EVIDENCE.md` and terminal logs. Recordings never go in git | Yes |
 | `docs/specs/`, `docs/systems/`, `docs/verification/`, `docs/adr/`, `GLOSSARY.md` | Specs, system docs, the verification map, decisions and terms | Yes |
 | `TODOS.md`, `docs/agent-feedback.md` | The task queue and the feedback log | Yes |
 | `~/.config/shipinetics/config`, `~/.config/shipinetics/secret-paths` | The person's own settings for every project | No |
 | `~/.local/share/shipinetics/usage.tsv` | The usage log | No |
+| `~/.cache/shipinetics/` | The weekly stamp of the companions notice, and on Windows the Python that Shipinetics found | No |
 | `~/.local/bin/shipinetics-*` | The short commands from `shipinetics-shims` | No |
 | `~/.gemini/config/plugins/shipinetics/` | The Antigravity install, with its `.shipinetics-copies` stamp | No |
+| `~/.gemini/config/skills.json` | The entries `~/.agents/skills` and `~/.claude/skills`, when `shipinetics link-skills antigravity` added them | No |
 
 The paths under `docs/` are the defaults. A project can map them to other paths in `.shipinetics/config`.
 

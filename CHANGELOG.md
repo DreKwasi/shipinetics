@@ -11,9 +11,32 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ### Added
 - **`docs/how-it-works.md`** explains how the parts of Shipinetics work together: the parts, setup, the task loop, the subagents, the hooks, the gates, protected files, docs before `/compact`, the install on each harness, and where state is kept. Each part has a Mermaid diagram.
+- **`shipinetics uninstall --all`** removes Shipinetics from this machine: the install in each harness, the short commands that `shipinetics-shims` wrote, `~/.cache/shipinetics/` (and on macOS `~/Library/Caches/shipinetics/`) and `~/.local/share/shipinetics/` (the usage log). It lists `~/.config/shipinetics/` and the PATH line and leaves them, because you wrote them. It asks once at a terminal. Without a terminal it needs `--yes`. `--dry-run` lists everything and changes nothing. `shipinetics-shims remove --dry-run` lists the shims that it would remove.
+- **The README has a section "Remove Shipinetics",** for your machine and for a project: the files and settings that setup added, and the command that restores the old `core.hooksPath`.
+
+### Changed (breaking)
+- **`install` and `uninstall` refuse a `--target` folder whose name isn't `shipinetics`,** unless you add `--force`. A typo in `--target` can then no longer replace or empty a folder of other files. Steps for each machine: if you install Antigravity into a folder with another name, add `--force` to those commands.
+- **The task queue pushes a claim or a new task ID to the default branch only when `.shipinetics/config` has `queue_push = yes`.** Without it, agents claim a task and take an ID in their own branch, and never push to the default branch. The skill asks you once. Steps for each project whose team shares the queue through the default branch: add `queue_push = yes` to `.shipinetics/config` yourself (the file is protected), and commit it.
 
 ### Changed
 - The docs for people (README, GETTING-STARTED, CONTRIBUTING, SECURITY, the code of conduct, AGENTS.md, the glossary, the ADRs, the specs, the harness research and the GitHub templates) now use ASD-STE100, with Mermaid diagrams for each flow. CONTRIBUTING now says which changes need a CHANGELOG entry, as the CI check does, and that CI runs on Windows too.
+
+### Fixed
+- **Git worktrees no longer hide the main checkout's `.shipinetics/` from git.** The copy in a linked worktree now has its own `.shipinetics/.gitignore` with the line `*`, so git ignores it in that worktree only. Shipinetics no longer writes to `.git/info/exclude`, which all worktrees share, and removes the line `/.shipinetics/` that 0.11 and 0.12 added there (it keeps every other line). The next Shipinetics call in an old worktree does this. Steps for each project (optional), with linked worktrees: run `git status` in the main checkout. Check each file in `.shipinetics/` that was hidden, then commit it, or ignore it if the project keeps it local. The first Shipinetics call in the main checkout also removes the line, also when no worktree is left.
+- **A worktree whose branch tracks files in `.shipinetics/` is no longer overwritten.** Shipinetics copies nothing into it and deletes nothing from it. It removes `.copied-from` and its own `.gitignore` there, so the worktree uses its tracked settings.
+- The worktree copy leaves out `.shipinetics/explainers/`, as it leaves out `.cache/` and `pending/`.
+- **Setup checks for uncommitted changes before its first write,** shows them, and asks you to commit or stash them. It never commits a file that it didn't write.
+- **Setup renormalizes line endings only in the paths that its `.gitattributes` lines name** (`bin`, `.githooks`, `.shipinetics` and `*.sh`), not in the whole project.
+- **Setup asks before it replaces `core.hooksPath`** or hooks in `.git/hooks` (a hook manager such as husky, lefthook or pre-commit, or Git LFS), and records the old value in `docs/shipinetics-setup.md` with the command that restores it.
+- **The `pre-push` template runs `git lfs pre-push` first** when the repo uses Git LFS and `git-lfs` is installed, so LFS objects still go up. Steps for each project (optional), with Git LFS: copy `skills/setup/templates/pre-push` over `.githooks/pre-push`.
+- **The `.gitignore` additions keep `.env.example` and `.env.sample`.** Steps for each project (optional): add `!.env.example` and `!.env.sample` after the `.env.*` line in `.gitignore`, if you use those files.
+- **`shipinetics link-skills antigravity`** has `--dry-run`, writes `skills.json` only when it adds an entry, keeps non-ASCII text as it is, and writes a temp file that it renames into place.
+- **`shipinetics uninstall antigravity` removes only what `install` wrote,** then the folder if it is empty. Another file in the folder stays, and the command says so.
+- **`shipinetics uninstall claude` also removes the `shipinetics` marketplace** when it points at this clone. A marketplace from another source stays.
+- **`shipinetics-shims` never writes through a symlink.** `install` and the automatic install skip a shim path that is a symlink, also a broken one.
+- **test-writer no longer runs `git worktree prune`,** which could remove the records of other people's worktrees.
+- **`shipinetics-usage serve` answers only requests whose `Host` is `127.0.0.1:<port>` or `localhost:<port>`,** and a POST to `/api/pricing` needs `Content-Type: application/json`. Any other request gets 403, so another web page can't read the data or change `pricing.json`.
+- `--dry-run` of `install claude` and `uninstall claude` now starts each command with "Would run:".
 
 ## 0.12.0
 

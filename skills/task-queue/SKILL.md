@@ -23,7 +23,7 @@ The queue is where work waits. `TODOS.md` by default. If `AGENTS.md` says the so
 ## Picking a task
 
 1. Take the top item in Ready. Skip any that's L size (split it first, see below), whose `Blocked-by` tasks aren't Done, or that touches files another In progress task is changing.
-2. Claim it: move it to In progress, add `Worksheet: <name>`, and commit just that change (`git commit -m "Claim T-012" -m "Worksheet: <name>"`). The commit is what stops two agents taking the same task on one machine. When other people or machines share the queue, make the claim on the default branch: pull, commit the claim, and push it before you start (in a worktree, `git push origin HEAD:<default branch>` from a branch that has only the claim commit on top of the default branch). If the push is refused as "non-fast-forward" or "fetch first", someone else changed the queue: pull, check that the task is still free, and claim again. If it is refused for another reason (a protected branch, a required review), don't try again: the team needs another place for claims, such as its issue tracker. Ask the user, and until then claim the task in your own branch only.
+2. Claim it: move it to In progress, add `Worksheet: <name>`, and commit just that change (`git commit -m "Claim T-012" -m "Worksheet: <name>"`). The commit is what stops two agents taking the same task on one machine. Push a claim to the default branch only when `shipinetics-config get queue_push` prints `yes`. Then pull, commit the claim, and push it before you start (in a worktree, `git push origin HEAD:<default branch>` from a branch that has only the claim commit on top of the default branch). If the push is refused as "non-fast-forward" or "fetch first", someone else changed the queue: pull, check that the task is still free, and claim again. If it is refused for another reason (a protected branch, a required review), don't try again: the team needs another place for claims, such as its issue tracker. Ask the user. Without `queue_push = yes`, claim the task in your own branch only, and never push to the default branch. When other people or machines share the queue, ask the user once if claims can go to the default branch. `.shipinetics/config` is protected, so the user sets `queue_push = yes` there, not you.
 3. If it lacks runnable acceptance criteria, write them (shipinetics:spec) before starting. If you can't without a product decision, move it to Blocked with the question.
 
 ## Finishing
@@ -45,7 +45,7 @@ When you find work outside your current task (a bug, a missing test, a refactor 
   Interface: <a function, type or endpoint that other tasks rely on> (optional, for split tasks)
 ```
 
-Use the next free ID (`grep -o 'T-[0-9]*' TODOS.md | sort -t- -k2 -n | tail -1`). When the queue is shared, take the ID on the default branch the same way as a claim (pull, commit, push), so two people never take the same ID. New tasks go at the bottom of Ready unless they're urgent: a broken build or a security problem goes at the top with P0.
+Use the next free ID (`grep -o 'T-[0-9]*' TODOS.md | sort -t- -k2 -n | tail -1`). When `queue_push = yes`, take the ID on the default branch the same way as a claim (pull, commit, push), so two people never take the same ID. Without it, take the ID in your own branch, and if it is already taken when the branch merges, use the next free one. New tasks go at the bottom of Ready unless they're urgent: a broken build or a security problem goes at the top with P0.
 
 ## Splitting L tasks
 

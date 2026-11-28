@@ -1058,7 +1058,30 @@ def cmd_serve(args):
         def log_message(self, fmt, *a):
             pass
 
+        def host_ok(self):
+            # Answer only requests for this server by its own name. A web page on another site can
+            # make the browser send a request to 127.0.0.1 (DNS rebinding), but then the Host
+            # header has that site's name.
+            port = self.server.server_address[1]
+            host = (self.headers.get("Host") or "").strip().lower()
+            ok = {"127.0.0.1:%d" % port, "localhost:%d" % port}
+            if port == 80:  # a browser leaves out the default port
+                ok |= {"127.0.0.1", "localhost"}
+            if host in ok:
+                return True
+            self.send_error(403)
+            return False
+
+        def refuse(self):
+            # Every other method (HEAD, OPTIONS, PUT, DELETE ...) gets 403: this server has no
+            # CORS preflight, so a page on another site can't send a JSON POST.
+            self.send_error(403)
+
+        do_HEAD = do_OPTIONS = do_PUT = do_DELETE = do_PATCH = refuse
+
         def do_GET(self):
+            if not self.host_ok():
+                return
             req_path = urllib.parse.urlsplit(self.path).path
             if req_path in ("/", "/index.html"):
                 body = render_html(current_payload()).encode("utf-8")
@@ -1077,9 +1100,17 @@ def cmd_serve(args):
             self.wfile.write(body)
 
         def do_POST(self):
+            if not self.host_ok():
+                return
             req_path = urllib.parse.urlsplit(self.path).path
             if req_path != "/api/pricing":
                 self.send_error(404)
+                return
+            # A form on another page can post text/plain or form data without a CORS preflight.
+            # application/json needs one, and this server answers no preflight.
+            ctype = (self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if ctype != "application/json":
+                self.send_error(403)
                 return
             try:
                 length = int(self.headers.get("Content-Length") or "0")

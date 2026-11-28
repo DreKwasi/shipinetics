@@ -126,7 +126,6 @@ Time goes to test runs, not to writing. Each run below is targeted: only the tes
 repo="$(git rev-parse --show-toplevel)"   # in workspace mode, the package repo
 d="$(mktemp -d "${TMPDIR:-/tmp}/tw.XXXXXX")"
 trap 'git -C "$repo" worktree remove --force "$d/wt" 2>/dev/null; touch "$d/done"' EXIT
-git -C "$repo" worktree prune
 git -C "$repo" -c core.hooksPath=/dev/null worktree add --detach "$d/wt" <commit>
 ```
 

@@ -77,7 +77,7 @@ To stop the automatic install, add `hooks_off = shims` to `~/.config/shipinetics
 ./bin/shipinetics status                # each harness: installed or not, and each guard and gate
 ```
 
-Add `--dry-run` to `install`, `refresh` or `uninstall` to see what the command would do. It then changes nothing.
+Add `--dry-run` to `install`, `refresh`, `uninstall` or `link-skills` to see what the command would do. It then changes nothing. `install` and `uninstall` accept a `--target` folder only when its name is `shipinetics`. Add `--force` for another name. `uninstall antigravity` removes only the files that `install` wrote, and tells you about each other file that stays. `uninstall claude` also removes the `shipinetics` marketplace when it points at this clone.
 
 For Antigravity:
 
@@ -223,6 +223,37 @@ To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `inst
 
 The guards see the text of each command, and the paths in Claude's file tools. They don't see what a script does when it runs. So an agent can evade a guard with a script that it writes. The guards make that a deliberate act, and the reviewers look for it. "Known limits" lists the gaps.
 
+## Remove Shipinetics
+
+### From your machine
+
+`shipinetics uninstall --all` removes what Shipinetics wrote on your machine:
+
+- the install in each harness (Claude Code and Antigravity),
+- the short commands that `shipinetics-shims` wrote,
+- `~/.cache/shipinetics/` (on macOS also `~/Library/Caches/shipinetics/`) and `~/.local/share/shipinetics/`, which holds the usage log.
+
+It doesn't remove `~/.config/shipinetics/` or the line in your shell profile that adds Shipinetics to the PATH, because you wrote them. It lists them, so that you can remove them yourself.
+
+1. Find the command. In a clone, it is `./bin/shipinetics`. For a plugin from GitHub, it is `~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics`.
+2. See the list, with no change: `shipinetics uninstall --all --dry-run`.
+3. Remove it: `shipinetics uninstall --all`. It asks once. Without a terminal (in a script), add `--yes`.
+4. Remove the items that it listed and left, if you want: `~/.config/shipinetics/`, the PATH line, and the clone.
+
+A `shipinetics` marketplace in Claude Code that doesn't point at this clone (for example, the one from GitHub) stays. To remove it, run `claude plugin marketplace remove shipinetics`.
+
+### From a project
+
+Setup wrote its files into the project, and you committed them ("What setup writes into a project" below). The plugin doesn't remove them. Do these steps on a branch, and keep each file that your team still uses:
+
+1. Restore the old git hooks setting. `docs/shipinetics-setup.md` records the value of `core.hooksPath` from before setup. Run `git config core.hooksPath <old value>`. If it was not set, run `git config --unset core.hooksPath`. A setup from an older version didn't record the value: then set it back by the hook manager's own docs, or unset it. Each person who cloned the project does this in their clone.
+2. Delete the files that setup added: `.shipinetics/`, `.githooks/pre-commit`, `.githooks/commit-msg`, `.githooks/pre-push`, `bin/verify`, `bin/with-secrets`, `bin/lint-fix`, `bin/llm-fix`, `.github/workflows/verify.yml` and `docs/shipinetics-setup.md`. Setup also wrote docs and test files that your project may still use. Keep each one that you want: `docs/systems/`, `docs/verification/`, `docs/worksheets/`, `docs/testing/`, `docs/specs/smoke.md`, `docs/conventions.md`, `docs/agent-feedback.md`, `TODOS.md`, `DESIGN.md`, `PRODUCT.md`, and in a web project `e2e/` with the Playwright config, the smoke test and the Playwright dev dependency. If you used deepsec, delete `.deepsec/` too.
+3. In `AGENTS.md`, delete the lines from `shipinetics:begin` to `shipinetics:end`. In `CLAUDE.md`, delete the line `@AGENTS.md` if setup added it.
+4. In `.gitignore`, delete the Shipinetics lines below `# shipinetics`, but keep `.env`, `.env.*`, `!.env.example` and `!.env.sample`. Without them, git shows your `.env` files, and a `git add -A` commits your secrets. Keep each other line that your project still needs. In `.gitattributes`, delete the lines below the `# shipinetics:` comment.
+5. In `.claude/settings.json`, delete the settings that setup added (the credential scrub and the deny rules), if you don't want them.
+6. In each linked worktree of the project, delete `.shipinetics/` if it holds `.copied-from` (it is a copy). If `.git/info/exclude` has the line `/.shipinetics/`, delete that line.
+7. Commit the change.
+
 ## What setup writes into a project
 
 Shipinetics has two layers:
@@ -359,7 +390,7 @@ These tools are in the plugin's `bin/`. Run each of them with `--help` for the d
 | `scan-skills` | Scans the skills and agent files that can reach your sessions with SkillSpector, and writes a report. It needs `jq` |
 | `skills-outdated` | Shows which installed skills have a newer version upstream. It changes nothing |
 | `shipinetics-checkpoint` | `record` and `check`: the docs checkpoint that lets `/compact` run. `/shipinetics:checkpoint` records it after it writes the docs |
-| `shipinetics` | `install`, `refresh`, `status`, `uninstall` and `link-skills`: installs Shipinetics from this clone into a harness, keeps its generated copies current, and shows which guards each harness enforces |
+| `shipinetics` | `install`, `refresh`, `status`, `uninstall` and `link-skills`: installs Shipinetics from this clone into a harness, keeps its generated copies current, and shows which guards each harness enforces. `uninstall --all` removes Shipinetics from your machine ("Remove Shipinetics") |
 | `shipinetics-antigravity` | The old name for `shipinetics <command> antigravity`. Writes generated copies of the skills and subagents into Antigravity's plugins folder, links the rest to this repo, and shares companion skills through `skills.json` |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
 | `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
@@ -727,6 +758,7 @@ Every setting is optional. A project sets its own settings in `.shipinetics/conf
 | `hooks_off` | None | The hooks that are off for this project |
 | `companions_skip` | None | The companions that the team doesn't use. They show as declined, not missing |
 | `security_audit_every` | `off` | How often the full security audit runs |
+| `queue_push` | `no` | `yes` lets agents push a task claim and a new task ID to the default branch. Without it, they claim in their own branch only |
 | `secrets_runner` | `bin/with-secrets` | The command that runs another command with the secrets |
 | `vault`, `infisical_args` | Google Secret Manager | `vault = infisical` makes `bin/with-secrets` run `infisical run` |
 | `env_safe_names` | None | The project's own variables that never hold secrets |
@@ -748,10 +780,10 @@ Every setting is optional. A project sets its own settings in `.shipinetics/conf
 Shipinetics works in a git worktree as it works in the main checkout. The first Shipinetics tool or hook that runs in a worktree copies the main checkout's `.shipinetics/` into it. Only the worktree that you work in gets a copy.
 
 - The rules, worksheets and verify passes then use paths in the worktree. A protected `e2e/acceptance/*` file is protected in the worktree too, and `worksheet new` writes into the worktree's branch.
-- The copy leaves out `.cache/` and `pending/`, because each checkout keeps its own. `.shipinetics/.copied-from` names the source. Git ignores the copy: if the project's `.gitignore` doesn't ignore `.shipinetics/`, Shipinetics adds it to `.git/info/exclude`.
+- The copy leaves out `.cache/`, `pending/` and `explainers/`, because each checkout keeps its own. `.shipinetics/.copied-from` names the source. Git ignores the copy in that worktree only, because the copy has its own `.gitignore` with the line `*`. Shipinetics doesn't write to `.git/info/exclude`, which all the worktrees share. It removes the line `/.shipinetics/` that 0.11 and 0.12 added there, because that line hid the main checkout's `.shipinetics/` from git.
 - The copy follows the main checkout. When a file in the main checkout's `.shipinetics/` changes, the next Shipinetics call in the worktree copies it again. Change settings in the main checkout. `shipinetics-config apply` in a worktree writes a change to `.shipinetics/` into the main checkout.
-- If `.shipinetics/` is in git, each worktree has its own from git, and Shipinetics copies nothing.
-- **Containers.** A worktree's `.git` file points to its main checkout's git folder by a host path. A container that mounts only the worktree can't reach that folder. If a copy is already in the worktree, Shipinetics uses it. If not, the worktree notice says what to do: mount the main checkout at the same path as on the host, or run `shipinetics-config` once in the worktree on the host.
+- If `.shipinetics/` is in git, each worktree has its own from git, and nothing is copied. When a worktree's branch starts to track a file in `.shipinetics/`, Shipinetics stops the copy there: it removes `.copied-from` and the copy's `.gitignore`, and it deletes no other file.
+- **Containers.** A worktree's `.git` file points to its main checkout's git folder by a host path. A container that mounts only the worktree can't reach it. If a copy is already in the worktree, Shipinetics uses it. If not, the worktree notice says what to do: mount the main checkout at the same path as on the host, or run `shipinetics-config` once in the worktree on the host.
 - **Workspace packages.** Put a package's worktree in a folder directly in the workspace root (see Workspace mode). Shipinetics can't find a package worktree in another place, and the worktree notice says so.
 
 This diagram shows how Shipinetics finds the settings in a git worktree. Source: `sy_root`, `sy_wt_sync` and `sy_wt_hint` in [scripts/lib.sh](scripts/lib.sh).

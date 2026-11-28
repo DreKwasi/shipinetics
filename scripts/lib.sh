@@ -10,7 +10,7 @@
 # shellcheck source=compat.sh
 . "${BASH_SOURCE[0]%/*}/compat.sh"
 
-SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir evidence_upload_cmd personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every"
+SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir evidence_upload_cmd personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every queue_push"
 
 sy_default() {
   case "$1" in
@@ -29,6 +29,7 @@ sy_default() {
     secrets_runner) echo "bin/with-secrets" ;;
     launch) echo "agent" ;;
     security_audit_every) echo "off" ;;
+    queue_push) echo "no" ;;
     bench_cmd) echo "bin/bench" ;;
     *) echo "" ;;
   esac
@@ -81,26 +82,97 @@ sy_wt_main() {
 }
 
 # sy_wt_sync <worktree> <main checkout>: copy the main checkout's .shipinetics/ into the worktree,
-# without .cache/ and pending/ (they belong to each checkout). The copy gives the worktree the same
-# settings and lists, with paths relative to the worktree. .shipinetics/.copied-from names the
-# source, so the copy is refreshed when the source changes. Git is told to ignore the copy.
+# without .cache/, pending/ and explainers/ (they belong to each checkout). The copy gives the
+# worktree the same settings and lists, with paths relative to the worktree. .shipinetics/.copied-from
+# names the source, so the copy is refreshed when the source changes. The copy's own .gitignore
+# ("*") tells git to ignore it in this worktree only. Nothing is added to the shared info/exclude,
+# so the main checkout's .shipinetics/ stays visible to git there. The line "/.shipinetics/" that
+# 0.11 and 0.12 added to it is removed (sy_unexclude). When the worktree's branch tracks files in
+# .shipinetics/, nothing is copied or deleted: the worktree uses its own tracked settings
+# (sy_wt_detach), and this fails. The first copy never replaces a file that is already there.
+# File names are read NUL-separated, so a name with a newline can't point outside .shipinetics/.
 sy_wt_sync() {
-  local src="$2/$SY_DIR_NAME" dst="$1/$SY_DIR_NAME" f ex
+  local src="$2/$SY_DIR_NAME" dst="$1/$SY_DIR_NAME" f
   [ -d "$src" ] || return 1
+  sy_wt_unexclude "$1"
+  if sy_wt_tracked "$1"; then sy_wt_detach "$1"; return 1; fi
   mkdir -p "$dst" || return 1
+  local first=1
   if [ -f "$dst/.copied-from" ]; then   # remove files that the source no longer has
-    (cd "$dst" && find . \( -path ./.cache -o -path ./pending \) -prune -o -type f ! -name .copied-from -print) |
-      while IFS= read -r f; do [ -e "$src/$f" ] || rm -f "$dst/$f"; done
+    first=0
+    (cd "$dst" && find . \( -path ./.cache -o -path ./pending -o -path ./explainers \) -prune -o \
+       -type f ! -path ./.copied-from ! -path ./.gitignore -print0) |
+      while IFS= read -r -d '' f; do
+        case "/$f/" in */../*) continue ;; esac
+        [ -e "$src/$f" ] || rm -f "$dst/$f"
+      done
   fi
-  (cd "$src" && find . \( -path ./.cache -o -path ./pending \) -prune -o -type f -print) |
-    while IFS= read -r f; do mkdir -p "$dst/$(dirname "$f")" && cp -p "$src/$f" "$dst/$f"; done
+  (cd "$src" && find . \( -path ./.cache -o -path ./pending -o -path ./explainers \) -prune -o \
+     -type f ! -path ./.gitignore -print0) |
+    while IFS= read -r -d '' f; do
+      case "/$f/" in */../*) continue ;; esac
+      [ "$first" = 1 ] && { [ -e "$dst/$f" ] || [ -L "$dst/$f" ]; } && continue
+      mkdir -p "$dst/$(dirname "$f")" && cp -p "$src/$f" "$dst/$f"
+    done
+  printf '*\n' >"$dst/.gitignore"
   printf '%s\n' "$2" >"$dst/.copied-from"
-  if ! git -C "$1" check-ignore -q "$SY_DIR_NAME/.copied-from" 2>/dev/null &&
-     ex="$(git -C "$1" rev-parse --git-path info/exclude 2>/dev/null)"; then
-    ex="$(sy_unix_path "$ex")"   # C:/x on Windows
-    case "$ex" in /*) ;; *) ex="$1/$ex" ;; esac
-    mkdir -p "$(dirname "$ex")" && printf '/%s/\n' "$SY_DIR_NAME" >>"$ex"
+}
+
+# sy_wt_tracked <worktree>: true if the worktree's branch tracks (or has staged) a file in
+# .shipinetics/. It reads the index only.
+sy_wt_tracked() { [ -n "$(git -C "$1" ls-files -- "$SY_DIR_NAME" 2>/dev/null | head -n 1)" ]; }
+
+# sy_wt_detach <worktree>: stop syncing a worktree whose branch tracks .shipinetics/ files. It
+# removes .copied-from, and the copy's own .gitignore (only when it is the "*" that sy_wt_sync
+# wrote and the branch doesn't track it). Every other file stays.
+sy_wt_detach() {
+  local d="$1/$SY_DIR_NAME"
+  rm -f "$d/.copied-from"
+  if [ -f "$d/.gitignore" ] && [ "$(cat "$d/.gitignore")" = "*" ] &&
+     ! git -C "$1" ls-files --error-unmatch -- "$SY_DIR_NAME/.gitignore" >/dev/null 2>&1; then
+    rm -f "$d/.gitignore"
   fi
+}
+
+# sy_unexclude <exclude file>: remove the line "/.shipinetics/" (also with a CRLF ending) that 0.11
+# and 0.12 wrote to a repo's shared info/exclude, where it hid the main checkout's .shipinetics/
+# from git. Every other line stays as it is. The file is written in place, so a symlink stays.
+sy_unexclude() {
+  local tmp
+  [ -f "$1" ] || return 0
+  local line hit=0 cr=$'\r'
+  while IFS= read -r line || [ -n "$line" ]; do   # bash only: this runs on each hook call
+    [ "${line%"$cr"}" = "/$SY_DIR_NAME/" ] && { hit=1; break; }
+  done <"$1"
+  [ "$hit" = 1 ] || return 0
+  tmp="$(mktemp "$1.XXXXXX" 2>/dev/null)" || return 0
+  if awk -v l="/$SY_DIR_NAME/" '{ x = $0; sub(/\r$/, "", x); if (x != l) print }' "$1" >"$tmp"; then
+    cat "$tmp" >"$1"
+  fi
+  rm -f "$tmp"
+}
+
+# sy_wt_unexclude <worktree>: sy_unexclude on the shared info/exclude of a linked worktree
+sy_wt_unexclude() {
+  local ex
+  ex="$(git -C "$1" rev-parse --git-path info/exclude 2>/dev/null)" || return 0
+  ex="$(sy_unix_path "$ex")"   # C:/x on Windows
+  case "$ex" in /*) ;; *) ex="$1/$ex" ;; esac
+  sy_unexclude "$ex"
+}
+
+# sy_wt_tracked_now <worktree>: sy_wt_tracked, but runs git only when the worktree's index changed
+# since the last check. A check that finds nothing touches .shipinetics/.cache/wt-checked.
+sy_wt_tracked_now() {
+  local gd idx mark="$1/$SY_DIR_NAME/.cache/wt-checked"
+  gd="$(sed -n 's/^gitdir: //p' "$1/.git" 2>/dev/null | head -n 1 | tr -d '\r')"
+  gd="$(sy_unix_path "$gd")"
+  case "$gd" in /*) ;; "") gd="" ;; *) gd="$1/$gd" ;; esac
+  idx="$gd/index"
+  if [ -n "$gd" ] && [ -f "$mark" ] && [ -f "$idx" ] && [ ! "$idx" -nt "$mark" ]; then return 1; fi
+  if sy_wt_tracked "$1"; then return 0; fi
+  { mkdir -p "${mark%/*}" && : >"$mark"; } 2>/dev/null
+  return 1
 }
 
 # sy_wt_stale <worktree>: true if the worktree's copy of .shipinetics/ is older than its source
@@ -108,7 +180,8 @@ sy_wt_stale() {
   local m d="$1/$SY_DIR_NAME"
   m="$(head -n 1 "$d/.copied-from" 2>/dev/null)" || return 1
   [ -d "$m/$SY_DIR_NAME" ] || return 1
-  [ -n "$(find "$m/$SY_DIR_NAME" \( -path "$m/$SY_DIR_NAME/.cache" -o -path "$m/$SY_DIR_NAME/pending" \) -prune -o \
+  [ -n "$(find "$m/$SY_DIR_NAME" \( -path "$m/$SY_DIR_NAME/.cache" -o -path "$m/$SY_DIR_NAME/pending" \
+          -o -path "$m/$SY_DIR_NAME/explainers" \) -prune -o \
           -type f -newer "$d/.copied-from" -print 2>/dev/null | head -n 1)" ]
 }
 
@@ -124,7 +197,13 @@ sy_root() {
   while :; do
     if [ -f "$d/.git" ]; then
       if [ -f "$d/$SY_DIR_NAME/.copied-from" ]; then
-        sy_wt_stale "$d" && sy_wt_sync "$d" "$(head -n 1 "$d/$SY_DIR_NAME/.copied-from")"
+        # A copy without its own .gitignore is from 0.12 or before: sync it once to move the ignore
+        # rule out of the shared info/exclude. A branch that now tracks .shipinetics/ files stops
+        # the sync.
+        if sy_wt_tracked_now "$d"; then sy_wt_detach "$d"
+        elif [ ! -f "$d/$SY_DIR_NAME/.gitignore" ] || sy_wt_stale "$d"; then
+          sy_wt_sync "$d" "$(head -n 1 "$d/$SY_DIR_NAME/.copied-from")"
+        fi
         printf '%s\n' "$d"; return 0
       fi
       if [ ! -f "$d/$SY_DIR_NAME/config" ] && m="$(sy_wt_main "$d")" && [ -d "$m/$SY_DIR_NAME" ] &&
@@ -132,7 +211,11 @@ sy_root() {
         printf '%s\n' "$d"; return 0
       fi
     fi
-    if [ -d "$d/$SY_DIR_NAME" ]; then printf '%s\n' "$d"; return 0; fi
+    if [ -d "$d/$SY_DIR_NAME" ]; then
+      # A main checkout: remove the line that 0.11 and 0.12 wrote to its info/exclude (no git call).
+      [ -d "$d/.git" ] && sy_unexclude "$d/.git/info/exclude"
+      printf '%s\n' "$d"; return 0
+    fi
     [ "$d" = "/" ] && return 1
     d="$(dirname "$d")"
   done
