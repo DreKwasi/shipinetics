@@ -146,7 +146,10 @@ sy_unexclude() {
   done <"$1"
   [ "$hit" = 1 ] || return 0
   tmp="$(mktemp "$1.XXXXXX" 2>/dev/null)" || return 0
-  if awk -v l="/$SY_DIR_NAME/" '{ x = $0; sub(/\r$/, "", x); if (x != l) print }' "$1" >"$tmp"; then
+  # bash, not awk: awk in Git Bash drops the \r of the other lines
+  if while IFS= read -r line || [ -n "$line" ]; do
+       [ "${line%"$cr"}" = "/$SY_DIR_NAME/" ] || printf '%s\n' "$line"
+     done <"$1" >"$tmp"; then
     cat "$tmp" >"$1"
   fi
   rm -f "$tmp"
