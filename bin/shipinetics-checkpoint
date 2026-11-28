@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# shipinetics-checkpoint: record that the docs are written for the current code, so `/compact` can run.
+#
+# Usage:
+#   shipinetics-checkpoint record   record the checkpoint for the code as it is now
+#   shipinetics-checkpoint check    exit 0 if the checkpoint matches the current code, 1 if it doesn't
+#                                   or none was recorded
+#
+# Run it inside the repo, after /shipinetics:checkpoint wrote the glossary, ADRs, system docs and
+# worksheet. The checkpoint uses the same fingerprint as a verify pass: editing only the worksheet,
+# evidence or the feedback log keeps it, and any other change needs a new checkpoint.
+# The PreCompact hook (scripts/compact-checkpoint.sh) reads it when you run /compact.
+
+set -uo pipefail
+case "${1:-}" in -h|--help|"") sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
+here="$(cd "$(dirname "$0")/.." && pwd)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
+
+die() { echo "shipinetics-checkpoint: $*" >&2; exit 2; }
+repo="$(sy_git_top)" || die "run this inside a git repo"
+root="$(sy_root "$repo")" || die "no .shipinetics/ folder here or above. Run /shipinetics:setup first."
+pkg=""; [ "$root" != "$repo" ] && pkg="$(sy_rel "$root" "$repo")"
+
+# current_fp: the fingerprint of the code now (the one a verify pass uses)
+current_fp() {
+  local l excl=()
+  while IFS= read -r l; do excl+=("$l"); done < <(sy_verify_excludes "$root" "$pkg")
+  sy_fingerprint "$repo" "${excl[@]}"
+}
+marker="$(sy_dir "$root")/.cache/docs-checkpoint$(sy_key_suffix "$pkg")"
+
+case "$1" in
+  record)
+    fp="$(current_fp)"; [ -n "$fp" ] || die "couldn't fingerprint $repo"
+    mkdir -p "$(dirname "$marker")" && printf '%s\n' "$fp" >"$marker" || die "couldn't write $marker"
+    echo "Docs checkpoint recorded for this code. /compact can run now." ;;
+  check)
+    fp="$(current_fp)"
+    if [ -n "$fp" ] && [ "$fp" = "$(cat "$marker" 2>/dev/null)" ]; then echo "The docs checkpoint matches the current code."; exit 0; fi
+    echo "No docs checkpoint for the current code. Run /shipinetics:checkpoint."; exit 1 ;;
+  *) die "unknown command: $1 (record or check)" ;;
+esac

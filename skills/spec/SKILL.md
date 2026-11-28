@@ -16,17 +16,19 @@ The human's job is intent and acceptance criteria. Your job is to make those cri
 
 ## Steps
 
-1. **Understand.** Read the request, the relevant system docs (`head -n 7 docs/systems/*.md`) and the code involved. List anything ambiguous.
+1. **Understand.** Read the request, `GLOSSARY.md`, the ADRs in `docs/adr/` that touch the area, the relevant system docs (`head -n 7 docs/systems/*.md`) and the code involved. List anything ambiguous.
 2. **Resolve ambiguity.**
+   - **The conversation already settled it: write it up.** When the user and you have already discussed the design and the user approved it, don't grill again. Write the spec from the conversation, and put each point that you decided without the user under Open questions. Grill only the branches that the conversation left open.
    - **Interactive, size M and up: grill.** If the `grilling` and `domain-modeling` skills are installed, run them together on the request: walk the design tree as `grilling` directs, with your recommended answer for each question, and look in the code instead of asking whenever the code can answer. Sharpen fuzzy terms as they come up. Stop when every branch that changes the acceptance criteria or the approach is decided, and say which branches you left open on purpose. Then write the results straight into the spec without asking again: decisions go in Approach and Out of scope, open technical choices in Open questions, new or sharpened terms in `GLOSSARY.md` (term, one-line definition, words to avoid), and decisions that are hard to reverse, surprising and a real trade-off in `docs/adr/` (1 to 3 sentences each). Without those skills, do the same by hand.
    - **Interactive, S and XS:** ask the user, a few questions at a time, with your recommended answer for each.
    - **Autonomous:** never grill: nobody can answer. If the gap is a product decision, mark the task blocked with the question and stop. If it's a technical detail, decide, and record the decision under Open questions so a human can overrule it.
    - If a question needs a runnable answer (does this interaction feel right, does this state model hold), build a throwaway prototype (the `prototype` skill, interactive only), record what it showed under Approach, and delete it.
 3. **Write the spec** to `docs/specs/<slug>.md` using the format below.
-4. **Check that each criterion is testable.** Each one names an observable result at an entry point (a screen, a response, a command's output). If a test can't see it, rewrite it. Test-writer writes the acceptance tests after the implementation (shipinetics:workflow, step 5), and they become protected then.
-5. **Review.** Get a plan review of the spec (shipinetics:review plan). Interactive: show the user the criteria and get a yes before implementation.
-6. **Write the goal line.** Add a `## Goal` section to the spec with a ready-to-paste `/goal` condition built from the acceptance criteria (format below). Interactive: show it to the user and suggest they paste it to run the implementation to completion. Claude can't set a goal itself.
-7. Link the spec from the worksheet and the queue task. Link the tests after test-writer writes them (shipinetics:workflow, step 5).
+4. **Pick the test seams.** Name the entry points where the tests will check the criteria, in the Approach section. Use seams that exist before new ones, the highest seam that can see the result, and as few seams as possible: one is best.
+5. **Check that each criterion is testable.** Each one names an observable result at an entry point (a screen, a response, a command's output). If a test can't see it, rewrite it. Test-writer writes the acceptance tests after the implementation (shipinetics:workflow, step 5), and they become protected then.
+6. **Review.** Get a plan review of the spec (shipinetics:review plan). Interactive: show the user the criteria and get a yes before implementation.
+7. **Write the goal line.** Add a `## Goal` section to the spec with a ready-to-paste `/goal` condition built from the acceptance criteria (format below). Interactive: show it to the user and suggest they paste it to run the implementation to completion. Claude can't set a goal itself.
+8. Link the spec from the worksheet and the queue task. Link the tests after test-writer writes them (shipinetics:workflow, step 5).
 
 ## The goal line
 
@@ -70,7 +72,7 @@ IDs are stable: never renumber. A new criterion takes the next free number. A re
 <What this deliberately doesn't do. Stops scope creep and tells the reviewer what not to ask for.>
 
 ## Approach
-<A few lines: which systems change and how. Enough for a plan review, not a design doc.>
+<A few lines: which systems change and how, and the test seams (step 4). Enough for a plan review, not a design doc. If it goes against an ADR, say which one and why.>
 
 ## Risks and edge cases
 <Check each item in this list, and keep the ones that apply. Data migration. Permissions, and who is refused. Concurrency: a second instance or tab, a double submit. Empty, loading, error and cancelled states. Timeouts and offline. Stale data. Keyboard, focus and accessibility. The features next to this one that share its data or its screen. Performance. If the change adds or changes a state or a transition: which transitions are now valid, and what a retry or a second request at the same time does. Each rule that must hold is an acceptance criterion above, or it gets no test.>

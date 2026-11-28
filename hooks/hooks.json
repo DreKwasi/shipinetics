@@ -59,6 +59,30 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/verify-after-commit.sh",
+            "timeout": 180
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/compact-checkpoint.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [

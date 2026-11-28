@@ -318,7 +318,7 @@ sy_no_evidence() {
 sy_user_dir() { printf '%s/shipinetics\n' "${XDG_CONFIG_HOME:-$HOME/.config}"; }
 
 # sy_hook_off <name> [root]: true if the hook is switched off. The names are edits,
-# secrets, pr, installs, worktrees, companions and usage. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
+# secrets, pr, installs, worktrees, shims, verify, compact, notice (companions is its old name) and usage. Off means listed in $SHIPINETICS_HOOKS_OFF, or in hooks_off in the
 # project's config, or (when the project doesn't set hooks_off) in the user's config.
 sy_hook_off() {
   local off
@@ -387,6 +387,37 @@ sy_companion_declined() {
     case "$w" in "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"|"$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')") return 0 ;; esac
   done
   return 1
+}
+
+# ---------------------------------------------------------------- generated copies
+# Harnesses other than Claude Code get generated copies of the skills and subagents (docs/adr/0001).
+# Each install folder holds a stamp, .shipinetics-copies, with the hash of the clone's skills/ and
+# agents/ that the copies were made from.
+
+SY_STAMP_NAME=".shipinetics-copies"
+
+# sy_clone_dir: the clone this script runs from (symlinks resolved)
+sy_clone_dir() { (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P); }
+
+# sy_clone_hash [clone]: one hash of the contents and paths of skills/ and agents/ in the clone
+sy_clone_hash() {
+  local c="${1:-$(sy_clone_dir)}"
+  ( cd "$c" || exit 1
+    # One shasum call for all files: its output lists each file's hash and path.
+    find skills agents -type f ! -name '.DS_Store' ! -path '*/__pycache__/*' 2>/dev/null | LC_ALL=C sort |
+      tr '\n' '\0' | xargs -0 shasum 2>/dev/null | shasum | cut -d' ' -f1 )
+}
+
+# sy_stamp_get <install dir> <key>: a value from the install's stamp, empty if there is none
+sy_stamp_get() { sed -n "s/^$2=//p" "$1/$SY_STAMP_NAME" 2>/dev/null | head -n 1; }
+
+# sy_copies_state <install dir> [clone]: "current", "stale" (the clone changed since), or "none"
+# (no stamp: not installed, or installed before generated copies existed)
+sy_copies_state() {
+  local h
+  h="$(sy_stamp_get "$1" hash)"
+  [ -n "$h" ] || { echo none; return 0; }
+  if [ "$h" = "$(sy_clone_hash "${2:-$(sy_stamp_get "$1" clone)}")" ]; then echo current; else echo stale; fi
 }
 
 # The credential files the secrets guard keeps agents away from when no list is set.
@@ -940,6 +971,17 @@ sy_json_str() {
   s="$(printf '%sx' "$1" | LC_ALL=C tr -d '\000-\010\013\014\016-\037')"; s="${s%x}"   # x keeps a newline at the end
   s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//$tab/\\t}"; s="${s//$cr/\\r}"; s="${s//$nl/\\n}"
   printf '"%s"' "$s"
+}
+
+# sy_hook_posttool_context <harness> <text>: PostToolUse output that tells the agent something,
+# without blocking it. Claude Code only: for other harnesses it prints nothing.
+sy_hook_posttool_context() {
+  [ "$1" = claude ] || return 0
+  if command -v jq >/dev/null 2>&1; then
+    jq -n --arg c "$2" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $c}}'
+  else
+    python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": sys.argv[1]}}))' "$2"
+  fi
 }
 
 # sy_hook_session_start_reply <harness> <user_msg> <model_ctx>: SessionStart output

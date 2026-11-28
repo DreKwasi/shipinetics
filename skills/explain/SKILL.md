@@ -122,11 +122,18 @@ If the Whiteboard plugin is installed but `session_capabilities` doesn't answer,
 
 When you read the board back (Whiteboard's last step), also read each label alone. Rewrite each label that makes no sense without the diagram. Link the Whiteboard from the worksheet.
 
+## Where explainers go
+
+HTML pages, video scripts, render projects and videos are throwaway, so they never go in the repo's tracked files. The **explainers folder** is:
+
+- In a set-up project (`shipinetics-config root` prints the Shipinetics root): `<root>/.shipinetics/explainers/`. Setup gitignores it.
+- Anywhere else: `shipinetics/explainers/<repo folder name>/` in the user's cache folder: `$XDG_CACHE_HOME` if it is set, else `~/Library/Caches` on macOS, else `~/.cache`. If none of these can be written, use `$TMPDIR/shipinetics-explainers/`, and tell the user that the system can clear it. Never create `.shipinetics/` in a project that isn't set up: that folder turns the Shipinetics hooks on there, so a plain repo would start to act as a set-up one.
+
 ## HTML pages
 
 A single self-contained `.html` file: inline CSS and JS, no external requests, no build step. It must open straight from disk.
 
-- Put it in `.shipinetics/explainers/YYYY-MM-DD-<slug>.html`. That folder is gitignored because these are throwaway. Commit one only if the user asks.
+- Put it in the explainers folder (above) as `YYYY-MM-DD-<slug>.html`. Commit one only if the user asks.
 - Structure: the one-line answer at the top, then a diagram, then detail the reader can expand. Make it interactive where that helps understanding: toggles between before and after, collapsible sections, step-through animations of a flow, sortable tables, a filter on findings.
 - Draw diagrams with inline SVG, or an inline Mermaid render if you embed the library source. Don't link a CDN.
 - Link to code with line numbers. If the page leaves this machine, link to the commit on the remote (`<repo URL>/blob/<sha>/<path>#L10-L25`), because a relative path breaks when someone else opens the page. Use real data from the repo, not placeholders.
@@ -148,7 +155,7 @@ Bespoke videos are starting to work well for concepts and systems. They cost tim
 3. **Narration:**
    - **ElevenLabs** when the project has a key. The key comes from the vault like any secret: run the render through `bin/with-secrets` so it's injected as `ELEVENLABS_API_KEY`, and never print it. Each render spends paid quota, so say roughly how many characters of narration you'll send before you start.
    - **Local and free:** macOS `say`, Piper or Kokoro TTS. Lower quality, no cost, nothing leaves the machine.
-4. **Render** to `.shipinetics/explainers/YYYY-MM-DD-<slug>.mp4`, keep the script beside it, and tell the user the path.
+4. **Render** to the explainers folder (above) as `YYYY-MM-DD-<slug>.mp4`, keep the script and the render project (its `node_modules` too) beside it, and tell the user the path.
 5. Keep videos short: two to five minutes. Make several short ones rather than one long one.
 
 ## Where each output goes

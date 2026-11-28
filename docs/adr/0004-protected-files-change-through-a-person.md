@@ -1,0 +1,3 @@
+# Protected files change only through a person at a terminal
+
+An agent can create a protected file (an acceptance test, a baseline, a policy list), but it can't change or delete one. Changes to the harness's own settings, which the harness itself keeps from agents, take the same route. It writes a pending change, and a person applies it with `shipinetics-config apply`, which refuses to run without a terminal. We chose this because these files define what "done" means, and an agent under pressure to pass would otherwise change the target instead of the code. The cost is a For you item after each setup or update that touches them.

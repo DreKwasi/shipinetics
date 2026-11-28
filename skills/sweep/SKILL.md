@@ -37,7 +37,7 @@ Read the worksheets for the period (their summaries and decisions), then read th
 - **Complexity hot spots:** files changed in many commits this period. Churn often means a missing abstraction or a confusing module.
 - **Worksheet follow-ups** that never made it into the queue.
 - **Review dispositions** marked "deferred" whose queue task doesn't exist.
-- **Guardrails not in force:** rerun rows S and V of the setup audit (shipinetics:setup): env scrub on, deny rules matching the vault the project uses, the CI evidence job in every repo that opens PRs. Report anything partial at the top of the sweep report, with what it leaves unprotected.
+- **Guardrails not in force:** rerun row S of the setup audit (shipinetics:setup): env scrub on, and deny rules matching the vault the project uses. Report anything partial at the top of the sweep report, with what it leaves unprotected.
 - **Verification map drift:** run shipinetics:verification-map `maintain` (weekly sweeps). Put its outcome in the report: clean, changed (what) or blocked (what's needed).
 - **Full security audit:** run `shipinetics-config due security-audit`. If it says due, run the full audit as shipinetics:review describes ("Full security audit"), record it in `docs/security/audits.md`, and put the counts by severity in the sweep report. The user agreed to this when they chose the cadence.
 - **Companions missing:** run `shipinetics-companions missing` and list each missing companion in the report, with why Shipinetics uses it.

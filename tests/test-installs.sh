@@ -21,6 +21,22 @@ asks "npx skills check, which can update and remove skills" "npx skills check"
 gate "skills-outdated"; eq "the read-only check doesn't ask" "$OUT" ""
 asks "merging a Shipinetics release into a clone" "shipinetics-update -C ~/src/shipinetics merge v0.9.3"
 asks "merging from inside the clone" "shipinetics-update merge"
+asks "multi-harness-installer AC7: installing Shipinetics into Claude Code" "shipinetics install claude"
+asks "multi-harness-installer AC7: installing Shipinetics by a quoted full path" '"$HOME/x/bin/shipinetics" install claude'
+asks "multi-harness-installer AC7: installing Shipinetics by a single-quoted path" "'bin/shipinetics' install claude"
+gate 'grep -rn "shipinetics install" .'; eq "multi-harness-installer AC7: searching for the words shipinetics install doesn't ask" "$OUT" ""
+# A lone dry run of plain words changes nothing: no question. Anything that can ride along still asks.
+for c in "shipinetics install antigravity --dry-run" "./bin/shipinetics install claude --dry-run" \
+  "shipinetics-antigravity install --dry-run"; do
+  gate "$c"; eq "multi-harness-installer AC7: a lone dry run doesn't ask: $c" "$OUT" ""
+done
+asks "multi-harness-installer AC7: a dry run followed by && another command" "shipinetics install claude --dry-run && claude plugin install x@y"
+asks "multi-harness-installer AC7: a dry run followed by ; another command" "shipinetics install claude --dry-run; shipinetics install claude"
+asks "multi-harness-installer AC7: a dry run piped into a command" "shipinetics install claude --dry-run | sh"
+asks "multi-harness-installer AC7: a dry run with \$( ) in it" 'shipinetics install claude --dry-run $(shipinetics install antigravity)'
+asks "multi-harness-installer AC7: a dry run with backticks in it" 'shipinetics install claude --dry-run `shipinetics install antigravity`'
+asks "multi-harness-installer AC7: a dry run by a quoted \$HOME path" '"$HOME/bin/shipinetics" install claude --dry-run'
+asks "multi-harness-installer AC7: a dry run by a \$VAR path" '$SY_HOME/bin/shipinetics install claude --dry-run'
 gate "shipinetics-update -C ~/src/shipinetics check"; eq "the update check doesn't ask" "$OUT" ""
 gate "npm install left-pad"; eq "a project dependency doesn't ask" "$OUT" ""
 # ---- the gate judges commands that would run, not the same words in text

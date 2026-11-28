@@ -26,11 +26,13 @@ The [README](README.md) says what each part does, and which rules code enforces.
    **Also using Antigravity?** From a clone of this repo, run:
 
    ```bash
-   ./bin/shipinetics-antigravity install
-   ./bin/shipinetics-antigravity link-skills
+   ./bin/shipinetics install antigravity
+   ./bin/shipinetics link-skills antigravity
    ```
 
-   Then add `<path to the clone>/bin` to your shell `PATH` (for example in `~/.zshrc`). `install` links the plugin into `~/.gemini/config/plugins/shipinetics` and generates Antigravity-native subagents. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares the companion skills below. Check the setup with `shipinetics-antigravity status`.
+   Then add `<path to the clone>/bin` to your shell `PATH` (for example in `~/.zshrc`). `install` writes generated copies of the skills and subagents into `~/.gemini/config/plugins/shipinetics`, with their paths set to your clone. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares the companion skills below. Check the install with `shipinetics status antigravity`. After you change the clone, run `shipinetics refresh`.
+
+   `shipinetics status` shows each harness, and which guards and gates it enforces. Codex, OpenCode and Copilot are not supported yet.
 
 2. Install SkillSpector, so that you can scan each companion before you install it:
 
@@ -295,6 +297,8 @@ the time and cost again after it.
 |---|---|
 | `shipinetics-verify quick` is slow | Set `verify_quick_cmd = bin/verify --quick` in `.shipinetics/config`, and make `--quick` check only the changed files. `shipinetics-verify times` shows how long each tier takes. Put slow suites behind `--full` |
 | `gh pr create` is refused | The PR gate works as designed. The complete checks didn't pass on this exact code (run `shipinetics-verify`). |
+| After a commit, the agent gets a report that the quick verify failed | The post-commit hook works as designed. It only informs: the commit stays. A failure in a test of behaviour that the task changed is expected until test-writer updates the tests. To turn the hook off, add `verify` to `hooks_off` |
+| `shipinetics-config apply` lists a file "(delete)" | An agent proposed to delete a protected file, in `.shipinetics/pending/.delete`. Answer `y` to delete it |
 | `evidence check` says that the code changed after the evidence | A code fix came after the recording. Record the affected criteria again, and update the Commit line in `EVIDENCE.md`. Changes to docs and tests don't cause this |
 | `design-check` says that there is no design system | `DESIGN.md` is missing, or it has no token frontmatter. Run `/shipinetics:setup 2` (or `/impeccable document`) to write it from the code |
 | The agent says that it can't write a test | The edit guard works as designed. The agent must use `shipinetics:test-writer`. For a large one-time change, start Claude Code with `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` |

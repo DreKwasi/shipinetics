@@ -1,224 +1,25 @@
 #!/usr/bin/env bash
-# shipinetics-antigravity: install and manage Shipinetics as a native Antigravity plugin.
+# shipinetics-antigravity: the old name for `shipinetics <command> antigravity`. It still works, and
+# a later breaking release removes it.
 #
 # Usage:
-#   shipinetics-antigravity install [--target <dir>]   Link this repo into Antigravity's plugins
-#                                                      folder (default ~/.gemini/config/plugins/shipinetics)
-#                                                      and generate Antigravity-native agents/*.md
-#   shipinetics-antigravity link-skills                Add ~/.agents/skills and ~/.claude/skills to
-#                                                      ~/.gemini/config/skills.json so Antigravity
-#                                                      loads companions installed with the skills CLI
-#   shipinetics-antigravity status [--target <dir>]    Show plugin, agents, PATH and skills.json status
+#   shipinetics-antigravity install [--target <dir>]   same as: shipinetics install antigravity
+#   shipinetics-antigravity link-skills                same as: shipinetics link-skills antigravity
+#   shipinetics-antigravity status [--target <dir>]    same as: shipinetics status antigravity
+#   shipinetics-antigravity refresh [--target <dir>]   same as: shipinetics refresh antigravity
+#   shipinetics-antigravity uninstall [--target <dir>] same as: shipinetics uninstall antigravity
 #
-# Shared files (skills, scripts, bin, hooks.json, plugin.json, companions.tsv) are symlinked to
-# this repo, so edits and `shipinetics-update merge` take effect immediately. Run `install` again
-# whenever agents/*.md changes so the Antigravity agent frontmatter stays in sync.
-# Exit codes: 0 ok, 1 status incomplete, 2 bad usage or safety refusal.
+# install writes generated copies of the skills and subagents into
+# ~/.gemini/config/plugins/shipinetics (default), and links hooks.json, scripts and bin to this clone.
+# Run `shipinetics refresh antigravity` after the clone changes. Exit codes: as for shipinetics.
 
 set -uo pipefail
-usage() { sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,14p' "$0" | sed 's/^# \{0,1\}//'; }
 case "${1:-}" in -h|--help|"") usage; exit 0 ;; esac
-
-here="$(cd "$(dirname "$0")/.." && pwd -P)"
-# shellcheck source=../scripts/lib.sh
-. "$here/scripts/lib.sh"
-
-die() { echo "shipinetics-antigravity: $*" >&2; exit 2; }
-command -v python3 >/dev/null 2>&1 || die "python3 is required"
-
 cmd="$1"; shift
-gdir="$(sy_gemini_dir)"
-target="$gdir/plugins/shipinetics"
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --target) [ -n "${2:-}" ] || die "--target needs a path"; target="$2"; shift 2 ;;
-    -h|--help) usage; exit 0 ;;
-    *) die "unknown argument: $1" ;;
-  esac
-done
-
 case "$cmd" in
-  install)
-    [ -f "$here/plugin.json" ] || die "missing $here/plugin.json"
-    [ -f "$here/hooks.json" ] || die "missing $here/hooks.json"
-    if [ -L "$target" ]; then
-      rm -f "$target" || die "failed to remove $target"
-    elif [ -d "$target" ]; then
-      # Refuse to overwrite an unrelated non-empty directory.
-      if [ -n "$(ls -A "$target" 2>/dev/null)" ] &&
-         [ ! -f "$target/plugin.json" ] && [ ! -f "$target/.claude-plugin/plugin.json" ]; then
-        die "$target exists and does not look like a Shipinetics plugin; refusing to overwrite"
-      fi
-      rm -rf "$target" || die "failed to remove $target"
-    elif [ -e "$target" ]; then
-      die "$target exists and is not a directory"
-    fi
-
-    mkdir -p "$target/agents" || die "failed to create $target/agents"
-    for item in plugin.json hooks.json skills scripts bin companions.tsv README.md GETTING-STARTED.md; do
-      if [ -e "$here/$item" ]; then
-        ln -s "$here/$item" "$target/$item" || die "failed to link $item"
-      fi
-    done
-    # On Windows, Git Bash's ln -s copies unless Developer Mode allows real links. Record the source,
-    # so status can say it's a copy, and that install must run again after each update.
-    printf '%s\n' "$here" >"$target/.source"
-
-    python3 -I - "$here" "$target/agents" <<'PY' || die "failed to generate Antigravity agents"
-import glob, os, sys
-
-repo, out_dir = sys.argv[1], sys.argv[2]
-tool_map = {
-    "Read": ["read_file"],
-    "Grep": ["read_file"],
-    "Glob": ["read_file"],
-    "Edit": ["edit_file"],
-    "MultiEdit": ["edit_file"],
-    "Write": ["write_file"],
-    "Bash": ["run_command", "manage_task"],
-    "WebFetch": ["search_web"],
-    "WebSearch": ["search_web"],
-}
-
-def yaml_scalar(val):
-    if any(ch in val for ch in ':#[]{}&*!|>\'"%@`') or val.strip() != val or "\n" in val:
-        escaped = val.replace("\\", "\\\\").replace('"', '\\"')
-        return f'"{escaped}"'
-    return val
-
-count = 0
-for src in sorted(glob.glob(os.path.join(repo, "agents", "*.md"))):
-    text = open(src, encoding="utf-8").read().replace("\r\n", "\n")
-    if not text.startswith("---\n"):
-        continue
-    end = text.find("\n---\n", 4)
-    if end == -1:
-        continue
-    fm_lines = text[4:end].splitlines()
-    body = text[end + 5:]
-    meta = {}
-    for line in fm_lines:
-        if ":" in line:
-            k, v = line.split(":", 1)
-            meta[k.strip()] = v.strip()
-
-    name = meta.get("name") or os.path.splitext(os.path.basename(src))[0]
-    desc = meta.get("description", "")
-    raw_tools = meta.get("tools", "")
-    tools = []
-    for tok in [t.strip() for t in raw_tools.split(",") if t.strip()]:
-        for mapped in tool_map.get(tok, []):
-            if mapped not in tools:
-                tools.append(mapped)
-    if not tools:
-        tools = ["read_file", "run_command", "manage_task"]
-
-    body = body.replace("${CLAUDE_PLUGIN_ROOT}", repo)
-    out_lines = [
-        "---",
-        f"name: {yaml_scalar(name)}",
-        f"description: {yaml_scalar(desc)}",
-        "subagent: true",
-        "mainAgent: false",
-        f"tools: [{', '.join(tools)}]",
-        "---",
-        "",
-    ]
-    out_path = os.path.join(out_dir, os.path.basename(src))
-    with open(out_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(out_lines) + body)
-    count += 1
-
-print(f"Generated {count} Antigravity agent(s) in {out_dir}")
-PY
-    echo "Linked Shipinetics into $target -> $here"
-    case ":$PATH:" in
-      *":$here/bin:"*) ;;
-      *) echo "Add to your shell profile (~/.zshrc): export PATH=\"$here/bin:\$PATH\"" ;;
-    esac
-    ;;
-
-  link-skills)
-    mkdir -p "$gdir" || die "failed to create $gdir"
-    sf="$gdir/skills.json"
-    python3 -I - "$sf" <<'PY' || die "failed to update $sf"
-import json, os, sys
-
-path = sys.argv[1]
-if os.path.exists(path):
-    with open(path, encoding="utf-8") as f:
-        data = json.load(f)
-    if not isinstance(data, dict):
-        sys.exit("skills.json must be a JSON object")
-else:
-    data = {}
-
-entries = data.get("entries")
-if entries is None:
-    entries = []
-    data["entries"] = entries
-if not isinstance(entries, list):
-    sys.exit("skills.json entries must be a list")
-
-existing = {e.get("path") for e in entries if isinstance(e, dict)}
-added = []
-for p in ("~/.agents/skills", "~/.claude/skills"):
-    if p not in existing:
-        entries.append({"path": p})
-        added.append(p)
-
-with open(path, "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
-
-if added:
-    print(f"Added {', '.join(added)} to {path}")
-else:
-    print(f"{path} already includes ~/.agents/skills and ~/.claude/skills")
-PY
-    ;;
-
-  status)
-    ok=0
-    if [ -L "$target/hooks.json" ] && [ -f "$target/plugin.json" ]; then
-      dest="$(readlink "$target/hooks.json")"
-      echo "Plugin: installed ($target -> $(dirname "$dest"))"
-    elif [ -f "$target/plugin.json" ] && [ -f "$target/.source" ]; then
-      echo "Plugin: installed as a copy of $(head -n 1 "$target/.source") (this system made copies, not links: run 'shipinetics-antigravity install' again after each update)"
-    elif [ -f "$target/plugin.json" ]; then
-      echo "Plugin: static copy at $target (run 'shipinetics-antigravity install' to link live repo)"
-      ok=1
-    else
-      echo "Plugin: not installed at $target"
-      ok=1
-    fi
-
-    n_agents=0
-    n_native=0
-    for f in "$target/agents"/*.md; do
-      [ -f "$f" ] || continue
-      n_agents=$((n_agents + 1))
-      grep -q '^subagent: true$' "$f" && n_native=$((n_native + 1))
-    done
-    echo "Agents: $n_native/$n_agents Antigravity-native in $target/agents"
-    [ "$n_agents" -gt 0 ] && [ "$n_native" -eq "$n_agents" ] || ok=1
-
-    case ":$PATH:" in
-      *":$here/bin:"*) echo "PATH: includes $here/bin" ;;
-      *) echo "PATH: missing $here/bin"; ok=1 ;;
-    esac
-
-    sf="$gdir/skills.json"
-    if [ -f "$sf" ] && grep -qF "~/.agents/skills" "$sf"; then
-      echo "Skills config: $sf links ~/.agents/skills"
-    else
-      echo "Skills config: $sf does not link ~/.agents/skills (run 'shipinetics-antigravity link-skills')"
-      ok=1
-    fi
-    exit "$ok"
-    ;;
-
-  *)
-    die "unknown command: $cmd (use install, link-skills or status)"
-    ;;
+  install|link-skills|status|refresh|uninstall) ;;
+  *) echo "shipinetics-antigravity: unknown command: $cmd (use install, link-skills, status, refresh or uninstall)" >&2; exit 2 ;;
 esac
+echo "(shipinetics-antigravity is now: shipinetics $cmd antigravity)" >&2
+exec "$(cd "$(dirname "$0")" && pwd -P)/shipinetics" "$cmd" antigravity "$@"
