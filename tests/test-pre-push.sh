@@ -21,6 +21,45 @@ has "it says the push was stopped" "$OUT" "so the push was stopped"
 push "$zero"; eq "a branch delete runs nothing" "$OUT" ""
 rm FAIL
 
+# ---- safe-local-setup AC8: in a repo that uses Git LFS, git lfs pre-push runs first
+# A fake git-lfs, first on the PATH: it says how it was called, keeps what it read, and exits $FAKE_LFS_RC
+lfs="$scratch/lfs-bin"; mkdir -p "$lfs"
+cat >"$lfs/git-lfs" <<EOF
+#!/bin/sh
+echo "LFS RAN \$*"
+cat >"$scratch/lfs-stdin"
+exit \${FAKE_LFS_RC:-0}
+EOF
+chmod +x "$lfs/git-lfs"
+url=https://example.test/r.git
+line="refs/heads/main $sha refs/heads/main $zero"
+lfs_push() { OUT="$(printf '%s\n' "$line" | PATH="$lfs:$PATH" .githooks/pre-push origin "$url" 2>&1)"; RC=$?; }
+printf '*.bin filter=lfs diff=lfs merge=lfs -text\n' >.gitattributes
+lfs_push
+eq "safe-local-setup AC8: with LFS, the push goes" "$RC" 0
+has "safe-local-setup AC8: git lfs pre-push gets the hook's arguments" "$OUT" "LFS RAN pre-push origin $url"
+eq "safe-local-setup AC8: and the ref lines" "$(cat "$scratch/lfs-stdin" 2>/dev/null)" "$line"
+eq "safe-local-setup AC8: LFS runs before bin/verify, and bin/verify still runs" \
+  "$(printf '%s\n' "$OUT" | grep -o -e 'LFS RAN' -e 'running bin/verify' -e 'bin/verify passed' | tr '\n' ',')" "LFS RAN,running bin/verify,bin/verify passed,"
+FAKE_LFS_RC=1 lfs_push
+[ "$RC" -ne 0 ] && ok "safe-local-setup AC8: a failing git lfs pre-push stops the push" || bad "safe-local-setup AC8: a failing git lfs pre-push stops the push" "exit $RC: $OUT"
+# git-lfs not installed: a PATH with only the tools the hook and bin/verify use (git-lfs often sits next to git)
+nolfs="$scratch/nolfs-bin"; mkdir -p "$nolfs"
+for tool in git cat grep date tr; do
+  printf '#!/bin/sh\nexec "%s" "$@"\n' "$(command -v "$tool")" >"$nolfs/$tool"; chmod +x "$nolfs/$tool"
+done
+OUT="$(printf '%s\n' "$line" | PATH="$nolfs" "${BASH:-bash}" .githooks/pre-push origin "$url" 2>&1)"; RC=$?
+eq "safe-local-setup AC8: with LFS in .gitattributes but no git-lfs, the hook doesn't fail" "$RC" 0
+has "safe-local-setup AC8: and bin/verify runs" "$OUT" "bin/verify passed"
+printf '*.txt text\n' >.gitattributes
+lfs_push
+hasnt "safe-local-setup AC8: a repo that doesn't use LFS doesn't call git lfs" "$OUT" "LFS RAN"
+rm -f .gitattributes
+mkdir -p sub; printf '*.psd filter=lfs diff=lfs merge=lfs -text\n' >sub/.gitattributes
+lfs_push
+has "safe-local-setup AC8: an LFS line only in a nested sub/.gitattributes calls git lfs too" "$OUT" "LFS RAN pre-push origin $url"
+rm -rf sub
+
 # A worktree inside the main checkout, which has .shipinetics/ but git ignores it
 git worktree add -q .claude/worktrees/w -b w
 cd .claude/worktrees/w || exit 1

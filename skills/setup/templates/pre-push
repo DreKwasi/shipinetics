@@ -6,16 +6,35 @@
 # Shipinetics plugin, and it works the same in every clone and worktree.
 # bin/verify checks the files on disk, so uncommitted changes count. The hook says when there are some.
 # Skip it for one push with: git push --no-verify
+# In a repo that uses Git LFS, it runs `git lfs pre-push` first, because this hook replaces LFS's own.
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-# Git sends one line per ref: <local ref> <local sha> <remote ref> <remote sha>.
+# Git sends one line per ref: <local ref> <local sha> <remote ref> <remote sha>. Keep the lines,
+# because Git LFS reads them too.
+refs="$(cat)"
+
+# Git LFS: when the repo uses it (a filter=lfs line in a .gitattributes) and git-lfs is installed,
+# run its pre-push first, as its own hook would, so that the LFS objects go up with the push.
+uses_lfs() {   # a filter=lfs line in any tracked .gitattributes, or in .git/info/attributes
+  git grep -q --untracked 'filter=lfs' -- ':(glob)**/.gitattributes' 2>/dev/null && return 0
+  grep -q 'filter=lfs' "$(git rev-parse --git-path info/attributes)" 2>/dev/null
+}
+if command -v git-lfs >/dev/null 2>&1 && uses_lfs; then
+  if ! { [ -z "$refs" ] || printf '%s\n' "$refs"; } | git lfs pre-push "$@"; then
+    echo "pre-push: git lfs pre-push failed, so the push was stopped."
+    exit 1
+  fi
+fi
+
 # Deleting a remote branch sends an all-zero local sha, and pushes no code.
 code=0
 while read -r _ local_sha _ _; do
   case "$local_sha" in *[!0]*) code=1 ;; esac
-done
+done <<EOF
+$refs
+EOF
 [ "$code" = 1 ] || exit 0
 
 if [ ! -x bin/verify ]; then

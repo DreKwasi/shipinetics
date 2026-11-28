@@ -2,30 +2,38 @@
 # shipinetics: install Shipinetics from this clone into a harness, and show what works there.
 #
 # Usage:
-#   shipinetics install <harness> [--target <dir>] [--dry-run]
+#   shipinetics install <harness> [--target <dir>] [--force] [--dry-run]
 #                                    install into the harness. claude runs the two claude plugin
 #                                    commands. antigravity writes generated copies of the skills and
 #                                    subagents into its plugin folder. --dry-run says what it would
-#                                    do and changes nothing, for every command
+#                                    do and changes nothing, for every command. A --target folder
+#                                    must be named shipinetics, unless you add --force
 #   shipinetics refresh [<harness>] [--dry-run]
 #                                    make the generated copies match the clone again (all installs
 #                                    when no harness is named)
 #   shipinetics status [<harness>]   what is installed, whether its copies are current, and which
 #                                    guards and gates each harness enforces (from harnesses.tsv)
-#   shipinetics uninstall <harness> [--target <dir>] [--dry-run]
-#                                    remove the install from the harness
-#   shipinetics link-skills antigravity
+#   shipinetics uninstall <harness> [--target <dir>] [--force] [--dry-run]
+#                                    remove the install from the harness: for antigravity, only the
+#                                    files that install wrote. For claude, the plugin, and the
+#                                    shipinetics marketplace when it points at this clone
+#   shipinetics uninstall --all [--yes] [--dry-run]
+#                                    remove Shipinetics from this machine: the install in each
+#                                    harness, the shims, and the cache and data folders (the usage
+#                                    log). It lists, and leaves, your own config and PATH line. It
+#                                    asks once at a terminal. Without a terminal it needs --yes
+#   shipinetics link-skills antigravity [--dry-run]
 #                                    add ~/.agents/skills and ~/.claude/skills to Antigravity's skills.json
 #
 # Harnesses: claude, antigravity, codex, opencode, copilot. Codex, OpenCode and Copilot are not
 # supported yet: `shipinetics status` shows what each one will be able to enforce.
 # Generated copies point at this clone, so scripts, templates and bin/ always come from it. After
 # you change or update the clone, run `shipinetics refresh` (shipinetics-update merge does it for you).
-# Exit codes: 0 ok, 1 status found a problem (copies out of date, or not installed), 2 bad usage,
-# an unsupported harness, or a safety refusal.
+# Exit codes: 0 ok, 1 status found a problem (copies out of date, or not installed), or uninstall
+# --all was declined or a step failed, 2 bad usage, an unsupported harness, or a safety refusal.
 
 set -uo pipefail
-usage() { sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,33p' "$0" | sed 's/^# \{0,1\}//'; }
 case "${1:-}" in -h|--help|"") usage; exit 0 ;; esac
 
 here="$(cd "$(dirname "$0")/.." && pwd -P)"
@@ -36,16 +44,21 @@ die() { echo "shipinetics: $*" >&2; exit 2; }
 HARNESSES="claude antigravity codex opencode copilot"
 
 cmd="$1"; shift
-harness=""; target=""; dry=0
+harness=""; target=""; dry=0; force=0; yes=0; all=0; target_given=0
 while [ $# -gt 0 ]; do
   case "$1" in
-    --target) [ -n "${2:-}" ] || die "--target needs a path"; target="$2"; shift 2 ;;
+    --target) [ -n "${2:-}" ] || die "--target needs a path"; target="$2"; target_given=1; shift 2 ;;
     --dry-run) dry=1; shift ;;
+    --force) force=1; shift ;;
+    --yes|-y) yes=1; shift ;;
+    --all) all=1; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) die "unknown option: $1" ;;
     *) [ -z "$harness" ] || die "one harness at a time (got $harness and $1)"; harness="$1"; shift ;;
   esac
 done
+case "$cmd" in install|uninstall) ;; *) [ "$force" = 0 ] || die "--force works only with install and uninstall" ;; esac
+[ "$cmd" = uninstall ] || { [ "$all" = 0 ] && [ "$yes" = 0 ]; } || die "--all and --yes work only with uninstall"
 if [ -n "$harness" ]; then
   case " $HARNESSES " in *" $harness "*) ;; *) die "unknown harness: $harness (use one of: $HARNESSES)" ;; esac
 fi
@@ -58,6 +71,17 @@ default_target() {
   esac
 }
 [ -n "$target" ] || target="$(default_target "${harness:-}")"
+
+# check_target_name <action>: dies when --target names a folder that isn't called shipinetics,
+# unless --force is given. A typo in --target (such as the parent folder) then can't remove or
+# replace a folder of other files.
+check_target_name() {
+  local t
+  [ "$target_given" = 1 ] && [ "$force" = 0 ] || return 0
+  t="$(sy_unix_path "$target")"; t="${t%/}"
+  [ "$(basename "$t")" = shipinetics ] && return 0
+  die "the --target folder $target isn't named shipinetics, so it may not be a Shipinetics install folder. Refusing to $1 it. If it is the right folder, run the command again with --force."
+}
 
 not_yet() {
   die "$1 isn't supported yet. Run 'shipinetics status $1' to see what its adapter will be able to enforce."
@@ -226,9 +250,10 @@ PY
 # link_items <target>: link plugin.json, hooks.json, scripts, bin and the tables to this clone. On
 # Windows, Git Bash's ln -s makes a copy unless Developer Mode allows links, so refresh calls this
 # again: an item that isn't a link to this clone is replaced.
+LINK_ITEMS="plugin.json hooks.json scripts bin companions.tsv harnesses.tsv README.md GETTING-STARTED.md"
 link_items() {
   local item
-  for item in plugin.json hooks.json scripts bin companions.tsv harnesses.tsv README.md GETTING-STARTED.md; do
+  for item in $LINK_ITEMS; do
     [ -e "$here/$item" ] || continue
     if [ -L "$1/$item" ] && [ "$(readlink "$1/$item")" = "$here/$item" ]; then continue; fi
     rm -rf "${1:?}/$item" || die "failed to replace $item"
@@ -240,6 +265,7 @@ antigravity_install() {
   [ -f "$here/plugin.json" ] || die "missing $here/plugin.json"
   [ -f "$here/hooks.json" ] || die "missing $here/hooks.json"
   command -v python3 >/dev/null 2>&1 || die "python3 is required"
+  check_target_name overwrite
   safe_target "$target" overwrite
   if [ "$dry" = 1 ]; then
     if [ -e "$target" ] || [ -L "$target" ]; then echo "Would replace $target"; else echo "Would create $target"; fi
@@ -247,8 +273,10 @@ antigravity_install() {
     echo "Would write generated copies of skills/ and agents/ (paths set to $here), and a stamp"
     return 0
   fi
+  local kept=""
   if [ -L "$target" ] || [ -f "$target" ]; then rm -f "$target" || die "failed to remove $target"
-  elif [ -d "$target" ]; then rm -rf "$target" || die "failed to remove $target"; fi
+  elif [ -d "$target" ]; then kept="$(remove_install_items "$target")"; fi
+  [ -z "$kept" ] || echo "These files in $target aren't from install, so they stay: $kept"
   mkdir -p "$target/agents" || die "failed to create $target/agents"
   link_items "$target"
   render_skills "$target"
@@ -279,13 +307,16 @@ antigravity_refresh() {
   echo "Refreshed the generated copies in $target"
 }
 
+# antigravity_link_skills: add the shared skill folders to skills.json. It writes only when it adds
+# an entry, keeps non-ASCII text as it is (the layout becomes JSON with an indent of 2), and writes a temp file that it renames
+# into place, so a failed write never leaves half a file. --dry-run only says what it would add.
 antigravity_link_skills() {
-  mkdir -p "$gdir" || die "failed to create $gdir"
   sf="$gdir/skills.json"
-  python3 -I - "$sf" <<'PY' || die "failed to update $sf"
-import json, os, sys
+  [ "$dry" = 1 ] || mkdir -p "$gdir" || die "failed to create $gdir"
+  python3 -I - "$sf" "$dry" <<'PY' || die "failed to update $sf"
+import json, os, shutil, sys
 
-path = sys.argv[1]
+path, dry = sys.argv[1], sys.argv[2] == "1"
 if os.path.exists(path):
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
@@ -308,14 +339,22 @@ for p in ("~/.agents/skills", "~/.claude/skills"):
         entries.append({"path": p})
         added.append(p)
 
-with open(path, "w", encoding="utf-8", newline="\n") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
-
-if added:
-    print(f"Added {', '.join(added)} to {path}")
-else:
+if not added:
     print(f"{path} already includes ~/.agents/skills and ~/.claude/skills")
+    sys.exit(0)
+if dry:
+    print(f"Would add {', '.join(added)} to {path}")
+    sys.exit(0)
+
+real = os.path.realpath(path)   # a skills.json that is a link stays a link
+tmp = real + ".shipinetics-tmp"
+with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+    json.dump(data, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+if os.path.exists(real):
+    shutil.copymode(real, tmp)
+os.replace(tmp, real)
+print(f"Added {', '.join(added)} to {path}")
 PY
 }
 
@@ -371,12 +410,59 @@ antigravity_status() {
   return "$ok"
 }
 
+# install_item <name>: true if install (or an older install) writes this name in the install folder
+install_item() {
+  local i
+  for i in $LINK_ITEMS skills agents "$SY_STAMP_NAME" skills.shipinetics-tmp agents.shipinetics-tmp .source; do
+    [ "$1" = "$i" ] && return 0
+  done
+  return 1
+}
+
+# remove_install_items <dir>: remove each item in dir that install wrote (install_item). Prints the
+# names of the other items, which stay, on one line.
+remove_install_items() {
+  local name kept=""
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    if install_item "$name"; then rm -rf "${1:?}/$name" || die "failed to remove $1/$name"
+    else kept="$kept $name"; fi
+  done <<EOF
+$(ls -A "$1" 2>/dev/null)
+EOF
+  printf '%s\n' "${kept# }"
+}
+
+# antigravity_uninstall: remove only what install wrote, then the folder if it is empty. Any other
+# file stays, and the command names it.
 antigravity_uninstall() {
+  local name kept=""
   [ -e "$target" ] || [ -L "$target" ] || { echo "Shipinetics isn't installed at $target"; return 0; }
+  check_target_name remove
   safe_target "$target" remove
+  if [ -L "$target" ]; then
+    if [ "$dry" = 1 ]; then echo "Would remove the link $target"; return 0; fi
+    rm -f "$target" || die "failed to remove the link $target"
+    echo "Removed the link $target"; return 0
+  fi
+  while IFS= read -r name; do
+    [ -n "$name" ] || continue
+    if install_item "$name"; then
+      if [ "$dry" = 1 ]; then echo "Would remove $target/$name"
+      else rm -rf "${target:?}/$name" || die "failed to remove $target/$name"; fi
+    else
+      kept="$kept $name"
+    fi
+  done <<EOF
+$(ls -A "$target" 2>/dev/null)
+EOF
+  if [ -n "$kept" ]; then
+    if [ "$dry" = 1 ]; then echo "Would leave $target, because it holds files that install didn't write:$kept"
+    else echo "Removed the Shipinetics files from $target. The folder stays, because it holds files that install didn't write:$kept"; fi
+    return 0
+  fi
   if [ "$dry" = 1 ]; then echo "Would remove $target"; return 0; fi
-  if [ -L "$target" ]; then rm -f "$target" || die "failed to remove the link $target"
-  else rm -rf "$target" || die "failed to remove $target"; fi
+  rmdir "$target" || die "failed to remove $target"
   echo "Removed $target"
 }
 
@@ -408,7 +494,7 @@ claude_plugin_installed() {
 same_dir() { [ "$(cd "$1" 2>/dev/null && pwd -P)" = "$(cd "$2" 2>/dev/null && pwd -P)" ]; }
 
 run_or_print() {
-  if [ "$dry" = 1 ]; then echo "$*"; return 0; fi
+  if [ "$dry" = 1 ]; then echo "Would run: $*"; return 0; fi
   echo "+ $*"; "$@"
 }
 
@@ -442,9 +528,91 @@ claude_status() {
   echo "Copies: none needed (Claude Code reads the clone and fills in its paths itself)"
 }
 
+# claude_uninstall: remove the plugin, then the "shipinetics" marketplace when it points at this
+# clone. A marketplace from another source stays.
 claude_uninstall() {
+  local src kind where rc=0
   [ "$dry" = 1 ] || command -v claude >/dev/null 2>&1 || die "the claude command isn't on the PATH"
-  run_or_print claude plugin uninstall shipinetics@shipinetics
+  if [ "$all" = 0 ] || claude_plugin_installed; then
+    run_or_print claude plugin uninstall shipinetics@shipinetics || rc=1
+  fi
+  if [ "$rc" = 1 ]; then
+    echo "The plugin uninstall failed, so the 'shipinetics' marketplace stays." >&2
+    return 1
+  fi
+  src="$(claude_marketplace)"; kind="${src%% *}"; where="${src#* }"
+  if [ -n "$src" ]; then
+    if [ "$kind" = directory ] && same_dir "$where" "$here"; then
+      run_or_print claude plugin marketplace remove shipinetics || rc=1
+    else
+      echo "The 'shipinetics' marketplace stays, because it comes from another source ($src). To remove it: claude plugin marketplace remove shipinetics"
+    fi
+  fi
+  return "$rc"
+}
+
+# ---------------------------------------------------------------- uninstall --all
+
+# all_steps: remove (or, with dry=1, list) everything that Shipinetics wrote on this machine.
+# Each harness step runs in a subshell, so a refusal in one doesn't stop the others.
+all_steps() {
+  local rc=0 d cache data cfg shim_dir
+  cache="${XDG_CACHE_HOME:-$HOME/.cache}/shipinetics"
+  data="${XDG_DATA_HOME:-$HOME/.local/share}/shipinetics"
+  cfg="${XDG_CONFIG_HOME:-$HOME/.config}/shipinetics"
+  shim_dir="${SHIPINETICS_SHIM_DIR:-$HOME/.local/bin}"
+  echo "== Antigravity"
+  ( target="$(default_target antigravity)"; antigravity_uninstall ) || { echo "The Antigravity step failed (see above). The other steps go on." >&2; rc=1; }
+  echo "== Short commands (shipinetics-shims)"
+  if [ "$dry" = 1 ]; then "$here/bin/shipinetics-shims" remove --dry-run || rc=1
+  else "$here/bin/shipinetics-shims" remove || { echo "The short commands step failed (see above). The other steps go on." >&2; rc=1; }; fi
+  echo "== Cache and data (the usage log)"
+  for d in "$cache" "$HOME/Library/Caches/shipinetics" "$data"; do
+    [ -e "$d" ] || [ -L "$d" ] || continue
+    case "$d" in */shipinetics) ;; *) continue ;; esac
+    if [ "$dry" = 1 ]; then echo "Would remove $d"
+    elif rm -rf "$d"; then echo "Removed $d"
+    else echo "Failed to remove $d" >&2; rc=1; fi
+  done
+  # Claude Code last: when this script runs from Claude Code's plugin folder, the uninstall can
+  # remove that folder.
+  echo "== Claude Code"
+  if [ -n "$(claude_marketplace)" ] || claude_plugin_installed; then
+    if [ "$dry" = 1 ] || command -v claude >/dev/null 2>&1; then ( claude_uninstall ) || { echo "The Claude Code step failed (see above). Run 'shipinetics uninstall claude' again when you have fixed it." >&2; rc=1; }
+    else echo "Shipinetics is in Claude Code, but the claude command isn't on the PATH, so it stays. Run: shipinetics uninstall claude"; rc=1; fi
+  else
+    echo "Shipinetics isn't installed in Claude Code"
+  fi
+  echo "== Left as they are (you wrote them)"
+  [ -e "$cfg" ] && echo "$cfg: your own settings and pricing. Remove it yourself if you want."
+  [ -f "$gdir/skills.json" ] && grep -qF '"~/.agents/skills"' "$gdir/skills.json" &&
+    echo "$gdir/skills.json: the entries ~/.agents/skills and ~/.claude/skills, if 'shipinetics link-skills antigravity' added them. Remove them yourself if Antigravity shouldn't load those skills."
+  echo "An Antigravity install in a folder that you chose with --target. Remove it with: shipinetics uninstall antigravity --target <folder>"
+  [ -n "${SHIPINETICS_USAGE_LOG:-}" ] && [ -e "$SHIPINETICS_USAGE_LOG" ] &&
+    echo "$SHIPINETICS_USAGE_LOG: the usage log at the path that SHIPINETICS_USAGE_LOG sets. Remove it yourself if you want."
+  echo "The line in your shell profile (~/.zshrc or ~/.bashrc) that adds $here/bin or $shim_dir to the PATH, if you added one. Remove it yourself."
+  case "$here" in
+    "$(sy_claude_dir)"/plugins/*) ;;   # Claude Code's own copy of the plugin, not a clone
+    *) echo "This clone, $here. Delete it yourself if you want." ;;
+  esac
+  return "$rc"
+}
+
+uninstall_all() {
+  local ans
+  [ -z "$harness" ] || die "uninstall --all removes every harness: don't name one"
+  [ "$target_given" = 0 ] || die "uninstall --all uses the default folders: don't give --target"
+  if [ "$dry" = 1 ]; then all_steps; return $?; fi
+  if [ "$yes" = 0 ]; then
+    [ -t 0 ] || die "uninstall --all removes files, so it asks first, and there's no terminal to ask at. Run it at a terminal, or add --yes. Add --dry-run to see the list."
+    echo "This is what 'shipinetics uninstall --all' removes:"
+    ( dry=1; all_steps ) || true
+    echo
+    printf 'Remove all of this? [y/N] '
+    read -r ans || ans=""
+    case "$ans" in y|Y|yes|YES|Yes) ;; *) echo "Nothing was removed."; return 1 ;; esac
+  fi
+  all_steps
 }
 
 # ---------------------------------------------------------------- status table
@@ -527,7 +695,8 @@ case "$cmd" in
     done
     exit "$rc" ;;
   uninstall)
-    [ -n "$harness" ] || die "usage: shipinetics uninstall <harness>"
+    if [ "$all" = 1 ]; then uninstall_all; exit $?; fi
+    [ -n "$harness" ] || die "usage: shipinetics uninstall <harness>, or shipinetics uninstall --all"
     case "$harness" in
       claude) claude_uninstall ;;
       antigravity) antigravity_uninstall ;;

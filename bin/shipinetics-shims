@@ -10,7 +10,9 @@
 #   shipinetics-shims install   write a shim for each shipinetics-* tool to the shim folder
 #   shipinetics-shims status    list each shim and the plugin folder that the shims use. Exit 1 if
 #                               a shim is missing
-#   shipinetics-shims remove    remove the shims that this tool wrote
+#   shipinetics-shims remove [--dry-run]
+#                               remove the shims that this tool wrote. --dry-run lists them and
+#                               removes nothing
 #   shipinetics-shims auto      what the session-start hook runs: install or refresh the shims
 #                               only if the shim folder is on the PATH, and say nothing unless it
 #                               wrote a shim. Switch it off with "hooks_off = shims"
@@ -22,7 +24,8 @@
 #   3. ~/.gemini/config/plugins/shipinetics (Antigravity)
 # The shims cover the shipinetics-* tools only. The other tools (evidence, worksheet and others)
 # have common names, so a shim could hide another program with the same name.
-# This tool never changes a file that it didn't write.
+# This tool never changes a file that it didn't write, and never writes through a symlink: a
+# symlink in the shim folder (also a broken one) is skipped.
 
 set -euo pipefail
 here="$(cd "$(dirname "$0")/.." && pwd)"
@@ -97,6 +100,10 @@ install_shims() {
   text="$(shim_text)"
   while read -r name; do
     target="$shim_dir/$name"
+    if [ -L "$target" ]; then
+      echo "skipped $target: it is a symlink, and shipinetics-shims never writes through one."
+      continue
+    fi
     if [ -e "$target" ] && ! is_ours "$target"; then
       echo "skipped $target: a file that shipinetics-shims didn't write is there."
       continue
@@ -124,11 +131,13 @@ status_shims() {
 remove_shims() {
   local f n=0
   for f in "$shim_dir"/shipinetics-*; do
+    [ -L "$f" ] && continue
     is_ours "$f" || continue
-    rm -f "$f"
+    if [ "${1:-}" = --dry-run ]; then echo "Would remove $f"; else rm -f "$f"; fi
     n=$((n + 1))
   done
-  echo "removed $n shims from $shim_dir."
+  if [ "${1:-}" = --dry-run ]; then echo "Would remove $n shims from $shim_dir."
+  else echo "removed $n shims from $shim_dir."; fi
 }
 
 # auto_shims: like install, but only into a folder on the PATH, and quiet when nothing changed.
@@ -140,6 +149,7 @@ auto_shims() {
   text="$(shim_text)"
   while read -r name; do
     target="$shim_dir/$name"
+    [ -L "$target" ] && continue
     if [ -e "$target" ]; then
       is_ours "$target" || continue
       [ "$(cat "$target")" = "$text" ] && continue
@@ -152,6 +162,10 @@ case "${1:-}" in
   install) install_shims ;;
   auto) auto_shims ;;
   status) status_shims ;;
-  remove) remove_shims ;;
+  remove)
+    case "${2:-}" in
+      ""|--dry-run) remove_shims "${2:-}" ;;
+      *) echo "shipinetics-shims: unknown option for remove: $2 (use --dry-run)" >&2; exit 2 ;;
+    esac ;;
   *) sed -n '2,/^$/p' "$0" | sed -e '/^$/d' -e 's/^# \{0,1\}//'; exit 2 ;;
 esac

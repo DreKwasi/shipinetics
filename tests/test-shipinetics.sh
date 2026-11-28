@@ -326,7 +326,8 @@ other="$scratch/other-plugin"
 for c in install refresh; do
   rm -rf "$other"; mkdir -p "$other"; printf '{"name":"other-plugin"}\n' >"$other/plugin.json"; echo keep >"$other/notes.txt"
   o_before="$(snapshot "$other" /nonexistent)"
-  out="$("$SHIP" "$c" antigravity --target "$other" 2>&1)"; rc=$?
+  force=""; [ "$c" = refresh ] || force=--force   # safe-local-setup AC13: past the name check
+  out="$("$SHIP" "$c" antigravity --target "$other" $force 2>&1)"; rc=$?
   eq "multi-harness-installer AC9: $c refuses another plugin's folder (exit 2)" "$rc" 2
   eq "multi-harness-installer AC9: $c leaves another plugin's folder as it was" "$(snapshot "$other" /nonexistent)" "$o_before"
 done
@@ -338,6 +339,37 @@ eq "multi-harness-installer AC9 (D6): install claude refuses a shipinetics marke
 has "multi-harness-installer AC9 (D6): and names the other source" "$out" "another source (github x/y)"
 eq "multi-harness-installer AC9 (D6): and runs no claude command" "$(cat "$calls" 2>/dev/null)" ""
 
+# ---- safe-local-setup AC14: uninstall claude removes the shipinetics marketplace only when it points at this clone
+mkt() {   # mkt <directory|github|none>: the shipinetics marketplace that Claude Code knows
+  case "$1" in
+    none) rm -f "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json" ;;
+    directory) python3 -c 'import json,sys; json.dump({"shipinetics":{"source":{"source":"directory","path":sys.argv[1]}}}, open(sys.argv[2],"w"))' \
+                 "$clone" "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json" ;;
+    github) python3 -c 'import json,sys; json.dump({"shipinetics":{"source":{"source":"github","repo":"x/y"}}}, open(sys.argv[1],"w"))' \
+              "$CLAUDE_CONFIG_DIR/plugins/known_marketplaces.json" ;;
+  esac
+}
+for src in directory github none; do
+  mkt "$src"; rm -f "$calls"
+  out="$("$SHIP" uninstall claude 2>&1)"
+  case "$src" in
+    directory) eq "safe-local-setup AC14: uninstall claude removes the plugin, then the marketplace from this clone" "$(cat "$calls" 2>/dev/null)" "plugin uninstall shipinetics@shipinetics
+plugin marketplace remove shipinetics" ;;
+    github) eq "safe-local-setup AC14: uninstall claude leaves a marketplace from another source" "$(grep -c 'marketplace remove' "$calls" 2>/dev/null)" 0
+            has "safe-local-setup AC14: and says that it stays" "$out" "marketplace stays" ;;
+    none) eq "safe-local-setup AC14: uninstall claude with no marketplace removes none" "$(grep -c 'marketplace remove' "$calls" 2>/dev/null)" 0 ;;
+  esac
+done
+mkt github
+# a failing plugin uninstall: the marketplace stays, and the command fails
+fu="$scratch/stub-fail-uninstall"; mkdir -p "$fu"
+printf '#!/bin/sh\necho "$*" >>"%s"\n[ "$1 $2" = "plugin uninstall" ] && exit 1\nexit 0\n' "$calls" >"$fu/claude"; chmod +x "$fu/claude"
+mkt directory; rm -f "$calls"
+out="$(PATH="$fu:$PATH" "$SHIP" uninstall claude 2>&1)"; rc=$?
+eq "safe-local-setup AC14: when claude plugin uninstall fails, the marketplace isn't removed, and uninstall claude fails" \
+  "$([ "$rc" -ne 0 ] && echo failed):$(grep -c 'marketplace remove' "$calls" 2>/dev/null)" "failed:0"
+mkt github
+
 # ---- AC10: uninstall removes the install folder and nothing else
 mkdir -p "$GEMINI_CONFIG_DIR/plugins/neighbour"; echo keep >"$GEMINI_CONFIG_DIR/plugins/neighbour/plugin.json"
 before="$(snapshot "$scratch" "$target")"
@@ -346,12 +378,73 @@ eq "multi-harness-installer AC10: uninstall exits 0" "$rc" 0
 eq "multi-harness-installer AC10: the install folder is gone" "$([ -e "$target" ] || [ -L "$target" ] && echo there || echo gone)" gone
 eq "multi-harness-installer AC10: nothing outside the install folder changes" "$(snapshot "$scratch" "$target")" "$before"
 
+# ---- safe-local-setup AC12: uninstall removes only what install wrote, and says what stayed
+"$SHIP" install antigravity >/dev/null 2>&1
+echo mine >"$target/notes.txt"; mkdir -p "$target/agents.shipinetics-tmp"; echo x >"$target/agents.shipinetics-tmp/a.md"
+out="$("$SHIP" uninstall antigravity 2>&1)"; rc=$?
+eq "safe-local-setup AC12: uninstall with another file in the folder exits 0" "$rc" 0
+eq "safe-local-setup AC12: only the other file is left in the folder" "$(ls -A "$target" 2>/dev/null | tr '\n' ' ')" "notes.txt "
+has "safe-local-setup AC12: and the command says the folder stayed, naming the file" "$out" "The folder stays, because it holds files that install didn't write: notes.txt"
+rm -rf "$target"
+# a folder of the user's whose name is two install words with a space ("skills agents") isn't an install item
+"$SHIP" install antigravity >/dev/null 2>&1
+mkdir -p "$target/skills agents"; echo mine >"$target/skills agents/a.md"
+out="$("$SHIP" uninstall antigravity 2>&1)"
+eq "safe-local-setup AC12: uninstall keeps a folder named 'skills agents'" "$(cat "$target/skills agents/a.md" 2>/dev/null)" mine
+has "safe-local-setup AC12: and names it" "$out" "didn't write: skills agents"
+rm -rf "$target"
+# install over an install that holds a file of the user's
+"$SHIP" install antigravity >/dev/null 2>&1; echo mine >"$target/notes.txt"
+out="$("$SHIP" install antigravity 2>&1)"; rc=$?
+eq "safe-local-setup AC12: install over an install keeps a file that install didn't write" "$(cat "$target/notes.txt" 2>/dev/null)" mine
+has "safe-local-setup AC12: and names it" "$out" "notes.txt"
+eq "safe-local-setup AC12: and the install still works (exit 0, a stamp, copies of the skills)" \
+  "$rc:$([ -f "$target/.shipinetics-copies" ] && echo stamp):$([ -f "$target/skills/workflow/SKILL.md" ] && [ ! -L "$target/skills" ] && echo copies)" "0:stamp:copies"
+rm -rf "$target"
+# a --target that is a symlink: only the link goes
+if links_work; then
+  real="$scratch/ag-real/shipinetics"; "$SHIP" install antigravity --target "$real" >/dev/null 2>&1
+  mkdir -p "$scratch/ag-link"; ln -s "$real" "$scratch/ag-link/shipinetics"
+  r_before="$(snapshot "$real" /nonexistent)"
+  out="$("$SHIP" uninstall antigravity --target "$scratch/ag-link/shipinetics" 2>&1)"; rc=$?
+  eq "safe-local-setup AC12: uninstall of a symlinked install removes only the link, and the folder it points to doesn't change" \
+    "$rc:$([ -e "$scratch/ag-link/shipinetics" ] || [ -L "$scratch/ag-link/shipinetics" ] && echo link-there || echo link-gone):$([ "$(snapshot "$real" /nonexistent)" = "$r_before" ] && echo same || echo changed)" "0:link-gone:same"
+  rm -rf "$scratch/ag-real" "$scratch/ag-link"
+else
+  printf '  skip  uninstall of a symlinked install (ln -s makes copies here)\n'
+fi
+
+# ---- safe-local-setup AC13: install and uninstall refuse a --target not named shipinetics, unless --force
+named="$scratch/named"; mine="$named/myplug"
+out="$("$SHIP" install antigravity --target "$mine" 2>&1)"; rc=$?
+eq "safe-local-setup AC13: install refuses a --target not named shipinetics (exit 2), and makes no folder" "$rc:$([ -e "$mine" ] && echo made || echo none)" "2:none"
+has "safe-local-setup AC13: the message names the folder" "$out" "$mine"
+has "safe-local-setup AC13: and --force" "$out" "--force"
+out="$("$SHIP" install antigravity --target "$mine" --force 2>&1)"; rc=$?
+eq "safe-local-setup AC13: install --force installs into it" "$rc:$([ -f "$mine/.shipinetics-copies" ] && echo installed)" "0:installed"
+out="$("$SHIP" uninstall antigravity --target "$mine" 2>&1)"; rc=$?
+eq "safe-local-setup AC13: uninstall refuses it without --force (exit 2), and it stays" "$rc:$([ -f "$mine/.shipinetics-copies" ] && echo there)" "2:there"
+has "safe-local-setup AC13: the uninstall message names the folder and --force" "$out" "$mine isn't named shipinetics"
+out="$("$SHIP" uninstall antigravity --target "$mine" --force 2>&1)"; rc=$?
+eq "safe-local-setup AC13: uninstall --force removes it" "$rc:$([ -e "$mine" ] && echo there || echo gone)" "0:gone"
+out="$("$SHIP" install antigravity --target "$named/shipinetics/" 2>&1)"; rc=$?
+eq "safe-local-setup AC13: a --target named shipinetics with a trailing slash is accepted" "$rc" 0
+"$SHIP" uninstall antigravity --target "$named/shipinetics" >/dev/null 2>&1; rm -rf "$named"
+# --force works only with install and uninstall, and --all and --yes only with uninstall
+for args in "status --force" "refresh --force" "install claude --all" "status --yes"; do
+  rm -f "$calls"
+  # shellcheck disable=SC2086
+  out="$("$SHIP" $args 2>&1)"; rc=$?
+  flag="${args##* }"
+  eq "safe-local-setup AC13: '$args' is refused (exit 2), with a message that names $flag" "$rc:$(printf '%s' "$out" | grep -c -- "$flag")" "2:1"
+done
+
 # ---- AC11: uninstall refuses a folder that isn't a Shipinetics install
 for kind in unrelated other-plugin; do
   f="$scratch/keep-$kind"; rm -rf "$f"; mkdir -p "$f"; echo keep >"$f/notes.txt"
   [ "$kind" = other-plugin ] && printf '{"name":"other-plugin"}\n' >"$f/plugin.json"
   f_before="$(snapshot "$f" /nonexistent)"
-  out="$("$SHIP" uninstall antigravity --target "$f" 2>&1)"; rc=$?
+  out="$("$SHIP" uninstall antigravity --target "$f" --force 2>&1)"; rc=$?   # safe-local-setup AC13: past the name check
   eq "multi-harness-installer AC11: uninstall refuses an $kind folder (exit 2)" "$rc" 2
   eq "multi-harness-installer AC11: uninstall leaves the $kind folder as it was" "$(snapshot "$f" /nonexistent)" "$f_before"
 done
@@ -364,7 +457,8 @@ for kind in clone git-repo; do
   case "$kind" in clone) f="$clone" ;; git-repo) f="$gitdir" ;; esac
   for c in uninstall install refresh; do
     f_before="$(snapshot "$f" /nonexistent)"
-    out="$("$SHIP" "$c" antigravity --target "$f" 2>&1)"; rc=$?
+    force=""; [ "$c" = refresh ] || force=--force   # safe-local-setup AC13: past the name check
+    out="$("$SHIP" "$c" antigravity --target "$f" $force 2>&1)"; rc=$?
     eq "multi-harness-installer AC11: $c refuses the $kind (exit 2)" "$rc" 2
     eq "multi-harness-installer AC11: $c leaves the $kind as it was" "$(snapshot "$f" /nonexistent)" "$f_before"
   done
@@ -373,7 +467,7 @@ done
 # AC11: refresh won't write through a symlink to a clone; install replaces only the link.
 # These need real links: Git Bash's ln -s on Windows would copy the whole clone.
 if links_work; then
-  link="$scratch/link-install"; ln -s "$clone" "$link"
+  link="$scratch/link/shipinetics"; mkdir -p "$scratch/link"; ln -s "$clone" "$link"   # safe-local-setup AC13: named shipinetics
   c_before="$(snapshot "$clone" /nonexistent)"
   out="$("$SHIP" refresh antigravity --target "$link" 2>&1)"; rc=$?
   eq "multi-harness-installer AC11: refresh refuses an install path that is a symlink (exit 2)" "$rc" 2
@@ -391,14 +485,15 @@ fork="$scratch/fork-copy"
 for c in install refresh; do
   rm -rf "$fork"; mkdir -p "$fork"; cp "$clone/plugin.json" "$fork/plugin.json"; echo keep >"$fork/notes.txt"
   f_before="$(snapshot "$fork" /nonexistent)"
-  out="$("$SHIP" "$c" antigravity --target "$fork" 2>&1)"; rc=$?
+  force=""; [ "$c" = refresh ] || force=--force   # safe-local-setup AC13: past the name check
+  out="$("$SHIP" "$c" antigravity --target "$fork" $force 2>&1)"; rc=$?
   eq "multi-harness-installer AC9: $c refuses a folder with its own shipinetics plugin.json (exit 2)" "$rc" 2
   eq "multi-harness-installer AC9: $c leaves that folder as it was" "$(snapshot "$fork" /nonexistent)" "$f_before"
 done
 # ... but an install from before 0.10 (plugin.json is a link to a clone's manifest) still is one
 # (needs real links: on Windows without them, the old installer's copies had a .source file instead)
 if links_work; then
-  old="$scratch/old-install"; mkdir -p "$old"
+  old="$scratch/old-install/shipinetics"; mkdir -p "$old"   # safe-local-setup AC13: named shipinetics
   ln -s "$clone/plugin.json" "$old/plugin.json"; ln -s "$clone/hooks.json" "$old/hooks.json"; ln -s "$clone/skills" "$old/skills"
   c_before="$(snapshot "$clone" /nonexistent)"
   out="$("$SHIP" install antigravity --target "$old" 2>&1)"; rc=$?
@@ -410,7 +505,7 @@ else
 fi
 # ... and so is one that 0.11's shipinetics-antigravity made on Windows, where ln -s copied: copies of
 # plugin.json and hooks.json, no stamp, and a .source file whose first line is the clone
-win_old="$scratch/old-windows-install"
+win_old="$scratch/old-windows/shipinetics"   # safe-local-setup AC13: named shipinetics
 for src in clone not-a-clone; do
   rm -rf "$win_old"; mkdir -p "$win_old"
   cp "$clone/plugin.json" "$clone/hooks.json" "$win_old/"
@@ -459,7 +554,7 @@ dry() {   # dry <label> <args...>: run with --dry-run; checks exit 0, a "Would" 
   has "multi-harness-installer AC12: $label --dry-run says what it would do" "$out" "Would"
   eq "multi-harness-installer AC12: $label --dry-run changes nothing on disk" "$after" "$before"
 }
-fresh="$scratch/dry-fresh"
+fresh="$scratch/dry-fresh/shipinetics"   # safe-local-setup AC13: named shipinetics
 dry "install into a new folder" install antigravity --target "$fresh"
 eq "multi-harness-installer AC12: install --dry-run creates no folder" "$([ -e "$fresh" ] && echo made || echo none)" none
 "$SHIP" install antigravity >/dev/null 2>&1                     # an install from this clone ...
@@ -470,5 +565,68 @@ dry "plain refresh" refresh
 dry "uninstall antigravity" uninstall antigravity
 has "multi-harness-installer AC12: after the dry runs the copies are still older than the clone" \
   "$(PATH="$clone/bin:$PATH" "$SHIP" status antigravity 2>&1)" "older than the clone"
+
+# ---- safe-local-setup AC18: uninstall --all removes what Shipinetics wrote on this machine
+cache="$HOME/.cache/shipinetics"; data="$HOME/.local/share/shipinetics"; ucfg="$XDG_CONFIG_HOME/shipinetics"; shim="$HOME/.local/bin/shipinetics-config"
+ac18_setup() {   # an install in each harness, the shims, the cache and data folders, and the user's own config
+  "$SHIP" install antigravity >/dev/null 2>&1
+  "$clone/bin/shipinetics-shims" install >/dev/null 2>&1
+  mkdir -p "$cache" "$data" "$ucfg"; echo c >"$cache/x"; echo '{}' >"$data/usage.jsonl"; echo '# mine' >"$ucfg/config"
+  mkt directory
+  printf '{"version":2,"plugins":{"shipinetics@shipinetics":[{"scope":"user"}]}}\n' >"$CLAUDE_CONFIG_DIR/plugins/installed_plugins.json"
+  rm -f "$calls"
+}
+ac18_state() {
+  local x out=""
+  for x in "$target" "$shim" "$cache" "$data"; do
+    if [ -e "$x" ]; then out="$out there"; else out="$out gone"; fi
+  done
+  printf '%s config:%s' "$out" "$(cat "$ucfg/config" 2>/dev/null)"
+}
+ac18_setup
+dry "uninstall --all" uninstall --all
+for item in "$target" "$shim" "$cache" "$data" "$ucfg" "PATH"; do
+  has "safe-local-setup AC18: uninstall --all --dry-run lists $item" "$out" "$item"
+done
+eq "safe-local-setup AC18: uninstall --all --dry-run runs no claude command" "$(cat "$calls" 2>/dev/null)" ""
+
+before="$(snapshot "$scratch" /nonexistent)"
+out="$("$SHIP" uninstall --all </dev/null 2>&1)"; rc=$?
+eq "safe-local-setup AC18: with no terminal and no --yes, uninstall --all fails and changes nothing" \
+  "$([ "$rc" -ne 0 ] && echo failed):$([ "$(snapshot "$scratch" /nonexistent)" = "$before" ] && echo same || echo changed)" "failed:same"
+if python3 -c 'import os, pty; m, s = pty.openpty(); os.close(m); os.close(s)' 2>/dev/null; then
+  out="$(with_tty $'n\n' "$SHIP" uninstall --all)"; rc=$?
+  eq "safe-local-setup AC18: at a terminal, answering n fails and changes nothing" \
+    "$([ "$rc" -ne 0 ] && echo failed):$([ "$(snapshot "$scratch" /nonexistent)" = "$before" ] && echo same || echo changed)" "failed:same"
+  out="$(with_tty $'y\n' "$SHIP" uninstall --all)"; rc=$?
+  eq "safe-local-setup AC18: at a terminal, answering y removes it all, and leaves the user's config" "$rc:$(ac18_state)" "0: gone gone gone gone config:# mine"
+  ac18_setup
+else
+  printf '  skip  uninstall --all at a terminal (no pseudo-terminal here)\n'
+fi
+
+out="$("$SHIP" uninstall --all --yes </dev/null 2>&1)"; rc=$?
+eq "safe-local-setup AC18: uninstall --all --yes removes the install, the shims, the cache and the data, and leaves the user's config" \
+  "$rc:$(ac18_state)" "0: gone gone gone gone config:# mine"
+has "safe-local-setup AC18: it runs the claude uninstall" "$(cat "$calls" 2>/dev/null)" "plugin uninstall shipinetics@shipinetics"
+has "safe-local-setup AC18: it lists the user's config, which it leaves" "$out" "$ucfg"
+has "safe-local-setup AC18: and the PATH line" "$out" "PATH"
+
+# one step fails (a claude command that exits 1): the other steps still run, the step is named, and it exits non-zero
+ac18_setup
+failing="$scratch/stub-fail"; mkdir -p "$failing"; printf '#!/bin/sh\nexit 1\n' >"$failing/claude"; chmod +x "$failing/claude"
+out="$(PATH="$failing:$PATH" "$SHIP" uninstall --all --yes </dev/null 2>&1)"; rc=$?
+eq "safe-local-setup AC18: when the Claude Code step fails, the other steps still run, and it exits non-zero" \
+  "$([ "$rc" -ne 0 ] && echo failed):$(ac18_state)" "failed: gone gone gone gone config:# mine"
+eq "safe-local-setup AC18: and a line says that the Claude Code step failed" \
+  "$(printf '%s\n' "$out" | grep -i 'fail' | grep -ci 'claude' | awk '{print ($1 > 0) ? "named" : "not named"}')" named
+# the first step fails (the Antigravity folder holds another plugin): the steps after it still run
+ac18_setup
+rm -rf "${target:?}"; mkdir -p "$target"; printf '{"name":"other-plugin"}\n' >"$target/plugin.json"
+out="$("$SHIP" uninstall --all --yes </dev/null 2>&1)"; rc=$?
+eq "safe-local-setup AC18: when the Antigravity step fails, the shims, cache, data and Claude Code steps still run, and it exits non-zero" \
+  "$([ "$rc" -ne 0 ] && echo failed):$(ac18_state):$(grep -c 'plugin uninstall' "$calls" 2>/dev/null)" "failed: there gone gone gone config:# mine:1"
+has "safe-local-setup AC18: and the output names the Antigravity folder it couldn't remove" "$out" "$target"
+rm -rf "${target:?}"
 
 done_testing

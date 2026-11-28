@@ -5,6 +5,8 @@
 .shipinetics/explainers/
 .env
 .env.*
+!.env.example
+!.env.sample
 test-results/
 playwright-report/
 # deepsec findings: one file for each vulnerability. Never commit them.

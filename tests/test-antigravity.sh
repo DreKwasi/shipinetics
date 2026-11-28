@@ -186,13 +186,47 @@ eq "unrelated directory stays intact" "$(cat "$unrelated/notes.txt")" "keep"
 
 # link-skills preserves existing entries and is idempotent
 mkdir -p "$gdir"
-printf '{"entries":[{"path":"~/custom-skills"}]}\n' >"$gdir/skills.json"
+printf '{"entries":[{"path":"~/custom-skills"},{"path":"~/compétences"}]}\n' >"$gdir/skills.json"
+cp "$gdir/skills.json" "$scratch/skills-before.json"
+# safe-local-setup AC11: --dry-run says what it would add, and changes nothing
+out="$(shipinetics link-skills antigravity --dry-run 2>&1)"; rc=$?
+eq "safe-local-setup AC11: link-skills --dry-run exits 0" "$rc" 0
+has "safe-local-setup AC11: link-skills --dry-run names the entries it would add" "$out" "Would add ~/.agents/skills, ~/.claude/skills"
+eq "safe-local-setup AC11: link-skills --dry-run leaves skills.json as it was" "$(cmp -s "$gdir/skills.json" "$scratch/skills-before.json" && echo same || echo changed)" same
+GEMINI_CONFIG_DIR="$scratch/no-gemini" shipinetics link-skills antigravity --dry-run >/dev/null 2>&1
+eq "safe-local-setup AC11: link-skills --dry-run creates no folder and no skills.json" "$([ -e "$scratch/no-gemini" ] && echo made || echo none)" none
+
+inode() { ls -i "$1" | awk '{print $1}'; }
+ino_before="$(inode "$gdir/skills.json")"
 out="$(shipinetics-antigravity link-skills 2>&1)"; rc=$?
 eq "link-skills exits 0" "$rc" 0
-sf_paths="$(python3 -c 'import json,sys; print(",".join(e["path"] for e in json.load(open(sys.argv[1]))["entries"]))' "$gdir/skills.json")"
-eq "link-skills preserves existing entry and adds shared skill dirs" "$sf_paths" "~/custom-skills,~/.agents/skills,~/.claude/skills"
+sf_paths="$(python3 -c 'import json,sys
+p = [e["path"] for e in json.load(open(sys.argv[1], encoding="utf-8"))["entries"]]
+print("ok" if p == ["~/custom-skills", "~/compétences", "~/.agents/skills", "~/.claude/skills"] else ascii(p))' "$gdir/skills.json")"
+eq "link-skills preserves existing entries and adds shared skill dirs" "$sf_paths" ok
+eq "safe-local-setup AC11: link-skills keeps non-ASCII text as it is" \
+  "$(grep -c 'compétences' "$gdir/skills.json"):$(grep -c 'u00e9' "$gdir/skills.json")" "1:0"
+if on_windows; then
+  printf '  skip  link-skills replaces skills.json by a rename (no inode numbers here)\n'
+else
+  eq "safe-local-setup AC11: link-skills writes a temp file and renames it into place" \
+    "$([ "$(inode "$gdir/skills.json")" != "$ino_before" ] && echo renamed):$(ls "$gdir" | grep -c shipinetics-tmp)" "renamed:0"
+fi
+# a complete skills.json in its own layout: nothing to add, so it isn't written
+printf '{"entries": [{"path": "~/.agents/skills"}, {"path": "~/.claude/skills"}]}\n' >"$gdir/skills.json"
+cp "$gdir/skills.json" "$scratch/skills-before.json"
 out2="$(shipinetics-antigravity link-skills 2>&1)"
 has "link-skills is idempotent" "$out2" "already includes"
+eq "safe-local-setup AC11: link-skills doesn't write skills.json when it adds nothing" "$(cmp -s "$gdir/skills.json" "$scratch/skills-before.json" && echo same || echo changed)" same
+# a skills.json that is a symlink stays one, and its target gets the new text
+lg="$scratch/gemini-link"; mkdir -p "$lg"; printf '{"entries":[]}\n' >"$scratch/real-skills.json"
+if ln -s "$scratch/real-skills.json" "$lg/skills.json" 2>/dev/null && [ -L "$lg/skills.json" ]; then
+  GEMINI_CONFIG_DIR="$lg" shipinetics link-skills antigravity >/dev/null 2>&1
+  eq "safe-local-setup AC11: a skills.json that is a symlink stays a symlink, and its target gets the entries" \
+    "$([ -L "$lg/skills.json" ] && echo link):$(grep -c 'agents/skills' "$scratch/real-skills.json")" "link:1"
+else
+  printf '  skip  link-skills through a symlinked skills.json (ln -s makes copies here)\n'
+fi
 
 out="$(shipinetics-antigravity status --target "$target" 2>&1)"; rc=$?
 eq "status exits 0 when installed, agents native, PATH set and skills linked" "$rc" 0
@@ -362,7 +396,8 @@ eq "live backfill picks up appended turns and never shrinks tokens on truncation
 # Test live HTTP server end-to-end when localhost loopback is permitted
 if python3 -I -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); s.listen(1); c=socket.create_connection(("127.0.0.1",s.getsockname()[1]),timeout=1); c.close(); s.close()' 2>/dev/null; then
   srv_out="$scratch/srv.out"
-  (cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" exec shipinetics-usage serve --port 0 --no-open >"$srv_out" 2>&1) &
+  srv_pricing="$scratch/serve-pricing.json"
+  (cd "$p" && GEMINI_HOME="$ag_home" SHIPINETICS_USAGE_LOG="$ag_log" SHIPINETICS_PRICING_FILE="$srv_pricing" exec shipinetics-usage serve --port 0 --no-open >"$srv_out" 2>&1) &
   srv_pid=$!
   i=0
   while [ "$i" -lt 100 ] && ! grep -q 'http://127.0.0.1:' "$srv_out" 2>/dev/null; do
@@ -381,11 +416,52 @@ api = json.loads(urllib.request.urlopen(u + "/api/data", timeout=10).read().deco
 print(("id=\"f-models\"" in page), api.get("live"), len(api.get("rows", [])))
 PY
 )"
+    # safe-local-setup AC17: only requests for this server by its own name, and a JSON POST, are answered
+    srv_ac17="$(python3 -I - "$srv_url" "$srv_pricing" <<'PY' 2>&1 || true
+import http.client, os, sys, urllib.parse
+port = urllib.parse.urlsplit(sys.argv[1]).port; pricing = sys.argv[2]
+def req(method, host, ctype=None, body=""):
+    c = http.client.HTTPConnection("127.0.0.1", port, timeout=10)
+    c.putrequest(method, "/api/pricing" if method == "POST" else "/api/data", skip_host=True)
+    if host is not None:
+        c.putheader("Host", host % port if "%d" in host else host)
+    if ctype:
+        c.putheader("Content-Type", ctype)
+    if method == "POST":
+        c.putheader("Content-Length", str(len(body.encode())))
+    c.endheaders(body.encode() if method == "POST" else None)
+    st = c.getresponse().status; c.close(); return st
+for h in ("127.0.0.1:%d", "localhost:%d", "evil.test:%d", "localhost.evil.test:%d", "127.0.0.1", None):
+    print("GET %s=%d" % (h and h.replace("%d", "P"), req("GET", h)))
+print("GET 127.0.0.1:P+1=%d" % req("GET", "127.0.0.1:%d" % (port + 1)))
+for m in ("HEAD", "OPTIONS"):
+    print("METHOD %s=%d" % (m, req(m, "127.0.0.1:%d")))
+body = '{"neon-x": {"input": 1, "cache_write": 1, "cache_read": 0.1, "output": 2}}'
+print("POST text/plain=%d saved=%s" % (req("POST", "127.0.0.1:%d", "text/plain", body), os.path.exists(pricing)))
+print("POST json, other host=%d saved=%s" % (req("POST", "evil.test:%d", "application/json", body), os.path.exists(pricing)))
+print("POST json=%d saved=%s" % (req("POST", "127.0.0.1:%d", "application/json", body),
+                                 os.path.exists(pricing) and "neon-x" in open(pricing).read()))
+PY
+)"
   else
     srv_res="no-url:$(cat "$srv_out" 2>/dev/null)"
   fi
   kill "$srv_pid" 2>/dev/null; wait "$srv_pid" 2>/dev/null || true
   eq "shipinetics-usage serve serves HTML and live /api/data JSON" "$srv_res" "True True 3"
+  eq "safe-local-setup AC17: serve answers only Host 127.0.0.1:<port> or localhost:<port>, and 403 for any other" \
+    "$(printf '%s\n' "${srv_ac17:-}" | grep '^GET')" "GET 127.0.0.1:P=200
+GET localhost:P=200
+GET evil.test:P=403
+GET localhost.evil.test:P=403
+GET 127.0.0.1=403
+GET None=403
+GET 127.0.0.1:P+1=403"
+  eq "safe-local-setup AC17: HEAD and OPTIONS get 403" "$(printf '%s\n' "${srv_ac17:-}" | grep '^METHOD')" "METHOD HEAD=403
+METHOD OPTIONS=403"
+  eq "safe-local-setup AC17: a POST to /api/pricing needs application/json, and a refused one changes nothing" \
+    "$(printf '%s\n' "${srv_ac17:-}" | grep '^POST')" "POST text/plain=403 saved=False
+POST json, other host=403 saved=False
+POST json=200 saved=True"
 else
   printf '  skip  shipinetics-usage serve HTTP bind (localhost bind blocked in sandbox)\n'
 fi

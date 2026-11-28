@@ -36,4 +36,13 @@ except Exception as e: print("invalid JSON: %s" % e); sys.exit()
 print("has effortLevel" if "effortLevel" in v else "ok")' "$tpl/claude/settings.json")"
 eq "teams-and-plans AC7: the settings template is valid JSON with no effortLevel key" "$settings" ok
 
+# ---- safe-local-setup AC9: the .gitignore additions keep the example env files
+g="$scratch/gi"; new_repo "$g"; cp "$tpl/gitignore-additions" "$g/.gitignore"
+envs=""
+for f in .env .env.local .env.example .env.sample; do
+  if git -C "$g" check-ignore -q "$f"; then envs="$envs $f=ignored"; else envs="$envs $f=kept"; fi
+done
+eq "safe-local-setup AC9: .env and .env.local are ignored, .env.example and .env.sample are kept" "$envs" \
+  " .env=ignored .env.local=ignored .env.example=kept .env.sample=kept"
+
 done_testing

@@ -63,6 +63,11 @@
 # The weekly sweep runs it when it's due: shipinetics-config due security-audit
 # security_audit_every = off
 
+# ---- Task queue: push claims and new task IDs to the default branch
+# no (the default): agents claim a task and take a task ID in their own branch only. yes: they pull,
+# commit the claim and push it to the default branch, so that people on other machines see it at once.
+# queue_push = no
+
 # ---- Running the app
 # agent: agents launch, seed and stop their own instances (the default).
 # user: the user runs the servers. Agents only run the doctor, never seed or reset, write only as

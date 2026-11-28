@@ -88,6 +88,54 @@ else
 fi
 rm -f "$in/.shipinetics/pending/.delete"
 
+# ---- settings that the main checkout has, but neither commits nor ignores (as right after setup)
+u="$scratch/untracked"; new_repo "$u"; cd "$u" || exit 1
+printf '.claude/worktrees/\n' >.gitignore; echo a >a.txt; git add -A; git commit -qm init
+mkdir -p .shipinetics/explainers
+printf 'verify_cmd = bin/verify\n' >.shipinetics/config; echo main >.shipinetics/explainers/a.md
+uw="$scratch/untracked-wt"; ut="$scratch/untracked-tr"
+git worktree add -q "$uw" -b uw; git worktree add -q "$ut" -b ut
+(cd "$uw" && shipinetics-config root >/dev/null); (cd "$ut" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC1: (setup) the worktree got a copy" "$([ -f "$uw/.shipinetics/.copied-from" ] && echo copy)" copy
+has "safe-local-setup AC1: the main checkout's git status still shows its untracked .shipinetics/" "$(git -C "$u" status --porcelain)" "?? .shipinetics/"
+git -C "$u" add .shipinetics/config
+eq "safe-local-setup AC1: git add in the main checkout adds a .shipinetics/ file" "$(git -C "$u" diff --cached --name-only)" ".shipinetics/config"
+git -C "$u" reset -q
+hasnt "safe-local-setup AC1: the worktree's git status doesn't show the copy" "$(git -C "$uw" status --porcelain)" ".shipinetics"
+eq "safe-local-setup AC1: the copy's own .gitignore ignores it" "$(cat "$uw/.shipinetics/.gitignore" 2>/dev/null)" "*"
+eq "safe-local-setup AC1: the shared info/exclude gets no .shipinetics line" "$(grep -c 'shipinetics' "$u/.git/info/exclude" 2>/dev/null || :)" "0"
+eq "safe-local-setup AC4: the main checkout's explainers/ isn't copied" "$([ -e "$uw/.shipinetics/explainers/a.md" ] && echo copied || echo left-out)" left-out
+
+# AC3: the branch of worktree ut starts to track its own settings, after it got a copy
+printf 'verify_cmd = bin/own\n' >"$ut/.shipinetics/config"; echo own >"$ut/.shipinetics/own-list"
+git -C "$ut" add -f .shipinetics/config; git -C "$ut" commit -qm "track settings"
+# AC3: a branch that tracks a .shipinetics/ file (but no config) before any copy: nothing is copied into it
+uf="$scratch/untracked-first"; git -C "$u" worktree add -q "$uf" -b uf
+mkdir -p "$uf/.shipinetics"; printf 'tests/*\n' >"$uf/.shipinetics/test-paths"
+git -C "$uf" add -f .shipinetics/test-paths; git -C "$uf" commit -qm "track test-paths"
+(cd "$uf" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC3: a branch that tracks .shipinetics/ files gets no copy" "$(ls -A "$uf/.shipinetics" | tr '\n' ' ')" "test-paths "
+# AC4: worktree uw has explainers of its own
+mkdir -p "$uw/.shipinetics/explainers"; echo own >"$uw/.shipinetics/explainers/b.md"
+# a change in the main checkout makes both copies stale
+sleep 1; printf 'verify_cmd = bin/verify\nlaunch = user\n' >"$u/.shipinetics/config"
+(cd "$uw" && shipinetics-config root >/dev/null); (cd "$ut" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC4: (setup) the stale copy was refreshed" "$(grep -c 'launch = user' "$uw/.shipinetics/config")" 1
+eq "safe-local-setup AC4: a refresh keeps the worktree's own explainers and still leaves out the main checkout's" \
+  "$([ -f "$uw/.shipinetics/explainers/b.md" ] && echo kept):$([ -e "$uw/.shipinetics/explainers/a.md" ] && echo copied || echo left-out)" "kept:left-out"
+eq "safe-local-setup AC3: a branch that tracks .shipinetics/ keeps its own tracked config" "$(cat "$ut/.shipinetics/config")" "verify_cmd = bin/own"
+eq "safe-local-setup AC3: and its other files (nothing is deleted)" "$(cat "$ut/.shipinetics/own-list" 2>/dev/null)" own
+eq "safe-local-setup AC3: .copied-from and the copy's .gitignore are removed" \
+  "$([ -e "$ut/.shipinetics/.copied-from" ] && echo copied-from):$([ -e "$ut/.shipinetics/.gitignore" ] && echo gitignore)" ":"
+
+# AC2: a copy from 0.12 (no .gitignore of its own) and the line that 0.12 wrote to the shared info/exclude
+rm -f "$uw/.shipinetics/.gitignore"
+printf '*.log\n/.shipinetics/\n/.shipinetics\n/.shipinetics/x\n' >"$u/.git/info/exclude"
+(cd "$uw" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC2: the exact line /.shipinetics/ is removed from info/exclude, and every other line stays" \
+  "$(sort "$u/.git/info/exclude")" "$(printf '*.log\n/.shipinetics\n/.shipinetics/x\n' | sort)"
+eq "safe-local-setup AC2: and the old copy gets its own .gitignore" "$(cat "$uw/.shipinetics/.gitignore" 2>/dev/null)" "*"
+
 # ---- settings tracked in git: the worktree has its own, and nothing is copied
 t="$scratch/tracked"; new_repo "$t"; cd "$t" || exit 1
 mkdir -p .shipinetics; printf '.cache/\n' >.shipinetics/.gitignore
@@ -96,6 +144,69 @@ mkdir -p e2e; echo t >e2e/a.spec.ts; git add -A; git commit -qm init
 git worktree add -q "$scratch/tracked-wt" -b x
 eq "tracked settings: the worktree is its own root" "$(cd "$scratch/tracked-wt" && shipinetics-config root)" "$scratch/tracked-wt"
 [ ! -f "$scratch/tracked-wt/.shipinetics/.copied-from" ] && ok "tracked settings: nothing is copied" || bad "tracked settings: nothing is copied" "a copy exists"
+# safe-local-setup AC3: a .copied-from left from an older copy goes, and the branch's own tracked .gitignore stays
+printf '%s\n' "$t" >"$scratch/tracked-wt/.shipinetics/.copied-from"
+(cd "$scratch/tracked-wt" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC3: tracked settings: the old .copied-from is removed, and the tracked .gitignore is unchanged" \
+  "$([ -e "$scratch/tracked-wt/.shipinetics/.copied-from" ] && echo copied-from):$(cat "$scratch/tracked-wt/.shipinetics/.gitignore")" ":.cache/"
+
+# ---- safe-local-setup AC2: a main checkout (no worktree) loses the line that 0.11 and 0.12 wrote to info/exclude
+mc="$scratch/main-only"; new_repo "$mc"; mkdir -p "$mc/.shipinetics"; printf 'verify_cmd = bin/verify\n' >"$mc/.shipinetics/config"
+bytes() { python3 -c 'import sys; print(repr(open(sys.argv[1], "rb").read()))' "$1"; }
+printf '*.log\n/.shipinetics/\n/.shipinetics/x\n' >"$mc/.git/info/exclude"
+(cd "$mc" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC2: in a main checkout, the line /.shipinetics/ is removed and the other lines stay" "$(bytes "$mc/.git/info/exclude")" "b'*.log\\n/.shipinetics/x\\n'"
+printf '*.log\r\n/.shipinetics/\r\n/.shipinetics/x\r\n' >"$mc/.git/info/exclude"
+(cd "$mc" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC2: a CRLF line /.shipinetics/ is removed too, and the other lines keep their CRLF" "$(bytes "$mc/.git/info/exclude")" "b'*.log\\r\\n/.shipinetics/x\\r\\n'"
+printf '*.log\n/.shipinetics/\n' >"$scratch/shared-exclude"; rm -f "$mc/.git/info/exclude"
+if ln -s "$scratch/shared-exclude" "$mc/.git/info/exclude" 2>/dev/null && [ -L "$mc/.git/info/exclude" ]; then
+  (cd "$mc" && shipinetics-config root >/dev/null)
+  eq "safe-local-setup AC2: an info/exclude that is a symlink stays one, and its target loses the line" \
+    "$([ -L "$mc/.git/info/exclude" ] && echo link):$(bytes "$scratch/shared-exclude")" "link:b'*.log\\n'"
+else
+  printf '  skip  info/exclude as a symlink (ln -s makes copies here)\n'
+fi
+
+# ---- safe-local-setup AC1, AC3: the first copy into a worktree keeps the worktree's own files
+fc="$scratch/first-copy"; new_repo "$fc"; echo a >"$fc/a.txt"; git -C "$fc" add -A; git -C "$fc" commit -qm init
+mkdir -p "$fc/.shipinetics"; printf 'verify_cmd = bin/verify\n' >"$fc/.shipinetics/config"
+printf 'src/main-ui/*\n' >"$fc/.shipinetics/ui-paths"; printf 'e2e/*\n' >"$fc/.shipinetics/protected-paths"
+fw="$scratch/first-copy-wt"; git -C "$fc" worktree add -q "$fw" -b fw
+mkdir -p "$fw/.shipinetics"; printf 'src/my-ui/*\n' >"$fw/.shipinetics/ui-paths"
+(cd "$fw" && shipinetics-config root >/dev/null)
+eq "safe-local-setup AC1, AC3: the first copy keeps the worktree's own untracked ui-paths, and copies the main checkout's other files" \
+  "$(cat "$fw/.shipinetics/ui-paths"):$(cat "$fw/.shipinetics/config" 2>/dev/null):$(cat "$fw/.shipinetics/protected-paths" 2>/dev/null)" \
+  "src/my-ui/*:verify_cmd = bin/verify:e2e/*"
+
+# ---- safe-local-setup AC1: a file name with a newline in the main checkout's .shipinetics/ can't reach
+# outside the worktree's .shipinetics/. Read line by line, the name "a<newline>../w-victim" is "./a" and
+# "../w-victim": a refresh would copy the main checkout's w-victim over the worktree's, and remove the
+# worktree's d-victim (the source no longer has it).
+if on_windows; then
+  printf '  skip  file names with a newline (Windows has none)\n'
+else
+  nl="$scratch/newline"; new_repo "$nl"; echo a >"$nl/a.txt"; git -C "$nl" add -A; git -C "$nl" commit -qm init
+  nd="$(printf 'a\n..')"
+  mkdir -p "$nl/.shipinetics/$nd"; printf 'verify_cmd = bin/verify\n' >"$nl/.shipinetics/config"
+  echo main >"$nl/.shipinetics/$nd/w-victim"; echo main >"$nl/.shipinetics/$nd/d-victim"; echo main >"$nl/w-victim"
+  nw="$scratch/newline-wt"; git -C "$nl" worktree add -q "$nw" -b nw
+  echo mine >"$nw/w-victim"; echo mine >"$nw/d-victim"
+  outside() {   # the files of the worktree and of the main checkout outside .shipinetics/ and .git, with their contents
+    local r
+    for r in "$nw" "$nl"; do
+      (cd "$r" && find . \( -path ./.shipinetics -o -path ./.git \) -prune -o -type f -print | sort | while IFS= read -r f; do printf '%s=%s\n' "$r/$f" "$(cat "$f")"; done)
+    done
+  }
+  o_before="$(outside)"
+  (cd "$nw" && shipinetics-config root >/dev/null)
+  eq "safe-local-setup AC1: (setup) the worktree got a copy" "$([ -f "$nw/.shipinetics/.copied-from" ] && echo copy)" copy
+  rm -f "$nl/.shipinetics/$nd/d-victim"
+  sleep 1; printf 'verify_cmd = bin/verify\nlaunch = user\n' >"$nl/.shipinetics/config"
+  (cd "$nw" && shipinetics-config root >/dev/null)
+  eq "safe-local-setup AC1: (setup) the copy was refreshed" "$(grep -c 'launch = user' "$nw/.shipinetics/config")" 1
+  eq "safe-local-setup AC1: a sync and a refresh with a newline in a file name write and delete nothing outside .shipinetics/" "$(outside)" "$o_before"
+fi
 
 # ---- a workspace: a package worktree in the workspace folder counts as its package
 ws="$scratch/ws"; mkdir -p "$ws/.shipinetics" "$ws/bin"; cd "$ws" || exit 1

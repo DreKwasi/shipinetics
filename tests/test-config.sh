@@ -6,6 +6,12 @@ eq "agents launch the app by default" "$(shipinetics-config get launch)" agent
 printf 'launch = user   # the user runs the servers\n' >.shipinetics/config
 eq "launch = user is read" "$(shipinetics-config get launch)" user
 
+# safe-local-setup AC10: the task queue pushes to the default branch only with queue_push = yes
+pushes() { [ "$(shipinetics-config get queue_push 2>/dev/null)" = yes ] && echo pushes || echo stays; }
+eq "safe-local-setup AC10: without queue_push the queue stays in the branch, and queue_push = yes is read as yes" \
+  "$(rm -f .shipinetics/config; pushes):$(printf 'queue_push = yes\n' >.shipinetics/config; pushes)" "stays:pushes"
+printf 'launch = user   # the user runs the servers\n' >.shipinetics/config
+
 # match: which glob in a list covers a path, as the guards see it
 printf '.shipinetics/*\ne2e/acceptance/*\n' >.shipinetics/protected-paths
 printf 'tests/*\n' >.shipinetics/test-paths
