@@ -128,7 +128,7 @@ for root, dirs, files in os.walk(src):
             shutil.copyfile(sp, dp)
         else:
             text = text.replace("${CLAUDE_PLUGIN_ROOT}", clone).replace("${CLAUDE_SKILL_DIR}", skill_dir)
-            with open(dp, "w", encoding="utf-8") as f:
+            with open(dp, "w", encoding="utf-8", newline="") as f:  # keep the line endings of the source
                 f.write(text)
         shutil.copymode(sp, dp)
 if os.path.islink(dst) or os.path.isfile(dst):
@@ -215,7 +215,7 @@ for src in sorted(glob.glob(os.path.join(repo, "agents", "*.md"))):
         "",
     ]
     out_path = os.path.join(out_dir, os.path.basename(src))
-    with open(out_path, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write("\n".join(out_lines) + body)
     count += 1
 
@@ -308,7 +308,7 @@ for p in ("~/.agents/skills", "~/.claude/skills"):
         entries.append({"path": p})
         added.append(p)
 
-with open(path, "w", encoding="utf-8") as f:
+with open(path, "w", encoding="utf-8", newline="\n") as f:
     json.dump(data, f, indent=2)
     f.write("\n")
 

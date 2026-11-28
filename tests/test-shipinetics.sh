@@ -432,7 +432,12 @@ done
 
 # D5: refresh never rewrites an install that another clone made
 "$SHIP" install antigravity >/dev/null 2>&1
-replace "$target/.shipinetics-copies" "clone=$clone" "clone=/elsewhere/shipinetics"
+# The stamp holds the installer's own form of the clone's path (on Windows /c/Users/..., which may not
+# match $clone here), so rewrite whatever its clone= line says, and stop if that didn't take.
+stamp_clone="$(sed -n 's/^clone=//p' "$target/.shipinetics-copies")"
+replace "$target/.shipinetics-copies" "clone=$stamp_clone" "clone=/elsewhere/shipinetics"
+eq "multi-harness-installer D5 setup: the stamp now names another clone" \
+  "$(sed -n 's/^clone=//p' "$target/.shipinetics-copies")" "/elsewhere/shipinetics"
 t_before="$(snapshot "$target" /nonexistent)"
 out="$("$SHIP" refresh antigravity 2>&1)"; rc=$?
 eq "multi-harness-installer D5: refresh refuses an install from another clone (exit 2)" "$rc" 2

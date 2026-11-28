@@ -94,11 +94,19 @@ has "AC10: pending lists a proposed delete" "$out" "e2e/gone.txt (delete)"
 has "AC10: pending skips a .. path with a message" "$out" "skipped '../outside.txt'"
 rm .shipinetics/pending/.delete
 # AC15: a folder symlinked outside the root can't be used to delete there, and a path may contain #
-mkdir -p "$scratch/outdir"; echo keep >"$scratch/outdir/victim"; ln -s "$scratch/outdir" link; echo bye >'c#d'
-printf 'link/victim\nc#d\n' >.shipinetics/pending/.delete
-out="$(shipinetics-config pending 2>&1)"
-eq "AC15: pending skips a path through a symlink outside the root, with a message" \
-  "$(printf '%s' "$out" | grep -c "skipped 'link/victim'"):$(printf '%s' "$out" | grep -c 'link/victim (delete')" "1:0"
+# Git Bash on Windows makes a copy for ln -s, not a link. A copied folder is inside the root, so its
+# files are rightly normal deletes: there the symlink checks are skipped and no link folder is left.
+mkdir -p "$scratch/outdir"; echo keep >"$scratch/outdir/victim"; ln -s "$scratch/outdir" link 2>/dev/null; echo bye >'c#d'
+if [ -L link ]; then symlinks=1; else symlinks=0; rm -rf link; fi
+# dels15: the AC15 .delete list; the path through the symlink only where there is a symlink
+dels15() { if [ "$symlinks" = 1 ]; then printf 'link/victim\nc#d\n'; else printf 'c#d\n'; fi >.shipinetics/pending/.delete; }
+dels15; out="$(shipinetics-config pending 2>&1)"
+if [ "$symlinks" = 1 ]; then
+  eq "AC15: pending skips a path through a symlink outside the root, with a message" \
+    "$(printf '%s' "$out" | grep -c "skipped 'link/victim'"):$(printf '%s' "$out" | grep -c 'link/victim (delete')" "1:0"
+else
+  printf '  skip  AC15: pending skips a path through a symlink (ln -s makes a copy here, not a link)\n'
+fi
 has "AC15: pending lists a path with # as itself" "$out" "c#d (delete)"
 rm .shipinetics/pending/.delete
 # The rest needs a pseudo-terminal. Some sandboxes have none; CI does.
@@ -142,14 +150,19 @@ with_tty 'y
 ' shipinetics-config apply >/dev/null
 eq "AC11: .delete goes once only comments remain" "$([ -e e2e/c2.txt ] && echo kept):$([ -e .shipinetics/pending/.delete ] && echo left || echo gone)" ":gone"
 # AC15 at a terminal: nothing is deleted or written through the symlink, and c#d is deleted as c#d
-mkdir -p .shipinetics/pending/link; echo new >.shipinetics/pending/link/new.txt
-printf 'link/victim\nc#d\n' >.shipinetics/pending/.delete
+mkdir -p .shipinetics/pending
+[ "$symlinks" = 1 ] && { mkdir -p .shipinetics/pending/link; echo new >.shipinetics/pending/link/new.txt; }
+dels15
 out="$(with_tty 'y
 y
 y
 ' shipinetics-config apply)"
-eq "AC15: apply writes and deletes nothing outside the root through a symlink" \
-  "$(cat "$scratch/outdir/victim"):$([ -e "$scratch/outdir/new.txt" ] && echo written)" "keep:"
-has "AC15: apply says it skipped the path through the symlink" "$out" "skipped 'link/victim'"
+if [ "$symlinks" = 1 ]; then
+  eq "AC15: apply writes and deletes nothing outside the root through a symlink" \
+    "$(cat "$scratch/outdir/victim"):$([ -e "$scratch/outdir/new.txt" ] && echo written)" "keep:"
+  has "AC15: apply says it skipped the path through the symlink" "$out" "skipped 'link/victim'"
+else
+  printf '  skip  AC15: apply skips a path through a symlink (ln -s makes a copy here, not a link)\n'
+fi
 eq "AC15: apply deletes c#d" "$([ -e 'c#d' ] && echo kept || echo deleted)" "deleted"
 done_testing

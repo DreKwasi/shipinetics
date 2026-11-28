@@ -396,6 +396,10 @@ sy_companion_declined() {
 
 SY_STAMP_NAME=".shipinetics-copies"
 
+# SY_SHA1: the command that prints "<sha1>  <path>" for each file. Git Bash on Windows has sha1sum,
+# not shasum; Linux and macOS have shasum (and Linux also sha1sum). Both print the same hash.
+if command -v shasum >/dev/null 2>&1; then SY_SHA1=shasum; else SY_SHA1=sha1sum; fi
+
 # sy_clone_dir: the clone this script runs from (symlinks resolved)
 sy_clone_dir() { (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P); }
 
@@ -403,9 +407,9 @@ sy_clone_dir() { (cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P); }
 sy_clone_hash() {
   local c="${1:-$(sy_clone_dir)}"
   ( cd "$c" || exit 1
-    # One shasum call for all files: its output lists each file's hash and path.
+    # One hash call for all files: its output lists each file's hash and path.
     find skills agents -type f ! -name '.DS_Store' ! -path '*/__pycache__/*' 2>/dev/null | LC_ALL=C sort |
-      tr '\n' '\0' | xargs -0 shasum 2>/dev/null | shasum | cut -d' ' -f1 )
+      tr '\n' '\0' | xargs -0 "$SY_SHA1" 2>/dev/null | "$SY_SHA1" | cut -d' ' -f1 )
 }
 
 # sy_stamp_get <install dir> <key>: a value from the install's stamp, empty if there is none
@@ -1068,9 +1072,9 @@ sy_fingerprint() {
     git ls-files --others --exclude-standard -z -- . "$@" |
       while IFS= read -r -d '' f; do
         printf '%s\n' "$f"
-        [ -f "$f" ] && shasum "$f"
+        [ -f "$f" ] && "$SY_SHA1" "$f"
       done
-  ) | shasum | cut -d' ' -f1
+  ) | "$SY_SHA1" | cut -d' ' -f1
 }
 
 # sy_changed_paths <repo> [since commit]: changed paths, one per line, relative to the repo:
