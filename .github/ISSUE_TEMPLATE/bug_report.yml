@@ -1,24 +1,24 @@
 name: Bug report
-description: Something in Shipinetics doesn't work as the docs say.
+description: A part of Shipinetics does not work as the docs say.
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Thank you for the report. For a security problem, don't use this form: follow SECURITY.md.
-        Remove secrets, private paths and names from logs before you paste them.
+        Thank you for the report. Do not use this form for a security problem. Follow SECURITY.md, because a public issue shows the problem to everyone.
+        Before you paste logs, remove the secrets, private paths and names from them.
   - type: textarea
     id: what
     attributes:
       label: What happened
-      description: What you did, what you expected, and what happened instead.
+      description: What you did, what you expected, and what happened.
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
       label: Steps to reproduce
-      description: The smallest steps that show the problem. Include the command or the prompt, and the hook or skill involved, if you know it.
+      description: The smallest set of steps that shows the problem. Give the command or the prompt. If you know the hook or the skill that is part of the problem, name it.
       placeholder: |
         1. In a project set up with /shipinetics:setup ...
         2. Run ...
@@ -29,7 +29,7 @@ body:
     id: output
     attributes:
       label: Output or logs
-      description: Error messages, hook output, or the output of `shipinetics-config`.
+      description: The error messages, the hook output, or the output of `shipinetics-config`.
       render: text
   - type: input
     id: version

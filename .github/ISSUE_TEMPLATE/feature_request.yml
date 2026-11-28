@@ -1,27 +1,27 @@
 name: Feature request
-description: Suggest a change to how Shipinetics works.
+description: Propose a change to how Shipinetics works.
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
       label: The problem
-      description: What you tried to do, and what made it hard. Describe the problem before the solution.
+      description: What you tried to do, and what made it difficult. Describe the problem before the solution.
     validations:
       required: true
   - type: textarea
     id: proposal
     attributes:
       label: What you propose
-      description: The change you have in mind, and the parts it touches (a skill, a hook, a tool, setup).
+      description: The change that you propose, and the parts that it changes (a skill, a hook, a tool or setup).
   - type: textarea
     id: alternatives
     attributes:
       label: Other options
-      description: Other ways to solve it, and why you prefer yours.
+      description: Other ways to solve the problem, and why you prefer your way.
   - type: checkboxes
     id: contribute
     attributes:
       label: Contribution
       options:
-        - label: I can open a pull request for this.
+        - label: I can open a pull request for this change.
