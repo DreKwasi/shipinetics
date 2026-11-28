@@ -201,8 +201,13 @@ rec "$(tpath "$proj" "$S2")"
 eq "malformed log lines stay after the valid rows when the log is rewritten" "$(tail -n 2 "$log")" "$bad1
 $bad2"
 eq "and the valid rows are all there" "$(grep -v "	x	" "$log" | grep -c "^$S1	")/$(nrows "$S2")" "4/1"
-# the log's lines end in LF on every system (Windows Python would write CRLF in text mode)
-eq "the rewritten log has no carriage return" "$(grep -c $'\r' "$log" || true)" 0
+# the log's lines end in LF on every system (Windows Python would write CRLF in text mode).
+# crs <file>: how many CR bytes it holds (tr reads the \r escape itself: a raw CR as a grep argument
+# doesn't reach MSYS grep intact on Windows)
+crs() { tr -cd '\r' <"$1" | wc -c | tr -d ' '; }
+cp "$log" "$scratch/crlf-copy"; printf 'crlf line\r\n' >>"$scratch/crlf-copy"
+eq "the CR count sees a CRLF line (control for the check below)" "$(crs "$scratch/crlf-copy")" 1
+eq "the rewritten log has no carriage return" "$(crs "$log")" 0
 
 # ---- backfill and a session that is in the log
 reset
