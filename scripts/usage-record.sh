@@ -18,6 +18,8 @@ transcript="$(sy_json_field "$input" transcript_path)"
 [ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
 conv_id="$(sy_json_field "$input" conversationId)"
 args=(record "$transcript" --detach)
+# Windows Python needs the native form (C:\x), also when MSYS_NO_PATHCONV turns off Git Bash's conversion.
+case "${OSTYPE:-}" in msys*|cygwin*|win*) command -v cygpath >/dev/null 2>&1 && cwd="$(cygpath -w "$cwd")" ;; esac
 [ -n "$cwd" ] && args+=(--cwd "$cwd")
 [ -n "$conv_id" ] && args+=(--session-id "$conv_id")
 python3 -I "$(dirname "$0")/usage.py" "${args[@]}" >/dev/null 2>&1

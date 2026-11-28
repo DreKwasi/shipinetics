@@ -25,6 +25,7 @@ import glob
 import html
 import json
 import os
+import pathlib
 import re
 import subprocess
 
@@ -572,17 +573,35 @@ def env_path(name):
     return (m.group(1).upper() + ":" + (m.group(2) or "/")) if m else p
 
 
-def lock_file(f):
-    """Hold an exclusive lock on the open file f until it is closed: flock on Unix, msvcrt on Windows."""
-    if fcntl is not None:
-        fcntl.flock(f, fcntl.LOCK_EX)
-        return
-    while True:
+class locked:
+    """with locked(path): an exclusive lock on the file at path: flock on Unix, msvcrt on Windows.
+    On Windows it locks the first byte, and unlocks it on exit, so the next writer doesn't wait."""
+
+    def __init__(self, path):
+        self.path = path
+
+    def __enter__(self):
+        self.f = open(self.path, "a")
+        if fcntl is not None:
+            fcntl.flock(self.f, fcntl.LOCK_EX)
+            return self
+        self.f.seek(0)
+        while True:
+            try:
+                msvcrt.locking(self.f.fileno(), msvcrt.LK_LOCK, 1)  # retries for 10 seconds, then raises
+                return self
+            except OSError:
+                continue
+
+    def __exit__(self, *exc):
         try:
-            msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)  # retries for 10 seconds, then raises
-            return
+            if fcntl is None:
+                self.f.seek(0)
+                msvcrt.locking(self.f.fileno(), msvcrt.LK_UNLCK, 1)
         except OSError:
-            continue
+            pass
+        self.f.close()
+        return False
 
 
 def write_sessions(path, sessions, only_if_newer=False):
@@ -590,8 +609,7 @@ def write_sessions(path, sessions, only_if_newer=False):
     New rows replace the rows with the same agent and model; the session's other old rows stay.
     only_if_newer (backfill): skip a session that the log already has with the same or a later end."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path + ".lock", "a") as lock:
-        lock_file(lock)
+    with locked(path + ".lock"):
         rows, bad = read_log(path)
         current = collections.OrderedDict()
         for r in rows:
@@ -1006,7 +1024,7 @@ def cmd_html(args):
     print("%d sessions. Open it with: open %s" % (len({r["session_id"] for r in rows}), out))
     if getattr(args, "open", False):
         import webbrowser
-        webbrowser.open("file://" + os.path.abspath(out))
+        webbrowser.open(pathlib.Path(out).resolve().as_uri())
     return 0
 
 
@@ -1154,6 +1172,12 @@ def cmd_backfill(args):
 
 
 def main(argv):
+    if os.name == "nt":  # print LF line endings, as on macOS and Linux
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                stream.reconfigure(newline="\n")
+            except (AttributeError, ValueError):
+                pass
     p = argparse.ArgumentParser(prog="shipinetics-usage", add_help=False)
     p.add_argument("--all", action="store_true")
     p.add_argument("--days", type=int, default=30)

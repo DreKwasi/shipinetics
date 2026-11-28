@@ -30,7 +30,7 @@ cwd="$(sy_hook_cwd "$input")"
 # A leading "cd <dir> &&" decides where gh runs. Follow it when it's a plain path.
 cd_re='^[[:space:]]*cd[[:space:]]+([^[:space:];&|]+)[[:space:]]*&&'
 if [[ "$cmd" =~ $cd_re ]]; then
-  d="${BASH_REMATCH[1]}"; d="${d/#\~/$HOME}"
+  d="${BASH_REMATCH[1]}"; d="${d/#\~/$HOME}"; d="$(sy_unix_path "$d")"
   case "$d" in /*) ;; *) d="$cwd/$d" ;; esac
   [ -d "$d" ] && cwd="$d"
 fi

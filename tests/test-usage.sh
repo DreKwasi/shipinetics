@@ -194,14 +194,15 @@ eq "a missing transcript records nothing" "$([ -e "$log" ] && echo log || echo n
 reset; build_s1
 rec "$S1_FILE"
 bad1="this is not a row"
-bad2="$(tr -d '\r' <"$log" | awk -F'\t' -v OFS='\t' 'NR == 1 { for (i = 1; i <= NF; i++) h[$i] = i; next } NR == 2 { $h["api_calls"] = "x"; print; exit }')"
+bad2="$(awk -F'\t' -v OFS='\t' 'NR == 1 { for (i = 1; i <= NF; i++) h[$i] = i; next } NR == 2 { $h["api_calls"] = "x"; print; exit }' "$log")"
 printf '%s\n%s\n' "$bad1" "$bad2" >>"$log"
 quick "$proj" "$S2" "Other session" "$(ts 1 0)" 11 12 13 14
 rec "$(tpath "$proj" "$S2")"
-# (tr: Windows Python ends the log's lines with \r\n; the lines are what must stay)
-eq "malformed log lines stay after the valid rows when the log is rewritten" "$(tail -n 2 "$log" | tr -d '\r')" "$bad1
+eq "malformed log lines stay after the valid rows when the log is rewritten" "$(tail -n 2 "$log")" "$bad1
 $bad2"
 eq "and the valid rows are all there" "$(grep -v "	x	" "$log" | grep -c "^$S1	")/$(nrows "$S2")" "4/1"
+# the log's lines end in LF on every system (Windows Python would write CRLF in text mode)
+eq "the rewritten log has no carriage return" "$(grep -c $'\r' "$log" || true)" 0
 
 # ---- backfill and a session that is in the log
 reset

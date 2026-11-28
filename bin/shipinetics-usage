@@ -25,11 +25,12 @@ compat="$(cd "$(dirname "$0")/.." && pwd)/scripts/compat.sh"; [ -f "$compat" ] &
 case "${1:-}" in -h|--help) sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
 here="$(cd "$(dirname "$0")/.." && pwd)"
 command -v python3 >/dev/null 2>&1 || { echo "shipinetics-usage: python3 is required" >&2; exit 2; }
-# On Windows, compat.sh sets SY_PYTHON, and python3 is a function that removes the "\r" from the
-# output. exec can't run a function, and the "\r" filter holds a server's output in a buffer. So
-# serve (and every command elsewhere) runs the interpreter with exec, and it stops with this process.
-if [ -z "${SY_PYTHON:-}" ] || [ "${1:-}" = serve ]; then
+# exec, so a server (serve) is this process and stops with it. On Windows, python3 is a function
+# from compat.sh, which exec can't run: run the interpreter that compat.sh found, in UTF-8 mode.
+# usage.py prints LF line endings on Windows itself, so no "\r" filter (which would hold a
+# server's output in a buffer) is needed.
+if declare -F python3 >/dev/null 2>&1 && [ -n "${SY_PYTHON:-}" ]; then
   # shellcheck disable=SC2086  # SY_PYTHON can be "py -3"
-  exec ${SY_PYTHON:-python3} -I "$here/scripts/usage.py" "$@"
+  exec $SY_PYTHON -X utf8 -I "$here/scripts/usage.py" "$@"
 fi
-python3 -I "$here/scripts/usage.py" "$@"
+exec python3 -I "$here/scripts/usage.py" "$@"

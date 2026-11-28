@@ -57,6 +57,7 @@ sy_state_dir() {
   local p
   if [ -d "$(sy_dir "$1")" ]; then printf '%s/.cache\n' "$(sy_dir "$1")"; return 0; fi
   p="$(git -C "$1" rev-parse --git-path shipinetics 2>/dev/null)" || return 1
+  p="$(sy_unix_path "$p")"   # C:/x on Windows
   case "$p" in /*) ;; *) p="$1/$p" ;; esac
   printf '%s\n' "$p"
 }
@@ -96,6 +97,7 @@ sy_wt_sync() {
   printf '%s\n' "$2" >"$dst/.copied-from"
   if ! git -C "$1" check-ignore -q "$SY_DIR_NAME/.copied-from" 2>/dev/null &&
      ex="$(git -C "$1" rev-parse --git-path info/exclude 2>/dev/null)"; then
+    ex="$(sy_unix_path "$ex")"   # C:/x on Windows
     case "$ex" in /*) ;; *) ex="$1/$ex" ;; esac
     mkdir -p "$(dirname "$ex")" && printf '/%s/\n' "$SY_DIR_NAME" >>"$ex"
   fi
@@ -189,6 +191,7 @@ sy_harness_repo() {
   fi
   h="$(sy_cfg "$1" harness_repo)"
   [ -n "$h" ] || return 1
+  h="$(sy_unix_path "$h")"   # harness_repo = C:/x on Windows
   case "$h" in /*) ;; *) h="$1/$h" ;; esac
   sy_git_top "$h"
 }
@@ -941,22 +944,19 @@ sy_json_str() {
 
 # sy_hook_session_start_reply <harness> <user_msg> <model_ctx>: SessionStart output
 sy_hook_session_start_reply() {
-  local harness="$1" msg="$2" ctx="$3"
+  local harness="$1" msg="$2" ctx="$3" out=""
+  # jq, else python3, else JSON written in bash. Each one must really run and print something: a
+  # stub python3, or a jq that the PATH lost, prints nothing, and the next one takes over.
   if [ "$harness" = "antigravity" ]; then
-    if command -v jq >/dev/null 2>&1; then
-      jq -n --arg m "$msg" --arg c "$ctx" '{injectSteps: [{systemMessage: {systemMessage: $c, metadata: {user_markdown: $m}}}]}'
-    else
-      python3 -c 'import json,sys; print(json.dumps({"injectSteps": [{"systemMessage": {"systemMessage": sys.argv[2], "metadata": {"user_markdown": sys.argv[1]}}}]}))' "$msg" "$ctx" 2>/dev/null ||
-        printf '{"injectSteps": [{"systemMessage": {"systemMessage": %s, "metadata": {"user_markdown": %s}}}]}\n' "$(sy_json_str "$ctx")" "$(sy_json_str "$msg")"
-    fi
+    out="$(jq -n --arg m "$msg" --arg c "$ctx" '{injectSteps: [{systemMessage: {systemMessage: $c, metadata: {user_markdown: $m}}}]}' 2>/dev/null)" || out=""
+    [ -n "$out" ] || out="$(python3 -c 'import json,sys; print(json.dumps({"injectSteps": [{"systemMessage": {"systemMessage": sys.argv[2], "metadata": {"user_markdown": sys.argv[1]}}}]}))' "$msg" "$ctx" 2>/dev/null)" || out=""
+    [ -n "$out" ] || out="$(printf '{"injectSteps": [{"systemMessage": {"systemMessage": %s, "metadata": {"user_markdown": %s}}}]}' "$(sy_json_str "$ctx")" "$(sy_json_str "$msg")")"
   else
-    if command -v jq >/dev/null 2>&1; then
-      jq -n --arg m "$msg" --arg c "$ctx" '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
-    else
-      python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1], "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$msg" "$ctx" 2>/dev/null ||
-        printf '{"systemMessage": %s, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": %s}}\n' "$(sy_json_str "$msg")" "$(sy_json_str "$ctx")"
-    fi
+    out="$(jq -n --arg m "$msg" --arg c "$ctx" '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}' 2>/dev/null)" || out=""
+    [ -n "$out" ] || out="$(python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1], "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$msg" "$ctx" 2>/dev/null)" || out=""
+    [ -n "$out" ] || out="$(printf '{"systemMessage": %s, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": %s}}' "$(sy_json_str "$msg")" "$(sy_json_str "$ctx")")"
   fi
+  printf '%s\n' "$out"
 }
 
 # ---------------------------------------------------------------- verify tiers
