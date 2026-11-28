@@ -433,9 +433,11 @@ done
 # D5: refresh never rewrites an install that another clone made
 "$SHIP" install antigravity >/dev/null 2>&1
 # The stamp holds the installer's own form of the clone's path (on Windows /c/Users/..., which may not
-# match $clone here), so rewrite whatever its clone= line says, and stop if that didn't take.
-stamp_clone="$(sed -n 's/^clone=//p' "$target/.shipinetics-copies")"
-replace "$target/.shipinetics-copies" "clone=$stamp_clone" "clone=/elsewhere/shipinetics"
+# match $clone here), so rewrite whatever its clone= line says, and stop if that didn't take. Use sed,
+# not the python `replace` helper: Git Bash converts path-like arguments (also name=/path) passed to a
+# native program like python, so the old text would not match and nothing would change.
+stamp="$target/.shipinetics-copies"
+sed 's|^clone=.*|clone=/elsewhere/shipinetics|' "$stamp" >"$stamp.tmp" && mv "$stamp.tmp" "$stamp"
 eq "multi-harness-installer D5 setup: the stamp now names another clone" \
   "$(sed -n 's/^clone=//p' "$target/.shipinetics-copies")" "/elsewhere/shipinetics"
 t_before="$(snapshot "$target" /nonexistent)"
