@@ -61,8 +61,8 @@ The [README](README.md) says what each part does, and which rules code enforces.
    This happens only when `~/.local/bin` exists and is on your PATH. If your terminal doesn't find `shipinetics-config` after your first session, ask the agent in a Claude Code session to run `shipinetics-shims install`: the tool is on the agent's PATH. Or run it yourself, once. First find the installed version, then run the tool from that folder. It tells you how to add the folder to your PATH:
 
    ```bash
-   ls ~/.claude/plugins/cache/shipinetics/shipinetics/     # for example 0.11.0
-   ~/.claude/plugins/cache/shipinetics/shipinetics/0.11.0/bin/shipinetics-shims install
+   ls ~/.claude/plugins/cache/shipinetics/shipinetics/     # for example 0.12.0
+   ~/.claude/plugins/cache/shipinetics/shipinetics/0.12.0/bin/shipinetics-shims install
    ```
 
 5. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a recommended companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.

@@ -9,6 +9,8 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+## 0.12.0
+
 ### Added
 - **Native Windows,** with Git for Windows (Git Bash) and Python 3. CI now runs every test on Windows too. WSL 2 works as Linux. The README's "Windows" section has the steps and what is different (no sandbox, line endings, symlinks).
   - `scripts/compat.sh` makes `python3` and `jq` work as on macOS and Linux: it finds `python3`, `python` or `py -3` once (a Microsoft Store stub doesn't count) and remembers it, removes the `\r` that Windows Python and jq add to each line, and runs Python in UTF-8 mode, so a path with non-ASCII letters reads correctly. A project's own commands keep the real `python3` and `jq`.
