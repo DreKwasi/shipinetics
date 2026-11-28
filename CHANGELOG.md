@@ -9,6 +9,12 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Added
+- **`docs/how-it-works.md`** explains how the parts of Shipinetics work together: the parts, setup, the task loop, the subagents, the hooks, the gates, protected files, docs before `/compact`, the install on each harness, and where state is kept. Each part has a Mermaid diagram.
+
+### Changed
+- The docs for people (README, GETTING-STARTED, CONTRIBUTING, SECURITY, the code of conduct, AGENTS.md, the glossary, the ADRs, the specs, the harness research and the GitHub templates) now use ASD-STE100, with Mermaid diagrams for each flow. CONTRIBUTING now says which changes need a CHANGELOG entry, as the CI check does, and that CI runs on Windows too.
+
 ## 0.12.0
 
 ### Added
