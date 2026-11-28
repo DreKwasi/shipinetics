@@ -47,8 +47,8 @@ if ! jq -n 1 >/dev/null 2>&1 && ! python3 -c 'import json' >/dev/null 2>&1; then
 fi
 # vnum <x.y.z>: a number that sorts like the version (each part up to 999)
 vnum() {
-  local a b c x
-  IFS=. read -r a b c x <<<"$1"
+  local a b c
+  IFS=. read -r a b c _ <<<"$1"
   case "${a:-0}${b:-0}${c:-0}" in *[!0-9]*) echo 0; return ;; esac
   echo "$(( 10#${a:-0} * 1000000 + 10#${b:-0} * 1000 + 10#${c:-0} ))"
 }

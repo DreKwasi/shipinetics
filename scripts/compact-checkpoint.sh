@@ -55,8 +55,8 @@ if [ -n "$fp" ] && [ "$fp" = "$(cat "$cache/docs-checkpoint$sfx" 2>/dev/null)" ]
 fi
 
 now="$(date +%s)"
-bfp=""; bt=0
-[ -f "$cache/compact-blocked$sfx" ] && read -r bfp bt <"$cache/compact-blocked$sfx"
+bt=0
+[ -f "$cache/compact-blocked$sfx" ] && read -r _ bt <"$cache/compact-blocked$sfx"
 case "$bt" in ''|*[!0-9]*) bt=0 ;; esac
 if [ "$bt" -gt 0 ] && [ $((now - bt)) -le 600 ]; then
   rm -f "$cache/compact-blocked$sfx"

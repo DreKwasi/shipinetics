@@ -10,6 +10,7 @@
 # shellcheck source=compat.sh
 . "${BASH_SOURCE[0]%/*}/compat.sh"
 
+# shellcheck disable=SC2034  # read by bin/shipinetics-config
 SY_KEYS="worksheets_dir feedback_file systems_dir conventions_file testing_guide_file test_index_file tools_index_file queue_file evidence_dir evidence_upload_cmd personas_dir verify_cmd verify_quick_cmd packages package_verify_cmd package_verify_quick_cmd worksheet_new_cmd worksheet_tag_cmd package_worksheets_dir tag_prefix secrets_runner vault infisical_args env_safe_names launch bench_cmd package_bench_cmd harness_repo hooks_off companions_skip security_audit_every queue_push"
 
 sy_default() {
@@ -550,10 +551,12 @@ sy_secret_paths() {
 sy_secret_match() {
   local p="${1%/}" g base
   shift
+  # shellcheck disable=SC2088  # the pattern matches a literal ~ in the input
   case "$p" in "~") p="$HOME" ;; "~/"*) p="$HOME/${p#\~/}" ;; esac
   base="${p##*/}"
   SY_MATCHED=""
   for g in "$@"; do
+    # shellcheck disable=SC2088  # the pattern matches a literal ~ in the input
     case "$g" in "~/"*) g="$HOME/${g#\~/}" ;; esac
     case "$g" in
       */*) # shellcheck disable=SC2053  # the glob is meant to be a pattern
@@ -912,6 +915,7 @@ PL
 # checked as the file it would replace, but protected-paths never covers it.
 sy_list_match() {
   local rel="$3"
+  # shellcheck disable=SC2034  # read by the guards and shipinetics-config
   SY_MATCHED=""
   case "$rel" in
     "$SY_DIR_NAME/pending/"*) [ "$2" = protected-paths ] && return 1; rel="${rel#"$SY_DIR_NAME/pending/"}" ;;
@@ -1075,6 +1079,7 @@ sy_hook_posttool_context() {
 }
 
 # sy_hook_session_start_reply <harness> <user_msg> <model_ctx>: SessionStart output
+# shellcheck disable=SC2178,SC2128  # out is a string here; another function has an array of that name
 sy_hook_session_start_reply() {
   local harness="$1" msg="$2" ctx="$3" out=""
   # jq, else python3, else JSON written in bash. Each one must really run and print something: a
@@ -1238,6 +1243,7 @@ sy_verify_run() {
   cache="$(sy_dir "$root")/.cache"; mkdir -p "$cache"
   sfx="$(sy_key_suffix "$pkg")"
   if [ "$tier" = quick ] && ! sy_has_quick "$root" "$pkg"; then tier=complete; fi
+  # shellcheck disable=SC2034  # read by bin/shipinetics-verify
   SY_VERIFY_TIER="$tier" SY_VERIFY_LOG="$cache/verify$sfx.log" SY_VERIFY_RAN=0
   cmd="$(sy_verify_cmd "$root" "$tier" "$pkg")"
   [ -n "$cmd" ] || return 0
@@ -1245,6 +1251,7 @@ sy_verify_run() {
     sy_verify_log "$root" "$src" "$pkg" "$tier" 0 reused
     return 0
   fi
+  # shellcheck disable=SC2034  # read by bin/shipinetics-verify
   SY_VERIFY_RAN=1
   t0="$(date +%s)"
   (

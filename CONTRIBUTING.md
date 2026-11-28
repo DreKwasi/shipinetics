@@ -58,7 +58,7 @@ Read [README.md](README.md) first, especially the sections "Instructions and enf
 
 ## Running checks
 
-Run the same checks that CI runs (`.github/workflows/test.yml`):
+Run the same checks that CI runs (`.github/workflows/test.yml` and `.github/workflows/checks.yml`):
 
 ```bash
 # 1. Syntax check every shell script
@@ -71,7 +71,18 @@ bash tests/run.sh
 
 # 3. On macOS, also test with system bash 3.2
 /bin/bash tests/run.sh
+
+# 4. Lint the shell scripts (needs shellcheck)
+bash scripts/lint-shell.sh
+
+# 5. Check that the plugin is complete: manifests, hooks, executable tools, skill frontmatter
+python3 scripts/check-plugin.py
+
+# 6. Install into an empty HOME, then remove it with uninstall --all (your own HOME isn't used)
+bash scripts/smoke-install.sh
 ```
+
+CI also runs [actionlint](https://github.com/rhysd/actionlint) on the workflows. None of the checks calls a model.
 
 To run one test file while you work:
 
@@ -125,11 +136,12 @@ The CHANGELOG check (`.github/workflows/pr-checks.yml`) fails a pull request whe
 
 A change only to docs, tests or CI needs no entry. When a change to a file that users get has nothing to tell users, a maintainer adds the `no-changelog` label, and the check doesn't run.
 
-This diagram shows the CI checks on each pull request. They come from `.github/workflows/test.yml`, `.github/workflows/pr-checks.yml` and `scripts/check-pr-version.sh`. A branch named `release/*` skips the version check and the CHANGELOG check.
+This diagram shows the CI checks on each pull request. They come from `.github/workflows/test.yml`, `.github/workflows/checks.yml`, `.github/workflows/pr-checks.yml` and `scripts/check-pr-version.sh`. A branch named `release/*` skips the version check and the CHANGELOG check.
 
 ```mermaid
 flowchart TD
   pr["A pull request opens or changes"] --> test["test.yml runs on Linux, macOS and Windows"]
+  pr --> checks["checks.yml runs shellcheck, actionlint, check-plugin.py and the install smoke test"]
   pr --> label{"Does it have the no-changelog label?"}
   test --> ver["check-pr-version.sh checks that the version is unchanged"]
   ver --> syn["bash -n checks the syntax of every script"]

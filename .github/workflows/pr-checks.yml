@@ -20,9 +20,9 @@ jobs:
           fetch-depth: 0
       - name: A change that users can see has an entry under Unreleased
         env:
-          BASE: origin/${{ github.base_ref }}
+          BASE_REF: origin/${{ github.base_ref }}
         run: |
-          base="$(git merge-base "$BASE" HEAD)"
+          base="$(git merge-base "$BASE_REF" HEAD)"
           changed="$(git diff --name-only "$base" HEAD)"
           # Paths that change what users get. Docs, tests and CI alone need no entry.
           user_facing="$(printf '%s\n' "$changed" | grep -E '^(scripts/|bin/|skills/|agents/|hooks/|hooks\.json$|plugin\.json$|\.claude-plugin/|companions\.tsv$|harnesses\.tsv$)' || true)"
@@ -33,7 +33,7 @@ jobs:
           added="$(git diff "$base" HEAD -- CHANGELOG.md | grep -E '^\+[^+]' || true)"
           if [ -z "$added" ]; then
             echo "This pull request changes these files, but adds nothing to CHANGELOG.md:" >&2
-            printf '  %s\n' $user_facing >&2
+            printf '%s\n' "$user_facing" | sed 's/^/  /' >&2
             echo "Add an entry under '## Unreleased' (see CONTRIBUTING.md). If users see no change, a maintainer can add the 'no-changelog' label." >&2
             exit 1
           fi

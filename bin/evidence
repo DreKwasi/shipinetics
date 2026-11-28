@@ -175,6 +175,7 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
   links="$(media_links <"$ev")"
   on_disk="$(local_media "$ev")"
   all="$(printf '%s\n%s\n' "$links" "$on_disk" | sed '/^$/d')"
+  # shellcheck disable=SC2010  # names in an evidence folder; ls is enough here
   if ! ls "$dir" 2>/dev/null | grep -qE '\.(log|txt)$' && [ -z "$all" ]; then
     echo "  $ws: $dir has no terminal log, and EVIDENCE.md names no recording"; bad=1
   fi
@@ -199,7 +200,7 @@ check_one() { # check_one <worksheet> <base>; prints problems, returns 1 if any
     echo "  $ws: EVIDENCE.md names $videos recordings. Use one recording of the whole flow"; bad=1
   fi
   for ac in $(acs_of "$ws"); do
-    line="$(grep -E "^\|[[:space:]]*$ac[[:space:]]*\|" "$ev" || true)"
+    line="$(grep -E "^\|[[:space:]]*${ac}[[:space:]]*\|" "$ev" || true)"
     if [ -z "$line" ]; then
       echo "  $ws: $ac has no row in EVIDENCE.md"; bad=1
     elif ! printf '%s' "$line" | grep -qE "$artifacts|$links_re"; then
@@ -305,6 +306,7 @@ case "$cmd" in
     out="${2:-${TMPDIR:-/tmp}/shipinetics-frames/$ws}"
     [ -f "$ev" ] || die "no $ev. Start it with: evidence init $ws"
     command -v ffmpeg >/dev/null 2>&1 || die "frames needs ffmpeg. Install it (macOS: brew install ffmpeg; Debian or Ubuntu: apt install ffmpeg)"
+    # shellcheck disable=SC2010  # names in an evidence folder; ls is enough here
     rec="$(ls "$dir" 2>/dev/null | grep -iE "$recordings\$" | head -n 1 || true)"
     [ -n "$rec" ] || die "no recording in $dir on this machine. Record it, or download it from its link in EVIDENCE.md into $dir"
     mkdir -p "$out"
