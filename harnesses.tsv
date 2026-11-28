@@ -1,0 +1,60 @@
+# harnesses.tsv: what each harness gives Shipinetics. Read by `shipinetics status`.
+# Columns (tab-separated): harness, check, today, planned, note
+#   check:   secrets (secrets guard), edits (edit guard), pr (PR gate), installs (install gate),
+#            verify (quick verify after a commit), compact (docs before /compact), notice
+#            (session-start notice), worktrees (worktree notice), shims (short commands), usage (token log)
+#   today:   enforced (a guard or gate refuses the action), works (a check that only informs runs),
+#            instruction (the skills say it, nothing stops the agent), partial, or not-yet (no adapter
+#            for this harness yet)
+#   planned: what the adapter can reach, from docs/research/harnesses.md (checked 2026-11-22)
+# Lines that start with # are comments.
+claude	secrets	enforced	enforced	
+claude	edits	enforced	enforced	
+claude	pr	enforced	enforced	
+claude	installs	enforced	enforced	Asks you before each install
+claude	verify	works	works	Reports to the agent, never blocks
+claude	compact	enforced	enforced	Stops /compact until the docs checkpoint matches the code; a second /compact runs anyway
+claude	notice	works	works	
+claude	worktrees	works	works	
+claude	shims	works	works	
+claude	usage	works	works	
+antigravity	secrets	enforced	enforced	
+antigravity	edits	enforced	enforced	
+antigravity	pr	enforced	enforced	
+antigravity	installs	enforced	enforced	
+antigravity	verify	instruction	instruction	No hook after a tool is wired; the agent runs shipinetics-verify quick
+antigravity	compact	instruction	instruction	No compaction hook is known; run /shipinetics:checkpoint before you compact
+antigravity	notice	works	works	
+antigravity	worktrees	works	works	
+antigravity	shims	works	works	
+antigravity	usage	works	works	
+codex	secrets	not-yet	enforced	Same hook format as Claude Code
+codex	edits	not-yet	enforced	File paths come from the apply_patch text
+codex	pr	not-yet	enforced	The default sandbox blocks network, so gh needs your approval
+codex	installs	not-yet	enforced	Denies instead of asking: Codex treats ask as a failed hook
+codex	verify	not-yet	works	
+codex	compact	not-yet	partial	Codex has a PreCompact hook; whether it can stop a compaction is unverified
+codex	notice	not-yet	works	
+codex	worktrees	not-yet	works	
+codex	shims	not-yet	works	
+codex	usage	not-yet	partial	Transcripts are not a stable format; the session-end hook gets 3 seconds
+copilot	secrets	not-yet	partial	A hook that times out lets the action run
+copilot	edits	not-yet	partial	The agent type of a plugin agent is unverified
+copilot	pr	not-yet	partial	A hook that times out lets the action run
+copilot	installs	not-yet	partial	A hook that times out lets the action run
+copilot	verify	not-yet	works	
+copilot	compact	not-yet	instruction	Copilot's preCompact hook can't stop a compaction, and runs only for automatic ones
+copilot	notice	not-yet	works	
+copilot	worktrees	not-yet	works	
+copilot	shims	not-yet	works	
+copilot	usage	not-yet	partial	The events.jsonl format is not documented
+opencode	secrets	not-yet	enforced	Through a TypeScript plugin that runs the guard scripts (unverified)
+opencode	edits	not-yet	enforced	The multi-file patch tool needs parsing
+opencode	pr	not-yet	enforced	
+opencode	installs	not-yet	enforced	Through the permission hook
+opencode	verify	not-yet	works	
+opencode	compact	not-yet	instruction	A compaction hook is unverified
+opencode	notice	not-yet	works	
+opencode	worktrees	not-yet	works	
+opencode	shims	not-yet	works	
+opencode	usage	not-yet	works	Tokens and cost are in its SQLite database

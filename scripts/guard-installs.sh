@@ -21,11 +21,15 @@ cmd="$(sy_hook_command "$input")"
 # Installs and updates: an update pulls new code too. `skills check` counts: it can update and
 # remove skills while it checks. bin/skills-outdated is the read-only check. shipinetics-update merge
 # brings a new Shipinetics release, hooks included, into a clone that Claude Code or Antigravity may read from.
-re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add|agy[[:space:]]+plugin[[:space:]]+(install|update|import)|shipinetics-update([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+merge'
+re='(npx|bunx|pnpm[[:space:]]+dlx)[[:space:]]+(-y[[:space:]]+)?skills[[:space:]]+(add|update|check)|claude[[:space:]]+plugin[[:space:]]+(install|update|marketplace[[:space:]]+(add|update))|claude[[:space:]]+mcp[[:space:]]+add|agy[[:space:]]+plugin[[:space:]]+(install|update|import)|shipinetics-update([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+merge|(^|[[:space:];&|/"'\''])shipinetics(-antigravity)?["'\'']?[[:space:]]+install([[:space:]]|$)'
 # Judge only text that can run: an inert heredoc body, a commit message, a search pattern or a
 # comment line can name an install without running it. If perl is missing, judge all of it.
 run="$(printf '%s' "$cmd" | sy_sanitize gate "")" || run="$cmd"
 [[ "$run" =~ $re ]] || noop
+# A plain `shipinetics install ... --dry-run` changes nothing, so it needs no yes. Only a single
+# command of plain words counts: no ; & | < > ( ) $ ` or quotes, so no second command can ride along.
+dry_re='^[[:space:]]*([A-Za-z0-9_./~-]*/)?shipinetics(-antigravity)?([[:space:]]+[A-Za-z0-9_.=/~-]+)*[[:space:]]+--dry-run([[:space:]]+[A-Za-z0-9_.=/~-]+)*[[:space:]]*$'
+[[ "$cmd" =~ $dry_re ]] && noop
 
 if command -v skillspector >/dev/null 2>&1; then
   advice="Scan the source first with: skillspector scan <source> --no-llm. Approve only if the result is SAFE, or CAUTION after reading the findings."

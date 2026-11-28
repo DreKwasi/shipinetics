@@ -157,16 +157,14 @@ target="$gdir/plugins/shipinetics"
 out="$(shipinetics-antigravity install --target "$target" 2>&1)"; rc=$?
 eq "shipinetics-antigravity install exits 0" "$rc" 0
 has "install reports generated agents" "$out" "Generated 6 Antigravity agent(s)"
-if [ -L "$target/skills" ] || ! on_windows; then
-  eq "install symlinks skills to repo" "$(readlink "$target/skills")" "$SY/skills"
-  eq "install symlinks hooks.json to repo" "$(readlink "$target/hooks.json")" "$SY/hooks.json"
+eq "multi-harness-installer AC1, AC8: install writes skills as generated copies, not a link to the repo" "$([ -d "$target/skills" ] && [ ! -L "$target/skills" ] && [ -f "$target/skills/workflow/SKILL.md" ] && echo copies)" "copies"
+if [ -L "$target/hooks.json" ] || ! on_windows; then
+  eq "multi-harness-installer AC8: install symlinks hooks.json to repo" "$(readlink "$target/hooks.json")" "$SY/hooks.json"
   copied=""
 else
-  # Windows without Developer Mode: Git Bash's ln -s copies. The install says where the copy came from.
-  printf '  skip  install symlinks skills and hooks.json (Windows: ln -s made copies)\n'
-  eq "install copies skills from the repo" "$(diff -r "$SY/skills" "$target/skills" >/dev/null 2>&1 && echo same || echo differs)" same
-  eq "install copies hooks.json from the repo" "$(cmp -s "$SY/hooks.json" "$target/hooks.json" && echo same || echo differs)" same
-  eq "install records the repo that it copied" "$(head -n 1 "$target/.source" 2>/dev/null)" "$SY"
+  # Windows without Developer Mode: Git Bash's ln -s copies, so hooks.json is a copy of the repo's.
+  printf '  skip  install symlinks hooks.json (Windows: ln -s made a copy)\n'
+  eq "multi-harness-installer AC13: install copies hooks.json from the repo" "$(cmp -s "$SY/hooks.json" "$target/hooks.json" && echo same || echo differs)" same
   copied=yes
 fi
 
@@ -199,7 +197,7 @@ has "link-skills is idempotent" "$out2" "already includes"
 out="$(shipinetics-antigravity status --target "$target" 2>&1)"; rc=$?
 eq "status exits 0 when installed, agents native, PATH set and skills linked" "$rc" 0
 has "status reports 6/6 native agents" "$out" "Agents: 6/6 Antigravity-native"
-[ -z "$copied" ] || has "status says the plugin is a copy of the repo" "$out" "installed as a copy of $SY"
+[ -z "$copied" ] || has "multi-harness-installer AC13: status says the plugin is installed as copies of the repo" "$out" "installed as copies of $SY"
 
 # ---- shipinetics-usage reads Antigravity transcripts (backfill, report, session, Stop hook)
 ag_home="$scratch/gemini-home"

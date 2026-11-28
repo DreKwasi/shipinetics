@@ -87,7 +87,10 @@ if [ "$force" = 1 ]; then rm -f "$cache/pass-quick$sfx" "$cache/pass-complete$sf
 list="$cache/changed-manual$sfx"
 changed_files >"$list"
 
-sy_verify_run "$root" "$pkg" "$tier" "$list" manual
+# The source column of verify-times.tsv: "manual", or what started the run (the post-commit hook
+# sets SHIPINETICS_VERIFY_SOURCE=commit).
+src="$(sy_env VERIFY_SOURCE manual)"; case "$src" in ''|*[!a-z-]*) src=manual ;; esac
+sy_verify_run "$root" "$pkg" "$tier" "$list" "$src"
 rc=$?
 if [ "$SY_VERIFY_RAN" = 0 ]; then
   echo "shipinetics-verify: $SY_VERIFY_TIER already passed on this exact code. Nothing to run (use --force to run anyway)."

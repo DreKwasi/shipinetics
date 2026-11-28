@@ -24,7 +24,7 @@ This is how every task runs, interactive or autonomous. Skip steps only where th
 
 - Read the task. If it came from `TODOS.md`, claim it (shipinetics:task-queue).
 - Start or resume a worksheet: `worksheet new <slug> "<title>"` or `worksheet use <name>`. If you're resuming, read the whole worksheet and `git log --grep "Worksheet: <name>"` before touching anything.
-- Find the relevant systems: `head -n 7 docs/systems/*.md`, then read the full doc for each system you'll touch.
+- Find the relevant systems: `head -n 7 docs/systems/*.md`, then read the full doc for each system you'll touch. Read `GLOSSARY.md` and the ADRs in `docs/adr/` that touch the area, if they exist (when they don't, go on without them). Use the glossary's terms in code, tests and text. If the task would go against an ADR, tell the user before you start, and name the ADR.
 - Give the task a size from the table above, and tell the user the size and what it skips, in one or two lines. The user can choose another size: XS for a small fix, S, or M for the full loop with a spec and a plan review. Only the size table's skips change. Verify, running the app, test-writer and the gates stay for every size. In an autonomous session, take the size and write it in the worksheet.
 - For tasks S and up, offer the user routes for the task, with the companion skills that each route uses, and recommend one ("Choose a route" below).
 - Run `shipinetics-verify` once before changing anything. If it already fails, note that in the worksheet. You're not responsible for pre-existing failures, but you need to know about them.
@@ -86,7 +86,7 @@ Once it works, commit. **The user decides about evidence** (shipinetics:evidence
 
 You run verify yourself. No hook runs it when you stop.
 
-- After a step that changes behaviour, run `shipinetics-verify quick`. It checks only the changed files. Until test-writer finishes step 5, old tests of behaviour that you changed or removed can fail there. That is expected. Any other failure is yours.
+- After a step that changes behaviour, run `shipinetics-verify quick`. It checks only the changed files. In Claude Code, a hook runs it after each `git commit` that you run, and tells you the result without blocking you. When that hook has reported a result for this code, you don't need to run it again. The hook doesn't run in other harnesses, in projects without a quick tier, or when it is off (`verify` in `hooks_off`). Until test-writer finishes step 5, old tests of behaviour that you changed or removed can fail there. That is expected. Any other failure is yours.
 - If verify names a test **flaky** (it failed, then passed on a re-run), it still failed. If your change touches what the test covers, the race is probably yours: fix it. If not, add a queue task with the test and the output, and tell the user. Don't run verify again and again to get a pass (shipinetics:testing, "Catching flaky tests").
 - Before you mark the task done, run `shipinetics-verify`. It runs the complete verify (`bin/verify`) and must pass. It records the pass for exactly this code, so the PR gate reuses it. The pre-push hook runs `bin/verify` again on each push, and shows the user each check. Committing the code, or editing only the worksheet, evidence or feedback log, keeps the pass. Any other change needs a new run.
 - Don't run verify while a subagent is still editing or running tests. Wait for it to finish.
@@ -103,6 +103,8 @@ For UI changes, run `design-check` yourself before review and fix what it finds.
 For tasks M and up, also author a Whiteboard of the change for the human (shipinetics:review, "Whiteboard for the human"), if Whiteboard is installed.
 
 ## 9. Keep the docs true
+
+- Before the person compacts the conversation (`/compact`), or when the context is getting full, run `/shipinetics:checkpoint`: it writes the session's terms, decisions and changes to the glossary, the ADRs, the system docs and the worksheet. In Claude Code, `/compact` waits for it.
 
 - Update the system docs you changed, especially their 7-line headers (shipinetics:system-docs).
 - Add new tests to `docs/testing/test-index.md`.

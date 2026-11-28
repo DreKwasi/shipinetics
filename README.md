@@ -30,21 +30,26 @@ These rules are enforced:
 | An agent can create a protected file, but it can't change one. You apply each change | The edit guard, and `shipinetics-config apply` | Set-up projects | `SHIPINETICS_UNLOCK=1` for a session |
 | The agent can't show the environment, a variable with a secret-like name, a vault or a secret file | The secrets guard (`scripts/guard-secrets.sh`) | Every project | `SHIPINETICS_ALLOW_ENV_READ=1` turns off the whole guard for a session |
 | `gh pr create` and `gh pr ready` work only with a complete verify pass on this exact code. A branch that changes only docs and Markdown needs nothing | The PR gate (`scripts/guard-pr.sh`) | Set-up projects | `SHIPINETICS_ALLOW_NO_EVIDENCE=1`, or `SHIPINETICS_SKIP_VERIFY=1` for the verify part only |
-| You approve each `npx skills add`, `update` or `check`, `claude plugin install` or `update`, `claude plugin marketplace add` or `update`, and `claude mcp add` | The install gate (`scripts/guard-installs.sh`) | Every project | `SHIPINETICS_ALLOW_INSTALLS=1` for a session |
+| You approve each `npx skills add`, `update` or `check`, `claude plugin install` or `update`, `claude plugin marketplace add` or `update`, `claude mcp add`, `shipinetics-update merge` and `shipinetics install`. A plain `shipinetics install … --dry-run` on its own changes nothing, so it passes | The install gate (`scripts/guard-installs.sh`) | Every project | `SHIPINETICS_ALLOW_INSTALLS=1` for a session |
 | A push runs `bin/verify` and stops if it fails. The hook shows each check and the time it took, and says when uncommitted changes are in the checks | The git `pre-push` hook | Projects with `.githooks/` from setup | `git push --no-verify` |
 | A commit changes 400 lines or fewer, and its lint problems are fixed. Lockfiles, worksheets, evidence and binary files don't count. Merges, cherry-picks and reverts skip the size limit | The git `pre-commit` hook | The same | `SHIPINETICS_ALLOW_BIG_COMMIT=1` for one commit |
 | Each commit names its worksheet in a `Worksheet:` trailer | The git `commit-msg` hook | The same | `SHIPINETICS_ALLOW_NO_WORKSHEET=1` for one commit |
 | The agent can't run `git push --force`, `git push -f`, `git reset --hard`, `gh pr merge`, `npm publish` or `gcloud secrets versions access`, or read `~/.config/gcloud`, `~/.aws` or `~/.ssh`. The rules match these command forms only: for example, `git push origin main --force` isn't covered | Deny rules in `.claude/settings.json` | Projects that use the settings template | Edit the settings |
 | A PR passes `bin/verify --full`. CI blocks the merge only if branch protection requires this job | CI (`.github/workflows/verify.yml`) | Projects that use the CI template | Branch protection settings |
 
-Four more hooks only inform you:
+One hook stops `/compact` until the docs are written:
+
+- **The docs checkpoint before `/compact`.** In Claude Code, when you run `/compact` in a set-up project, the hook first checks that `/shipinetics:checkpoint` wrote the glossary terms, ADRs, system docs and worksheet at the current code. If not, it stops the compaction and tells you to run the checkpoint. A second `/compact` within 10 minutes runs anyway, and so does a `/compact` when the hook can't record the stop. Automatic compaction isn't stopped. When `/compact` runs, the hook tells the summary to keep the worksheet name, the open criteria and the next step. Turn it off with `compact` in `hooks_off`.
+
+Five more hooks only inform you:
 
 - **The short commands.** When a new session starts, it installs or refreshes the `shipinetics-*` short commands in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your own terminal can run them. It writes only when that folder exists and is on your PATH, and never changes a file that it didn't write. It tells you when it writes, and says nothing otherwise.
-- **The companions notice.** When a new session starts and a recommended companion is missing, it lists the missing companions, and tells Claude too. In a project that isn't set up, it shows the list at most once in 7 days. It also warns when neither `jq` nor python3 is installed (the guards need one of them), and when the project was set up with a newer Shipinetics than the one on this machine. A missing optional companion (tasteskill, Strix) shows only beside a missing recommended one.
+- **The quick verify after a commit.** In Claude Code, after each `git commit` that the agent runs, it runs `shipinetics-verify quick` and tells the agent the result. It never blocks: a failing test can be expected in the middle of a task. It runs only in projects with a quick tier (`verify_quick_cmd`), and it says nothing when a pass is already recorded for the code.
+- **The session notice.** When a new session starts and a recommended companion is missing, it lists the missing companions, and tells Claude too. In a project that isn't set up, it shows the list at most once in 7 days. It also warns when neither `jq` nor python3 is installed (the guards need one of them), and when the project was set up with a newer Shipinetics than the one on this machine. A missing optional companion (tasteskill, Strix) shows only beside a missing recommended one. In a harness with generated copies, it also says when the copies are older than the clone.
 - **The worktree notice.** When a new session starts in a git worktree where Shipinetics can't find the project's settings, it says why and what to do. "Git worktrees" below has the cases.
 - **The usage log.** When a session ends, it records the tokens that the session used.
 
-To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `installs`, `shims`, `worktrees`, `companions` or `usage`. Put it in a project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. A project's `hooks_off` replaces yours. `SHIPINETICS_HOOKS_OFF="secrets installs"` does the same for one session.
+To turn off a hook, put its name in `hooks_off`: `edits`, `secrets`, `pr`, `installs`, `shims`, `worktrees`, `verify`, `compact`, `notice` or `usage` (`companions`, the old name of `notice`, still works). Put it in a project's `.shipinetics/config`, or in `~/.config/shipinetics/config` for all projects. A project's `hooks_off` replaces yours. `SHIPINETICS_HOOKS_OFF="secrets installs"` does the same for one session.
 
 The guards see the text of each command, and the paths in Claude's file tools. They don't see what a script does when it runs. So an agent can get around a guard with a script that it writes. The guards make that a deliberate act, and the reviewers look for it. "Known limits" lists the gaps.
 
@@ -80,16 +85,22 @@ It does this only when `~/.local/bin` exists and is on your PATH. If it isn't, r
 
 To stop the automatic install, add `hooks_off = shims` to `~/.config/shipinetics/config`. To remove the shims, run `shipinetics-shims remove`.
 
-### Antigravity (experimental)
+### Other harnesses: one installer
 
-Shipinetics also runs as an Antigravity plugin. Support is experimental: Antigravity doesn't fill in `${CLAUDE_PLUGIN_ROOT}` in skill text, so some paths in skills don't resolve there yet. From a clone of this repo:
+`bin/shipinetics` installs Shipinetics from a clone into each harness, and shows what each harness enforces:
 
 ```bash
-./bin/shipinetics-antigravity install
-./bin/shipinetics-antigravity link-skills
+./bin/shipinetics install claude        # runs the two claude plugin commands
+./bin/shipinetics install antigravity
+./bin/shipinetics link-skills antigravity
+./bin/shipinetics status                # each harness: installed or not, and each guard and gate
 ```
 
-Then add `<path to this clone>/bin` to your shell `PATH` (`~/.zshrc` or `~/.bashrc`). `install` links `skills/`, `scripts/`, `bin/`, `plugin.json`, `hooks.json` and `companions.tsv` into `~/.gemini/config/plugins/shipinetics` and generates Antigravity-native subagents in `agents/`. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares companions installed with the `skills` CLI. Re-run `./bin/shipinetics-antigravity install` when `agents/*.md` changes. Run `shipinetics-antigravity status` to check the setup.
+Add `--dry-run` to `install`, `refresh` or `uninstall` to see what it would do, with no change.
+
+For Antigravity, `install` writes generated copies of the skills and subagents into `~/.gemini/config/plugins/shipinetics`, with the paths in the skill text set to this clone, and links `scripts/`, `bin/`, `plugin.json` and `hooks.json`. `link-skills` adds `~/.agents/skills` and `~/.claude/skills` to `~/.gemini/config/skills.json`, so Antigravity shares companions installed with the `skills` CLI. Add `<path to this clone>/bin` to your shell `PATH`. After you change or update the clone, run `shipinetics refresh` (`shipinetics-update merge` runs it for you). The session notice tells you when the copies are out of date. [docs/adr/0001](docs/adr/0001-generated-copies-per-harness.md) says why the copies exist.
+
+Codex, OpenCode and Copilot are not supported yet. `shipinetics status` shows what each one will be able to enforce, from `harnesses.tsv` and the research in [docs/research/harnesses.md](docs/research/harnesses.md). `shipinetics-antigravity` still works, as the old name for `shipinetics <command> antigravity`.
 
 ### Windows
 
@@ -105,7 +116,7 @@ What is different on native Windows:
 
 - **No sandbox.** Claude Code's sandbox isn't available on native Windows, so the guards and `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` are the only protection. Use WSL 2 for the sandbox.
 - **Line endings.** This repo's `.gitattributes` keeps LF line endings in the scripts. Setup adds the same rule for a project's `bin/` and git hooks. A script with CRLF line endings fails.
-- **Symlinks.** Git Bash's `ln -s` copies a folder unless Windows Developer Mode is on. `shipinetics-antigravity install` then makes copies: run it again after each update.
+- **Symlinks.** Git Bash's `ln -s` copies a folder unless Windows Developer Mode is on. `shipinetics install antigravity` then makes copies, and `shipinetics status` says so: run `shipinetics refresh antigravity` after each update.
 - **The short commands** (`shipinetics-shims`) work in Git Bash, not in PowerShell or cmd.
 
 ## Update
@@ -245,7 +256,9 @@ These tools are in the plugin's `bin/`. Run any of them with `--help` for the de
 | `bench-compare` | Runs a benchmark several times and fails on a slowdown against this machine's baseline |
 | `scan-skills` | Scans the skills and agent files that can reach your sessions with SkillSpector, and writes a report. It needs `jq` |
 | `skills-outdated` | Shows which installed skills have a newer version upstream. It changes nothing |
-| `shipinetics-antigravity` | `install`, `link-skills` and `status`: links this repo into Antigravity's plugins folder, generates Antigravity-native subagents, and shares companion skills through `skills.json` |
+| `shipinetics-checkpoint` | `record` and `check`: the docs checkpoint that lets `/compact` run. `/shipinetics:checkpoint` records it after it writes the docs |
+| `shipinetics` | `install`, `refresh`, `status`, `uninstall` and `link-skills`: installs Shipinetics from this clone into a harness, keeps its generated copies current, and shows which guards each harness enforces |
+| `shipinetics-antigravity` | The old name for `shipinetics <command> antigravity`. Writes generated copies of the skills and subagents into Antigravity's plugins folder, links the rest to this repo, and shares companion skills through `skills.json` |
 | `shipinetics-companions` | Shows each companion as installed, missing or declined. `install` prints the install commands, and runs nothing |
 | `shipinetics-update` | Says how this machine gets Shipinetics and what to do to update. For a fork or clone: `check` shows the latest release, the conflicts and the notes, and `merge` merges a release and runs the tests. `steps <version>` lists the steps for each project since that version |
 | `shipinetics-shims` | `install`, `status` and `remove`: short commands for the `shipinetics-*` tools in your own terminal, in `~/.local/bin`. The session-start hook runs `auto` to keep them current. It never changes a file that it didn't write |
@@ -402,7 +415,7 @@ Each companion is recommended unless the table says optional. Shipinetics works 
 
 The list is in [companions.tsv](companions.tsv). The notice, `shipinetics-companions` and setup read it.
 
-If you do not want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config` (or in a project's `.shipinetics/config`). Separate names with spaces, for example `companions_skip = strix merge-risk`. Then the notice does not list it. To switch off the notice, set `hooks_off = companions`.
+If you do not want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config` (or in a project's `.shipinetics/config`). Separate names with spaces, for example `companions_skip = strix merge-risk`. Then the notice does not list it. To switch off the notice, set `hooks_off = notice`.
 
 ### SkillSpector results
 
@@ -544,7 +557,7 @@ Shipinetics works in a git worktree as it works in the main checkout. The first 
 
 | Variable | Effect |
 |---|---|
-| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Turns off the named hooks for a session: `edits`, `secrets`, `pr`, `installs`, `shims`, `companions` or `usage` |
+| `SHIPINETICS_HOOKS_OFF="secrets installs"` | Turns off the named hooks for a session: `edits`, `secrets`, `pr`, `installs`, `shims`, `worktrees`, `verify`, `compact`, `notice` or `usage` |
 | `SHIPINETICS_ALLOW_AUTHOR_TESTS=1` | Lets any agent edit test files, and test-writer edit source files, for a session. For example, for a rename of many files |
 | `SHIPINETICS_UNLOCK=1` | Lets agents edit protected files for a session |
 | `SHIPINETICS_ALLOW_ENV_READ=1` | Turns off the secrets guard for a session |
@@ -616,23 +629,29 @@ The reviews then find less. To keep Opus for the agents that set it, leave out `
 .claude-plugin/   plugin.json and marketplace.json (Claude Code)
 .github/          the CI workflow of this repo (test.yml)
 agents/           reviewer, security-reviewer, ui-reviewer, test-writer, test-plan-reviewer, live-tester
+docs/adr/         the decision records: why Shipinetics works the way it does (index in its README.md)
+docs/research/    research notes with sources, such as what each harness supports
+docs/specs/       the acceptance criteria of larger changes to Shipinetics
 bin/              the tools, on the agent's PATH: bench-compare, design-check, evidence, known-failing,
-                  scan-skills, shipinetics-antigravity, shipinetics-companions, shipinetics-config,
-                  shipinetics-shims, shipinetics-usage, shipinetics-update, shipinetics-verify,
+                  scan-skills, shipinetics, shipinetics-antigravity, shipinetics-checkpoint, shipinetics-companions,
+                  shipinetics-config, shipinetics-shims, shipinetics-usage, shipinetics-update, shipinetics-verify,
                   skills-outdated, worksheet
 hooks/            hooks.json: which script runs at which event (Claude Code)
 hooks.json        root lifecycle hooks for Antigravity
 plugin.json       root plugin manifest for Antigravity
 scripts/          the hooks (guard-edits.sh, guard-secrets.sh, guard-pr.sh, guard-installs.sh,
-                  companions-notice.sh, worktree-notice.sh, usage-record.sh), lib.sh with the
-                  shared helpers, and usage.py with usage-page.html for the token usage
-skills/           the 22 skills. setup/templates/ holds the files that setup writes into a project.
+                  verify-after-commit.sh, compact-checkpoint.sh, companions-notice.sh, worktree-notice.sh,
+                  shims-auto.sh, usage-record.sh), lib.sh with the shared helpers, and usage.py with
+                  usage-page.html for the token usage
+skills/           the 23 skills. setup/templates/ holds the files that setup writes into a project.
                   review/personas/ holds the reviewer personas. explain/plain-language.md is the
                   writing guide. worksheet/template.md is the worksheet template, and
                   evidence/record-template.mjs the Playwright recording template
 companions.tsv    the companions: why Shipinetics uses each one, how to install it, its SkillSpector result
+harnesses.tsv     which guards and gates each harness enforces today, and what its adapter can reach
 CHANGELOG.md      what changed in each release, and the versioning rules
 CONTRIBUTING.md   how to run checks, follow repo guidelines, and open pull requests
+GLOSSARY.md       the terms that Shipinetics uses, and the words to avoid
 LICENSE           the MIT License
 NOTICE            contributor attribution and third-party companion notice
 SECURITY.md       how to report vulnerabilities privately and what is in scope

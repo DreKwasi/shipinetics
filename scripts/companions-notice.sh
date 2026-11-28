@@ -10,7 +10,10 @@
 # Two more warnings show in any project, whatever the companions: no JSON parser (jq or python3), so
 # the guards can't read their input, and a set-up project that names a newer Shipinetics version than
 # the installed plugin.
-# Switch it off with "hooks_off = companions", or SHIPINETICS_HOOKS_OFF=companions.
+# In a harness that runs generated copies of the skills (docs/adr/0001), it also says when the
+# copies are older than the clone, with the refresh command.
+# Switch it off with "hooks_off = notice" ("companions", the old name, still works), or
+# SHIPINETICS_HOOKS_OFF=notice.
 
 set -uo pipefail
 
@@ -21,7 +24,18 @@ harness="$(sy_hook_harness "$input")"
 noop() { sy_hook_noop "$harness"; exit 0; }
 project="$(sy_hook_cwd "$input")"
 root="$(sy_root "$project" 2>/dev/null)" || root=""
-sy_hook_off companions "$root" && noop
+{ sy_hook_off notice "$root" || sy_hook_off companions "$root"; } && noop
+
+# Generated copies: the install folder is the plugin folder this hook runs from (its scripts/ is a
+# link into the clone), so its stamp says which clone and hash the copies were made from.
+stale_msg="" stale_ctx=""
+install_dir="${PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." 2>/dev/null && pwd)}"
+if [ -f "$install_dir/$SY_STAMP_NAME" ] && [ "$(sy_copies_state "$install_dir")" = stale ]; then
+  h="$(sy_stamp_get "$install_dir" harness)"
+  stale_msg="Shipinetics: the skills that this session loaded are older than your clone ($(sy_stamp_get "$install_dir" clone)). Run: shipinetics refresh ${h:-antigravity}, then start a new session."
+  stale_ctx="The Shipinetics skills in this session are generated copies that are older than the clone. Tell the user once, if it matters for the task, to run: shipinetics refresh ${h:-antigravity}."
+fi
+
 file="$(sy_companions_file)"
 
 # Warnings that don't depend on the companions.
@@ -69,8 +83,13 @@ if [ "$req" -gt 0 ] && [ -z "$root" ]; then
   else { mkdir -p "$(dirname "$stamp")" && : >"$stamp"; } 2>/dev/null; fi
 fi
 if [ "$req" = 0 ]; then
-  [ -n "$warn" ] || noop
-  sy_hook_session_start_reply "$harness" "Shipinetics:$warn" "Shipinetics warnings for this session:$warn"
+  [ -n "$warn" ] || [ -n "$stale_msg" ] || noop
+  m="${warn:+Shipinetics:$warn}"; c="${warn:+Shipinetics warnings for this session:$warn}"
+  if [ -n "$stale_msg" ]; then m="$stale_msg${m:+
+
+$m}"; c="$stale_ctx${c:+
+$c}"; fi
+  sy_hook_session_start_reply "$harness" "$m" "$c"
   exit 0
 fi
 
@@ -83,5 +102,9 @@ Scan each one with SkillSpector before you install it. To see the list again: sh
 ctx="${warn:+Shipinetics warnings for this session:$warn
 }Shipinetics companions that are missing on this machine: $names. The user saw the list at session start. When a task needs one of them, or the user asks about them, run shipinetics-companions missing for why Shipinetics uses each one, its SkillSpector result and its install command, and offer a route without it. Never install one without the user's yes. The install gate also asks the user."
 
+if [ -n "$stale_msg" ]; then msg="$stale_msg
+
+$msg"; ctx="$stale_ctx
+$ctx"; fi
 sy_hook_session_start_reply "$harness" "$msg" "$ctx"
 exit 0

@@ -18,7 +18,7 @@ Shipinetics runs on macOS, Linux, WSL 2 and native Windows with Git for Windows 
 Fork the repository, clone your fork, and try your changes in a harness:
 
 - **Claude Code:** `claude --plugin-dir <path to your clone>`. Or add the clone as a local marketplace (`claude plugin marketplace add <path to your clone>`), then run `/reload-plugins` after each edit.
-- **Antigravity (experimental):** `./bin/shipinetics-antigravity install` links your clone into `~/.gemini/config/plugins/shipinetics`. Run `install` again after you change `agents/*.md`.
+- **Antigravity:** `./bin/shipinetics install antigravity` writes generated copies of the skills and subagents into `~/.gemini/config/plugins/shipinetics`, linked to this clone. Run `./bin/shipinetics refresh` after you edit `skills/` or `agents/`, and check with `./bin/shipinetics status antigravity`.
 
 ## How Shipinetics is built
 
@@ -30,7 +30,9 @@ Read [README.md](README.md) first, specially "Instructions and enforcement", "A 
 | Agents | `agents/*.md` | Subagents with their own context: test-writer, the reviewers, the live tester |
 | Hooks | `hooks/hooks.json` (Claude Code), `hooks.json` (Antigravity), `scripts/*.sh` | Code that enforces a few rules: the edit guard, the secrets guard, the PR gate, the install gate, and notices |
 | Shared code | `scripts/lib.sh` | Config, paths, the code fingerprint, and the hook input and reply formats of each harness |
-| Tools | `bin/*` | Commands for agents and people: `shipinetics-verify`, `shipinetics-config`, `evidence`, `worksheet` and others |
+| Tools | `bin/*` | Commands for agents and people: `shipinetics` (the installer for each harness), `shipinetics-verify`, `shipinetics-config`, `evidence`, `worksheet` and others |
+| Harnesses | `harnesses.tsv`, `docs/research/` | What each harness enforces today, and the research behind it. `shipinetics status` reads `harnesses.tsv` |
+| Terms and decisions | `GLOSSARY.md`, `docs/adr/` | The words Shipinetics uses, and the decisions that are hard to reverse |
 | Setup templates | `skills/setup/templates/` | The files that `/shipinetics:setup` writes into a project |
 | Tests | `tests/test-*.sh`, `tests/helpers.sh` | One file for each part. `tests/run.sh` runs them all |
 
@@ -65,7 +67,7 @@ bash tests/run.sh test-config.sh
   - Paths from hook input can be Windows paths (`C:\\Users\\...`). Read them through `sy_hook_file_path` and `sy_hook_cwd`, which convert them with `sy_unix_path`.
   - Use only commands that Git Bash also has, or give a fallback: GNU and BSD `date`, `stat` and `sed -i` differ. Never depend on `ln -s` making a real link.
   - A hook must never fail in a way that blocks the person's work. When a hook can't decide, it lets the action through, and the tests prove which case is which.
-- **A hook:** keep Claude Code (`hooks/hooks.json`) and Antigravity (`hooks.json`) in step. Each hook has a name that `hooks_off` can turn off. Add the name to the README's list.
+- **A hook:** keep Claude Code (`hooks/hooks.json`) and Antigravity (`hooks.json`) in step. Each hook has a name that `hooks_off` can turn off. Add the name to the README's list. When a change makes a guard work, or stop working, in a harness, update `harnesses.tsv`, so that `shipinetics status` stays true.
 - **A skill:**
   - `name` matches the folder. The `description` says what the skill does and when to use it ("Use when ..."), in 1,024 characters or fewer. Claude reads every description in every session, so keep detail out of it.
   - Keep `SKILL.md` short: 350 lines at most, and about 200 is better. Move detail into a reference file beside it, one level deep, and link to it from `SKILL.md`.
@@ -78,6 +80,7 @@ bash tests/run.sh test-config.sh
 - **Tests:** add or update tests in `tests/` for each change of behaviour and for each bug fix. A test runs in a scratch folder under `$TMPDIR` (use `tests/helpers.sh`), and never touches your home folder or this repo. Write one test for each behaviour, not one for each function.
 - **Writing:** docs, skill text, commit messages and pull request descriptions follow the plain-language guide (`skills/explain/plain-language.md`), which is based on ASD-STE100. Do your best. A maintainer can help with the wording, and wording never blocks a first contribution.
 - **No personal data:** don't commit names of your employer, its projects or tickets, private paths, hostnames, emails or tokens. Use examples such as `web`, `api` and `PROJ-123`.
+- **Terms and decisions:** Use the terms in `GLOSSARY.md`. Record a decision that is hard to reverse, surprising without context and the result of a real trade-off as a new file in `docs/adr/`, and add it to `docs/adr/README.md`.
 
 ## Pull requests
 

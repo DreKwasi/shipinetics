@@ -73,6 +73,21 @@ else
   printf '  skip  apply in a worktree changes the main checkout (no pseudo-terminal here)\n'
 fi
 
+# A delete of a settings file, proposed in a worktree, deletes the main checkout's file too
+echo old >"$m/.shipinetics/old-list"; (cd "$in" && shipinetics-config root >/dev/null)
+# apply above removes pending/ once it is empty, so make it again: this block must not depend on that one
+mkdir -p "$in/.shipinetics/pending"; printf '.shipinetics/old-list\n' >"$in/.shipinetics/pending/.delete"
+if python3 -c 'import os, pty; m, s = pty.openpty(); os.close(m); os.close(s)' 2>/dev/null; then
+  OUT="$(cd "$in" && with_tty 'y
+' shipinetics-config apply)"
+  has "apply says a delete in a worktree deletes the main checkout's file" "$OUT" "(This deletes the main checkout's file: $m/.shipinetics/old-list)"
+  eq "the main checkout's file is deleted, and the delete is no longer pending" \
+    "$([ -e "$m/.shipinetics/old-list" ] && echo kept || echo deleted):$([ -e "$in/.shipinetics/pending/.delete" ] && echo pending || echo done)" "deleted:done"
+else
+  printf '  skip  a delete applied in a worktree deletes the main checkout file (no pseudo-terminal here)\n'
+fi
+rm -f "$in/.shipinetics/pending/.delete"
+
 # ---- settings tracked in git: the worktree has its own, and nothing is copied
 t="$scratch/tracked"; new_repo "$t"; cd "$t" || exit 1
 mkdir -p .shipinetics; printf '.cache/\n' >.shipinetics/.gitignore

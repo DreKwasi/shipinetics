@@ -21,6 +21,8 @@
 #   shipinetics-config -C <dir> <command>
 #                                   run the command for the project in <dir>, like git -C
 #
+# A proposal is the full new version of a file at .shipinetics/pending/<path>. To propose deleting
+# files, list their paths (relative to the root, one on each line) in .shipinetics/pending/.delete.
 # Skills and tools use these values in place of their default paths.
 
 set -euo pipefail
@@ -58,6 +60,7 @@ proposals() {
   [ -d "$dir" ] || return 0
   find "$dir" -type f | LC_ALL=C sort | while IFS= read -r f; do
     t="${f#"$dir"/}"
+    [ "$t" = .delete ] && continue
     if [ $# -gt 0 ]; then
       case " $* " in *" $t "*|*" $root/$t "*) ;; *) continue ;; esac
     fi
@@ -65,14 +68,80 @@ proposals() {
   done
 }
 
+# strip_comment: stdin line without its comment and outer blanks. "#" starts a comment at the start
+# of a line or after a blank, so a path can contain "#".
+strip_comment() { sed -e 's/^#.*//' -e 's/[[:space:]]#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }
+
+# inside_root <path relative to root>: true if the path's folder, with every symlink resolved, is the
+# root or inside it. Checked again just before each write or delete, because a folder can change
+# while the human reads the diff.
+inside_root() {
+  local d r base="${2:-$root}"
+  d="$(dirname "$base/$1")"
+  # A folder that doesn't exist yet can't be a symlink: check the nearest one that exists.
+  while [ ! -d "$d" ] && [ ! -L "$d" ]; do d="$(dirname "$d")"; done
+  d="$(cd "$d" 2>/dev/null && pwd -P)" || return 1
+  r="$(cd "$base" && pwd -P)"
+  case "$d/" in "$r/"*) return 0 ;; esac
+  return 1
+}
+
+# dest_base <path relative to the root>: the folder that a change to it goes to. In a git worktree, .shipinetics/ is
+# a copy of the main checkout's, so a change to it goes to the main checkout, and the copy follows.
+dest_base() {
+  case "$1" in "$SY_DIR_NAME"/*)
+    if [ -f "$(sy_dir "$root")/.copied-from" ]; then head -n 1 "$(sy_dir "$root")/.copied-from"; return 0; fi ;;
+  esac
+  printf '%s\n' "$root"
+}
+
+# deletions [path...]: each path in the .delete list, one per line, that is safe to act on: relative,
+# inside the root once symlinks are resolved, with no . or .. part. Comments and blank lines are skipped.
+deletions() {
+  local list p b
+  list="$(sy_dir "$root")/pending/.delete"
+  [ -f "$list" ] || return 0
+  while IFS= read -r p || [ -n "$p" ]; do
+    p="$(printf '%s\n' "$p" | strip_comment)"
+    [ -n "$p" ] || continue
+    case "/$p/" in //*|*/../*|*/./*) echo "shipinetics-config: skipped '$p' in $SY_DIR_NAME/pending/.delete: use a path relative to the root, without . or .. parts" >&2; continue ;; esac
+    b="$(dest_base "$p")"
+    if ! inside_root "$p" "$b"; then echo "shipinetics-config: skipped '$p' in $SY_DIR_NAME/pending/.delete: a folder on its path leads outside $b" >&2; continue; fi
+    if [ $# -gt 0 ]; then
+      case " $* " in *" $p "*|*" $root/$p "*) ;; *) continue ;; esac
+    fi
+    printf '%s\n' "$p"
+  done <"$list"
+}
+
+# drop_deletion <path>: remove the lines for one path from the .delete list (compared without
+# comments and blanks, as deletions reads them), and the list when nothing is left in it
+drop_deletion() {
+  local list line p rest=""
+  list="$(sy_dir "$root")/pending/.delete"
+  [ -f "$list" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    p="$(printf '%s\n' "$line" | strip_comment)"
+    [ "$p" = "$1" ] && continue
+    rest="$rest$line
+"
+  done <"$list"
+  if printf '%s' "$rest" | strip_comment | grep -q '.'; then printf '%s' "$rest" >"$list"; else rm -f "$list"; fi
+}
+
 list_pending() {
-  local f t n=0
+  local f t b n=0
   while IFS="$(printf '\t')" read -r f t; do
     n=$((n + 1))
     if [ ! -e "$root/$t" ]; then echo "$t (new file)"
     elif cmp -s "$f" "$root/$t"; then echo "$t (same as the current file)"
     else echo "$t (+$(diff "$root/$t" "$f" | grep -c '^>') -$(diff "$root/$t" "$f" | grep -c '^<') lines)"; fi
   done < <(proposals)
+  while IFS= read -r t; do
+    n=$((n + 1))
+    b="$(dest_base "$t")"
+    if [ -e "$b/$t" ] || [ -L "$b/$t" ]; then echo "$t (delete)"; else echo "$t (delete; already gone)"; fi
+  done < <(deletions)
   if [ "$n" -gt 0 ]; then
     echo
     why_apply
@@ -130,10 +199,7 @@ apply_pending() {
     echo "== $t"
     # In a git worktree, .shipinetics/ is a copy of the main checkout's. A change to it goes to the
     # main checkout, and the worktree's copy follows on the next run.
-    dest="$root/$t"
-    case "$t" in "$SY_DIR_NAME"/*)
-      [ -f "$(sy_dir "$root")/.copied-from" ] && dest="$(head -n 1 "$(sy_dir "$root")/.copied-from")/$t" ;;
-    esac
+    base="$(dest_base "$t")"; dest="$base/$t"
     if [ -L "$dest" ]; then echo "$dest is a symlink, so apply this one by hand."; continue; fi
     if [ -e "$dest" ]; then diff -u --label "$t (current)" --label "$t (proposed)" "$dest" "$f" || true
     else echo "(new file)"; sed 's/^/+ /' "$f"; fi
@@ -142,13 +208,34 @@ apply_pending() {
     read -r reply || reply=q
     case "$reply" in
       y|Y|yes)
+        if ! inside_root "$t" "$base" || [ -L "$dest" ]; then echo "$t now leads outside $base, or is a symlink, so it is left pending."; continue; fi
         mkdir -p "$(dirname "$dest")"
-        cat "$f" >"$dest" && rm -f "$f" && applied=$((applied + 1))
-        echo "applied." ;;
+        if cat "$f" >"$dest" && rm -f "$f"; then applied=$((applied + 1)); echo "applied."; else echo "could not write $t, so it is left pending."; fi ;;
       q|Q) break ;;
       *) echo "left pending." ;;
     esac
   done 3< <(proposals "$@")
+  # Deletions come after the new versions, and only when the user didn't quit.
+  if [ "${reply:-}" != q ] && [ "${reply:-}" != Q ]; then
+    while IFS= read -r t <&3; do
+      echo "== $t (delete)"
+      base="$(dest_base "$t")"; dest="$base/$t"
+      if [ ! -e "$dest" ] && [ ! -L "$dest" ]; then echo "already gone."; drop_deletion "$t"; continue; fi
+      if [ -d "$dest" ] && [ ! -L "$dest" ]; then echo "$dest is a folder, so delete it by hand."; continue; fi
+      [ "$dest" = "$root/$t" ] || echo "(This deletes the main checkout's file: $dest)"
+      echo "Current content (first 20 lines):"; sed -n '1,20p' "$dest" | sed 's/^/- /'
+      printf 'Delete %s? [y/N/q] ' "$t"
+      read -r reply || reply=q
+      case "$reply" in
+        y|Y|yes)
+          if ! inside_root "$t" "$base"; then echo "$t now leads outside $base, so it is left pending."; continue; fi
+          if rm -f "$dest" && [ ! -e "$dest" ] && [ ! -L "$dest" ]; then drop_deletion "$t"; applied=$((applied + 1)); echo "deleted."
+          else echo "could not delete $t, so it is left pending."; fi ;;
+        q|Q) break ;;
+        *) echo "left pending." ;;
+      esac
+    done 3< <(deletions "$@")
+  fi
   find "$dir" -depth -type d -empty -delete 2>/dev/null || true
   echo "$applied applied. Review with git diff and commit."
 }
@@ -164,7 +251,9 @@ root="$(sy_root "$PWD")" || {
   echo "shipinetics-config: $(sy_wt_hint "$PWD" || echo "no .shipinetics/ folder in $PWD or above. Run /shipinetics:setup first.")" >&2; exit 1; }
 
 case "${1:-}" in
-  get) [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }; sy_cfg "$root" "$2" ;;
+  get)
+    [ -n "${2:-}" ] || { echo "usage: shipinetics-config get <key>" >&2; exit 2; }
+    sy_cfg "$root" "$2" ;;
   root) echo "$root" ;;
   due) shift; due "$@" ;;
   match)
@@ -196,6 +285,6 @@ case "${1:-}" in
       printf '%-24s %-8s %s\n' "$k" "$mark" "${v:-(none)}"
     done
     ;;
-  -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//' ;;
+  -h|--help) sed -n '2,25p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "shipinetics-config: unknown command: $1" >&2; exit 2 ;;
 esac

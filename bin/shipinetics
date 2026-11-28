@@ -1,0 +1,540 @@
+#!/usr/bin/env bash
+# shipinetics: install Shipinetics from this clone into a harness, and show what works there.
+#
+# Usage:
+#   shipinetics install <harness> [--target <dir>] [--dry-run]
+#                                    install into the harness. claude runs the two claude plugin
+#                                    commands. antigravity writes generated copies of the skills and
+#                                    subagents into its plugin folder. --dry-run says what it would
+#                                    do and changes nothing, for every command
+#   shipinetics refresh [<harness>] [--dry-run]
+#                                    make the generated copies match the clone again (all installs
+#                                    when no harness is named)
+#   shipinetics status [<harness>]   what is installed, whether its copies are current, and which
+#                                    guards and gates each harness enforces (from harnesses.tsv)
+#   shipinetics uninstall <harness> [--target <dir>] [--dry-run]
+#                                    remove the install from the harness
+#   shipinetics link-skills antigravity
+#                                    add ~/.agents/skills and ~/.claude/skills to Antigravity's skills.json
+#
+# Harnesses: claude, antigravity, codex, opencode, copilot. Codex, OpenCode and Copilot are not
+# supported yet: `shipinetics status` shows what each one will be able to enforce.
+# Generated copies point at this clone, so scripts, templates and bin/ always come from it. After
+# you change or update the clone, run `shipinetics refresh` (shipinetics-update merge does it for you).
+# Exit codes: 0 ok, 1 status found a problem (copies out of date, or not installed), 2 bad usage,
+# an unsupported harness, or a safety refusal.
+
+set -uo pipefail
+usage() { sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'; }
+case "${1:-}" in -h|--help|"") usage; exit 0 ;; esac
+
+here="$(cd "$(dirname "$0")/.." && pwd -P)"
+# shellcheck source=../scripts/lib.sh
+. "$here/scripts/lib.sh"
+
+die() { echo "shipinetics: $*" >&2; exit 2; }
+HARNESSES="claude antigravity codex opencode copilot"
+
+cmd="$1"; shift
+harness=""; target=""; dry=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --target) [ -n "${2:-}" ] || die "--target needs a path"; target="$2"; shift 2 ;;
+    --dry-run) dry=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -*) die "unknown option: $1" ;;
+    *) [ -z "$harness" ] || die "one harness at a time (got $harness and $1)"; harness="$1"; shift ;;
+  esac
+done
+if [ -n "$harness" ]; then
+  case " $HARNESSES " in *" $harness "*) ;; *) die "unknown harness: $harness (use one of: $HARNESSES)" ;; esac
+fi
+
+gdir="$(sy_gemini_dir)"
+default_target() {
+  case "$1" in
+    antigravity) printf '%s/plugins/shipinetics\n' "$gdir" ;;
+    *) printf '\n' ;;
+  esac
+}
+[ -n "$target" ] || target="$(default_target "${harness:-}")"
+
+not_yet() {
+  die "$1 isn't supported yet. Run 'shipinetics status $1' to see what its adapter will be able to enforce."
+}
+
+# names_shipinetics <plugin.json>: true if the manifest's name is "shipinetics"
+names_shipinetics() {
+  [ -f "$1" ] && grep -qE '"name"[[:space:]]*:[[:space:]]*"shipinetics"' "$1"
+}
+
+# looks_like_install <dir>: true if the folder holds a Shipinetics install, or is empty or missing.
+# An install has our stamp, or (from before 0.12) a plugin.json that is a link to a clone's
+# manifest, or (from 0.11 on Windows, where ln -s copies) a .source file that names a clone. A regular manifest never counts, so a clone, a fork or another plugin's folder is never
+# taken for an install. A symlink counts only as a link: callers remove the link, never what it
+# points to (see safe_target).
+looks_like_install() {
+  [ ! -e "$1" ] && [ ! -L "$1" ] && return 0
+  [ -L "$1" ] && return 0
+  [ -d "$1" ] || return 1
+  [ -z "$(ls -A "$1" 2>/dev/null)" ] && return 0
+  [ -f "$1/$SY_STAMP_NAME" ] && return 0
+  if [ -f "$1/.source" ]; then
+    local src; src="$(head -n 1 "$1/.source")"
+    [ -f "$src/plugin.json" ] && names_shipinetics "$src/plugin.json" && return 0
+  fi
+  [ -L "$1/plugin.json" ] && names_shipinetics "$1/plugin.json"
+}
+
+# safe_target <dir> <action>: dies unless the folder can be changed by install, refresh or
+# uninstall. It refuses the clone itself, a folder that holds the clone, a git repo, and (for
+# refresh, which writes inside it) a symlink, so a hand-made link to a clone can't be rewritten.
+safe_target() {
+  local resolved
+  if [ -L "$1" ] && [ "$2" = refresh ]; then
+    die "$1 is a symlink. Refresh writes inside the install folder, so it won't follow a link. Run: shipinetics install antigravity"
+  fi
+  if [ -d "$1" ] && [ ! -L "$1" ]; then
+    resolved="$(cd "$1" && pwd -P)"
+    case "$here/" in "$resolved/"*) die "$1 is this clone, or holds it. Refusing to $2 it." ;; esac
+    [ -e "$1/.git" ] && die "$1 is a git repo, not an install folder. Refusing to $2 it."
+  fi
+  looks_like_install "$1" || die "$1 does not look like a Shipinetics install; refusing to $2 it"
+}
+
+# render_skills <install dir>: generated copies of skills/ with real paths (docs/adr/0001)
+render_skills() {
+  python3 -I - "$here" "$1" <<'PY' || die "failed to write the generated skills in $1"
+import os, shutil, sys
+
+clone, out = sys.argv[1], sys.argv[2]
+src = os.path.join(clone, "skills")
+dst = os.path.join(out, "skills")
+tmp = dst + ".shipinetics-tmp"
+shutil.rmtree(tmp, ignore_errors=True)
+for root, dirs, files in os.walk(src):
+    dirs[:] = [d for d in dirs if d != "__pycache__"]
+    rel = os.path.relpath(root, src)
+    skill_dir = src if rel == "." else os.path.join(src, rel.split(os.sep)[0])
+    os.makedirs(os.path.join(tmp, rel), exist_ok=True)
+    for name in files:
+        if name == ".DS_Store":
+            continue
+        sp, dp = os.path.join(root, name), os.path.join(tmp, rel, name)
+        data = open(sp, "rb").read()
+        try:
+            text = data.decode("utf-8")
+        except UnicodeDecodeError:
+            shutil.copyfile(sp, dp)
+        else:
+            text = text.replace("${CLAUDE_PLUGIN_ROOT}", clone).replace("${CLAUDE_SKILL_DIR}", skill_dir)
+            with open(dp, "w", encoding="utf-8", newline="") as f:  # keep the line endings of the source
+                f.write(text)
+        shutil.copymode(sp, dp)
+if os.path.islink(dst) or os.path.isfile(dst):
+    os.remove(dst)
+elif os.path.isdir(dst):
+    shutil.rmtree(dst)
+os.rename(tmp, dst)
+PY
+}
+
+# write_stamp <install dir> <harness>
+write_stamp() {
+  printf 'harness=%s\nclone=%s\nhash=%s\nmade=%s\n' "$2" "$here" "$(sy_clone_hash "$here")" "$(date '+%Y-%m-%dT%H:%M:%S')" \
+    >"$1/$SY_STAMP_NAME" || die "failed to write $1/$SY_STAMP_NAME"
+}
+
+# ---------------------------------------------------------------- antigravity
+
+antigravity_agents() {
+  rm -rf "$1/agents.shipinetics-tmp" && mkdir -p "$1/agents.shipinetics-tmp" || die "failed to create $1/agents.shipinetics-tmp"
+  _antigravity_agents_into "$1/agents.shipinetics-tmp"
+  rm -rf "$1/agents" && mv "$1/agents.shipinetics-tmp" "$1/agents" || die "failed to replace $1/agents"
+}
+
+_antigravity_agents_into() {
+  python3 -I - "$here" "$1" <<'PY' || die "failed to generate Antigravity agents"
+import glob, os, sys
+
+repo, out_dir = sys.argv[1], sys.argv[2]
+tool_map = {
+    "Read": ["read_file"],
+    "Grep": ["read_file"],
+    "Glob": ["read_file"],
+    "Edit": ["edit_file"],
+    "MultiEdit": ["edit_file"],
+    "Write": ["write_file"],
+    "Bash": ["run_command", "manage_task"],
+    "WebFetch": ["search_web"],
+    "WebSearch": ["search_web"],
+}
+
+def yaml_scalar(val):
+    if any(ch in val for ch in ':#[]{}&*!|>\'"%@`') or val.strip() != val or "\n" in val:
+        escaped = val.replace("\\", "\\\\").replace('"', '\\"')
+        return f'"{escaped}"'
+    return val
+
+count = 0
+for src in sorted(glob.glob(os.path.join(repo, "agents", "*.md"))):
+    text = open(src, encoding="utf-8").read().replace("\r\n", "\n")
+    if not text.startswith("---\n"):
+        continue
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        continue
+    fm_lines = text[4:end].splitlines()
+    body = text[end + 5:]
+    meta = {}
+    for line in fm_lines:
+        if ":" in line:
+            k, v = line.split(":", 1)
+            meta[k.strip()] = v.strip()
+
+    name = meta.get("name") or os.path.splitext(os.path.basename(src))[0]
+    desc = meta.get("description", "")
+    raw_tools = meta.get("tools", "")
+    tools = []
+    for tok in [t.strip() for t in raw_tools.split(",") if t.strip()]:
+        for mapped in tool_map.get(tok, []):
+            if mapped not in tools:
+                tools.append(mapped)
+    if not tools:
+        tools = ["read_file", "run_command", "manage_task"]
+
+    body = body.replace("${CLAUDE_PLUGIN_ROOT}", repo).replace("${CLAUDE_SKILL_DIR}", os.path.join(repo, "skills"))
+    out_lines = [
+        "---",
+        f"name: {yaml_scalar(name)}",
+        f"description: {yaml_scalar(desc)}",
+        "subagent: true",
+        "mainAgent: false",
+        f"tools: [{', '.join(tools)}]",
+        "---",
+        "",
+    ]
+    out_path = os.path.join(out_dir, os.path.basename(src))
+    with open(out_path, "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(out_lines) + body)
+    count += 1
+
+print(f"Generated {count} Antigravity agent(s) in {out_dir}")
+PY
+}
+
+# link_items <target>: link plugin.json, hooks.json, scripts, bin and the tables to this clone. On
+# Windows, Git Bash's ln -s makes a copy unless Developer Mode allows links, so refresh calls this
+# again: an item that isn't a link to this clone is replaced.
+link_items() {
+  local item
+  for item in plugin.json hooks.json scripts bin companions.tsv harnesses.tsv README.md GETTING-STARTED.md; do
+    [ -e "$here/$item" ] || continue
+    if [ -L "$1/$item" ] && [ "$(readlink "$1/$item")" = "$here/$item" ]; then continue; fi
+    rm -rf "${1:?}/$item" || die "failed to replace $item"
+    ln -s "$here/$item" "$1/$item" || die "failed to link $item"
+  done
+}
+
+antigravity_install() {
+  [ -f "$here/plugin.json" ] || die "missing $here/plugin.json"
+  [ -f "$here/hooks.json" ] || die "missing $here/hooks.json"
+  command -v python3 >/dev/null 2>&1 || die "python3 is required"
+  safe_target "$target" overwrite
+  if [ "$dry" = 1 ]; then
+    if [ -e "$target" ] || [ -L "$target" ]; then echo "Would replace $target"; else echo "Would create $target"; fi
+    echo "Would link plugin.json, hooks.json, scripts, bin and the tables to $here"
+    echo "Would write generated copies of skills/ and agents/ (paths set to $here), and a stamp"
+    return 0
+  fi
+  if [ -L "$target" ] || [ -f "$target" ]; then rm -f "$target" || die "failed to remove $target"
+  elif [ -d "$target" ]; then rm -rf "$target" || die "failed to remove $target"; fi
+  mkdir -p "$target/agents" || die "failed to create $target/agents"
+  link_items "$target"
+  render_skills "$target"
+  antigravity_agents "$target"
+  write_stamp "$target" antigravity
+  echo "Linked Shipinetics into $target -> $here"
+  echo "Wrote generated copies of the skills (paths point at $here)"
+  case ":$PATH:" in
+    *":$here/bin:"*) ;;
+    *) echo "Add to your shell profile (~/.zshrc): export PATH=\"$here/bin:\$PATH\"" ;;
+  esac
+}
+
+antigravity_refresh() {
+  [ -d "$target" ] || die "Shipinetics isn't installed at $target. Run: shipinetics install antigravity"
+  command -v python3 >/dev/null 2>&1 || die "python3 is required"
+  safe_target "$target" refresh
+  local owner
+  owner="$(sy_stamp_get "$target" clone)"
+  if [ -n "$owner" ] && ! same_dir "$owner" "$here"; then
+    die "the install at $target was made from another clone ($owner). Refresh it from there, or move it to this clone with: shipinetics install antigravity"
+  fi
+  if [ "$dry" = 1 ]; then echo "Would refresh the generated copies in $target from $here"; return 0; fi
+  link_items "$target"
+  render_skills "$target"
+  antigravity_agents "$target"
+  write_stamp "$target" antigravity
+  echo "Refreshed the generated copies in $target"
+}
+
+antigravity_link_skills() {
+  mkdir -p "$gdir" || die "failed to create $gdir"
+  sf="$gdir/skills.json"
+  python3 -I - "$sf" <<'PY' || die "failed to update $sf"
+import json, os, sys
+
+path = sys.argv[1]
+if os.path.exists(path):
+    with open(path, encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        sys.exit("skills.json must be a JSON object")
+else:
+    data = {}
+
+entries = data.get("entries")
+if entries is None:
+    entries = []
+    data["entries"] = entries
+if not isinstance(entries, list):
+    sys.exit("skills.json entries must be a list")
+
+existing = {e.get("path") for e in entries if isinstance(e, dict)}
+added = []
+for p in ("~/.agents/skills", "~/.claude/skills"):
+    if p not in existing:
+        entries.append({"path": p})
+        added.append(p)
+
+with open(path, "w", encoding="utf-8", newline="\n") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+
+if added:
+    print(f"Added {', '.join(added)} to {path}")
+else:
+    print(f"{path} already includes ~/.agents/skills and ~/.claude/skills")
+PY
+}
+
+# copies_line <install dir>: prints the state of the copies; returns 1 when they are out of date
+copies_line() {
+  case "$(sy_copies_state "$1" "$here")" in
+    current) echo "Copies: current (made from this clone)"; return 0 ;;
+    stale) echo "Copies: older than the clone. Run: shipinetics refresh $2"; return 1 ;;
+    *) echo "Copies: none recorded. Run: shipinetics install $2"; return 1 ;;
+  esac
+}
+
+antigravity_status() {
+  local ok=0 f n_agents=0 n_native=0 dest sf
+  if [ -f "$target/plugin.json" ] && [ -f "$target/$SY_STAMP_NAME" ] &&
+     { [ ! -e "$target/hooks.json" ] || [ ! -d "$target/scripts" ] || [ ! -d "$target/bin" ]; }; then
+    echo "Plugin: incomplete at $target (hooks.json, scripts or bin is missing). Run: shipinetics refresh antigravity"
+    ok=1
+  elif [ -L "$target/hooks.json" ] && [ -f "$target/plugin.json" ]; then
+    dest="$(readlink "$target/hooks.json")"
+    echo "Plugin: installed ($target -> $(dirname "$dest"))"
+  elif [ -f "$target/plugin.json" ] && [ -f "$target/$SY_STAMP_NAME" ]; then
+    case "${OSTYPE:-}" in
+      msys*|cygwin*|win*) echo "Plugin: installed as copies of $(sy_stamp_get "$target" clone) (Windows makes copies, not links: run 'shipinetics refresh antigravity' after each update)" ;;
+      *) echo "Plugin: installed as copies of $(sy_stamp_get "$target" clone) (run 'shipinetics refresh antigravity' to link it again)" ;;
+    esac
+  elif [ -f "$target/plugin.json" ]; then
+    echo "Plugin: static copy at $target (run 'shipinetics install antigravity' to link live repo)"
+    ok=1
+  else
+    echo "Plugin: not installed at $target"
+    return 1
+  fi
+  copies_line "$target" antigravity || ok=1
+  for f in "$target/agents"/*.md; do
+    [ -f "$f" ] || continue
+    n_agents=$((n_agents + 1))
+    grep -q '^subagent: true$' "$f" && n_native=$((n_native + 1))
+  done
+  echo "Agents: $n_native/$n_agents Antigravity-native in $target/agents"
+  [ "$n_agents" -gt 0 ] && [ "$n_native" -eq "$n_agents" ] || ok=1
+  case ":$PATH:" in
+    *":$here/bin:"*) echo "PATH: includes $here/bin" ;;
+    *) echo "PATH: missing $here/bin"; ok=1 ;;
+  esac
+  sf="$gdir/skills.json"
+  if [ -f "$sf" ] && grep -qF "~/.agents/skills" "$sf"; then
+    echo "Skills config: $sf links ~/.agents/skills"
+  else
+    echo "Skills config: $sf does not link ~/.agents/skills (run 'shipinetics link-skills antigravity')"
+    ok=1
+  fi
+  return "$ok"
+}
+
+antigravity_uninstall() {
+  [ -e "$target" ] || [ -L "$target" ] || { echo "Shipinetics isn't installed at $target"; return 0; }
+  safe_target "$target" remove
+  if [ "$dry" = 1 ]; then echo "Would remove $target"; return 0; fi
+  if [ -L "$target" ]; then rm -f "$target" || die "failed to remove the link $target"
+  else rm -rf "$target" || die "failed to remove $target"; fi
+  echo "Removed $target"
+}
+
+# ---------------------------------------------------------------- claude
+
+# claude_marketplace: the source of the "shipinetics" marketplace that Claude Code knows, as
+# "directory <path>", "<type> <repo or url>", or nothing
+claude_marketplace() {
+  python3 -I - "$(sy_claude_dir)/plugins/known_marketplaces.json" <<'PY' 2>/dev/null || true
+import json, sys
+try:
+    data = json.load(open(sys.argv[1]))
+except Exception:
+    sys.exit(0)
+m = data.get("shipinetics") if isinstance(data, dict) else None
+src = (m or {}).get("source") if isinstance(m, dict) else None
+if isinstance(src, dict):
+    kind = src.get("source", "")
+    where = src.get("path") or src.get("repo") or src.get("url") or ""
+    print(f"{kind} {where}".strip())
+PY
+}
+
+claude_plugin_installed() {
+  grep -qF '"shipinetics@shipinetics"' "$(sy_claude_dir)/plugins/installed_plugins.json" 2>/dev/null
+}
+
+# same_dir <a> <b>: true if both name the same folder
+same_dir() { [ "$(cd "$1" 2>/dev/null && pwd -P)" = "$(cd "$2" 2>/dev/null && pwd -P)" ]; }
+
+run_or_print() {
+  if [ "$dry" = 1 ]; then echo "$*"; return 0; fi
+  echo "+ $*"; "$@"
+}
+
+claude_install() {
+  local src kind where
+  src="$(claude_marketplace)"; kind="${src%% *}"; where="${src#* }"
+  if [ -n "$src" ]; then
+    if [ "$kind" = directory ] && same_dir "$where" "$here"; then
+      if claude_plugin_installed; then
+        echo "Shipinetics is already installed in Claude Code from this clone ($here). Nothing to do."
+        return 0
+      fi
+    else
+      die "Claude Code already has a 'shipinetics' marketplace from another source ($src). Two installs with one name break each other. Remove it first: claude plugin marketplace remove shipinetics"
+    fi
+  else
+    [ "$dry" = 1 ] || command -v claude >/dev/null 2>&1 || die "the claude command isn't on the PATH. Install Claude Code first."
+    run_or_print claude plugin marketplace add "$here" || die "claude plugin marketplace add failed"
+  fi
+  [ "$dry" = 1 ] || command -v claude >/dev/null 2>&1 || die "the claude command isn't on the PATH. Install Claude Code first."
+  run_or_print claude plugin install shipinetics@shipinetics || die "claude plugin install failed"
+  [ "$dry" = 1 ] || echo "Installed. Start a new Claude Code session, or run /reload-plugins."
+}
+
+claude_status() {
+  local src
+  src="$(claude_marketplace)"
+  if [ -z "$src" ]; then echo "Plugin: not installed (no 'shipinetics' marketplace)"; return 1; fi
+  echo "Marketplace: shipinetics ($src)"
+  if claude_plugin_installed; then echo "Plugin: installed"; else echo "Plugin: marketplace added, plugin not installed. Run: shipinetics install claude"; return 1; fi
+  echo "Copies: none needed (Claude Code reads the clone and fills in its paths itself)"
+}
+
+claude_uninstall() {
+  [ "$dry" = 1 ] || command -v claude >/dev/null 2>&1 || die "the claude command isn't on the PATH"
+  run_or_print claude plugin uninstall shipinetics@shipinetics
+}
+
+# ---------------------------------------------------------------- status table
+
+check_label() {
+  case "$1" in
+    secrets) echo "secrets guard" ;; edits) echo "edit guard" ;; pr) echo "PR gate" ;;
+    installs) echo "install gate" ;; verify) echo "quick verify after a commit" ;; compact) echo "docs before /compact" ;;
+    notice) echo "session notice" ;; usage) echo "usage log" ;; worktrees) echo "worktree notice" ;;
+    shims) echo "short commands" ;; *) echo "$1" ;;
+  esac
+}
+
+# guard_table <harness>: one line for each check, from harnesses.tsv
+guard_table() {
+  local h c today planned note label
+  while IFS="$(printf '\t')" read -r h c today planned note; do
+    case "$h" in ''|'#'*) continue ;; esac
+    [ "$h" = "$1" ] || continue
+    label="$(check_label "$c")"
+    case "$today" in
+      not-yet) printf '  %-28s not yet (planned: %s)%s\n' "$label" "$planned" "${note:+. $note}" ;;
+      instruction) printf '  %-28s instruction only%s\n' "$label" "${note:+. $note}" ;;
+      *) printf '  %-28s %s%s\n' "$label" "$today" "${note:+. $note}" ;;
+    esac
+  done <"$here/harnesses.tsv"
+}
+
+# status_one <harness>: the install state, then the guard table; returns 1 on a problem
+status_one() {
+  local rc=0 t
+  echo "== $1"
+  case "$1" in
+    claude) claude_status || rc=1 ;;
+    antigravity)
+      t="$target"; [ -n "$harness" ] || t="$(default_target antigravity)"
+      target="$t" antigravity_status || rc=1 ;;
+    *) echo "Not supported yet" ;;
+  esac
+  guard_table "$1"
+  return "$rc"
+}
+
+# ---------------------------------------------------------------- dispatch
+
+case "$cmd" in
+  install)
+    [ -n "$harness" ] || die "usage: shipinetics install <harness>"
+    case "$harness" in
+      claude) claude_install ;;
+      antigravity) antigravity_install ;;
+      *) not_yet "$harness" ;;
+    esac ;;
+  refresh)
+    if [ -z "$harness" ]; then
+      n=0
+      t="$(default_target antigravity)"
+      if [ -f "$t/$SY_STAMP_NAME" ]; then
+        if same_dir "$(sy_stamp_get "$t" clone)" "$here"; then target="$t" antigravity_refresh; n=$((n + 1))
+        else echo "Skipped Antigravity: its install was made from another clone ($(sy_stamp_get "$t" clone))."; n=$((n + 1)); fi
+      fi
+      [ "$n" -gt 0 ] || echo "No generated copies to refresh. (Claude Code needs none.)"
+      exit 0
+    fi
+    case "$harness" in
+      claude) echo "Claude Code needs no generated copies. To load changes, start a new session or run /reload-plugins." ;;
+      antigravity) antigravity_refresh ;;
+      *) not_yet "$harness" ;;
+    esac ;;
+  status)
+    if [ -n "$harness" ]; then status_one "$harness"; exit $?; fi
+    rc=0
+    for h in $HARNESSES; do
+      # A harness that isn't installed is not a problem for the overall status.
+      case "$h" in
+        antigravity) status_one "$h" || { [ -f "$(default_target antigravity)/$SY_STAMP_NAME" ] && rc=1; } ;;
+        *) status_one "$h" || true ;;
+      esac
+      echo
+    done
+    exit "$rc" ;;
+  uninstall)
+    [ -n "$harness" ] || die "usage: shipinetics uninstall <harness>"
+    case "$harness" in
+      claude) claude_uninstall ;;
+      antigravity) antigravity_uninstall ;;
+      *) not_yet "$harness" ;;
+    esac ;;
+  link-skills)
+    [ "${harness:-antigravity}" = antigravity ] || die "link-skills is for antigravity only"
+    antigravity_link_skills ;;
+  *) die "unknown command: $cmd (use install, refresh, status, uninstall or link-skills)" ;;
+esac

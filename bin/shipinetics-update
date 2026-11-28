@@ -200,6 +200,13 @@ do_merge() {
       return 1
     fi
   fi
+  # Harnesses that run generated copies (docs/adr/0001) need them made again from the merged clone.
+  if [ -x "$clone/bin/shipinetics" ]; then
+    local rout rrc
+    rout="$("$clone/bin/shipinetics" refresh 2>&1)"; rrc=$?
+    [ -z "$rout" ] || printf '%s\n' "$rout" | sed 's/^/  /'
+    [ "$rrc" = 0 ] || echo "  The refresh of the generated copies failed (see above). Run: $clone/bin/shipinetics refresh"
+  fi
   echo "Next: if Claude Code reads the plugin from this folder, run /reload-plugins. If it installs from your"
   echo "GitHub fork, push, then: claude plugin marketplace update <marketplace>; claude plugin update shipinetics@<marketplace>"
   echo "Then, in each project: /shipinetics:setup update"

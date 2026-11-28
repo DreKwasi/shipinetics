@@ -60,10 +60,22 @@ eq "merge refuses a clone in the middle of a merge" "$rc" 2
 git -C "$fork" merge --abort
 
 git -C "$fork" reset -q --hard HEAD~1   # drop the local change: no conflict now
+# The clone's own shipinetics (kept out of git) records each call and the release the clone holds then
+mkdir -p "$fork/bin"; echo "bin/shipinetics" >>"$fork/.git/info/exclude"
+cat >"$fork/bin/shipinetics" <<EOF
+#!/bin/sh
+v="\$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["version"])' "$fork/.claude-plugin/plugin.json")"
+echo "\$* at \$v" >>"$scratch/refresh-calls"
+echo "Refreshed the generated copies"
+EOF
+chmod +x "$fork/bin/shipinetics"
 out="$(shipinetics-update -C "$fork" merge v0.2.0)"; rc=$?
 eq "a clean merge of a named release passes" "$rc" 0
 eq "and the clone is at that release" "$(git -C "$fork" describe --tags)" "v0.2.0"
 has "and the clone's tests ran" "$out" "All tests passed"
+eq "multi-harness-installer D5: the merge runs shipinetics refresh once, from the merged clone" "$(cat "$scratch/refresh-calls" 2>/dev/null)" "refresh at 0.2.0"
+has "multi-harness-installer D5: and shows what the refresh did" "$out" "  Refreshed the generated copies"
+hasnt "multi-harness-installer D5: a refresh that worked isn't reported as failed" "$out" "refresh of the generated copies failed"
 out="$(shipinetics-update -C "$fork" merge v0.2.0)"
 has "merging a release the clone holds does nothing" "$out" "Up to date"
 
@@ -85,8 +97,11 @@ eq "a merge that git refuses for another reason can't go on" "$rc" 2
 has "and shows git's own message" "$out" "hook says no"
 hasnt "and doesn't call it a conflict" "$out" "conflicts in"
 rm "$fork/.git/hooks/commit-msg"; git -C "$fork" merge --abort 2>/dev/null; git -C "$fork" reset -q --hard
+printf '#!/bin/sh\necho "no such install" >&2\nexit 2\n' >"$fork/bin/shipinetics"   # this time the refresh fails
 out="$(shipinetics-update -C "$fork" merge)"; rc=$?
 eq "a merge with a merge commit passes" "$rc" 0
+has "multi-harness-installer D5: a failed refresh is reported, not hidden" "$out" "refresh of the generated copies failed"
+has "multi-harness-installer D5: with what the refresh said" "$out" "  no such install"
 eq "and keeps the clone's own commit" "$(cat "$fork/mine.txt")" "own file"
 eq "and holds the release" "$(git -C "$fork" merge-base --is-ancestor v0.5.0 HEAD && echo yes)" yes
 out="$(SHIPINETICS_UPSTREAM="$scratch/nowhere" shipinetics-update -C "$fork" check 2>&1)"; rc=$?

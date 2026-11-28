@@ -28,7 +28,8 @@
 # ---- Verify (single repo)
 # Checks run in tiers, each at the moment its result is needed. Nothing is skipped:
 #   verify_quick_cmd  shipinetics-verify quick, after each step, scoped to the changed files
-#                     ($SHIPINETICS_CHANGED_FILES)
+#                     ($SHIPINETICS_CHANGED_FILES). A hook also runs it after each commit that
+#                     an agent makes in Claude Code
 #   verify_cmd        the complete fast checks: before work is done, and the PR gate. The
 #                     pre-push hook runs bin/verify directly
 #   bin/verify --full CI
@@ -47,10 +48,11 @@
 # harness_repo = ../my-workspace-harness
 
 # ---- Hooks
-# Switch hooks off for this project: edits, secrets, pr, installs, worktrees, companions, usage. Without this key, the
+# Switch hooks off for this project: edits, secrets, pr, installs, worktrees, shims, verify, compact,
+# notice, usage (companions is the old name of notice). Without this key, the
 # user's own ~/.config/shipinetics/config applies. SHIPINETICS_HOOKS_OFF does the same for a session.
 # hooks_off = installs
-# The names are edits, secrets, pr, installs, shims, companions and usage.
+# The names are edits, secrets, pr, installs, worktrees, shims, verify, compact, notice and usage.
 
 # ---- Companions (companions.tsv in the plugin)
 # Companions that this team does not use. The session-start notice and shipinetics-companions
