@@ -24,7 +24,6 @@ sy_default() {
     verify_cmd) echo "bin/verify" ;;
     tag_prefix) echo "ws/" ;;
     secrets_runner) echo "bin/with-secrets" ;;
-    vault) echo "gsm" ;;
     launch) echo "agent" ;;
     security_audit_every) echo "off" ;;
     bench_cmd) echo "bin/bench" ;;
@@ -902,6 +901,17 @@ sy_hook_pretool_reply() {
   fi
 }
 
+# sy_json_str <text>: the text as a JSON string, in plain bash (for when neither jq nor python3
+# exists). It escapes backslash, double quote, tab, carriage return and newline, and drops the other
+# control characters, which JSON doesn't allow raw.
+sy_json_str() {
+  local s nl='
+' tab='	' cr=$'\r'
+  s="$(printf '%sx' "$1" | LC_ALL=C tr -d '\000-\010\013\014\016-\037')"; s="${s%x}"   # x keeps a newline at the end
+  s="${s//\\/\\\\}"; s="${s//\"/\\\"}"; s="${s//$tab/\\t}"; s="${s//$cr/\\r}"; s="${s//$nl/\\n}"
+  printf '"%s"' "$s"
+}
+
 # sy_hook_session_start_reply <harness> <user_msg> <model_ctx>: SessionStart output
 sy_hook_session_start_reply() {
   local harness="$1" msg="$2" ctx="$3"
@@ -909,13 +919,15 @@ sy_hook_session_start_reply() {
     if command -v jq >/dev/null 2>&1; then
       jq -n --arg m "$msg" --arg c "$ctx" '{injectSteps: [{systemMessage: {systemMessage: $c, metadata: {user_markdown: $m}}}]}'
     else
-      python3 -c 'import json,sys; print(json.dumps({"injectSteps": [{"systemMessage": {"systemMessage": sys.argv[2], "metadata": {"user_markdown": sys.argv[1]}}}]}))' "$msg" "$ctx"
+      python3 -c 'import json,sys; print(json.dumps({"injectSteps": [{"systemMessage": {"systemMessage": sys.argv[2], "metadata": {"user_markdown": sys.argv[1]}}}]}))' "$msg" "$ctx" 2>/dev/null ||
+        printf '{"injectSteps": [{"systemMessage": {"systemMessage": %s, "metadata": {"user_markdown": %s}}}]}\n' "$(sy_json_str "$ctx")" "$(sy_json_str "$msg")"
     fi
   else
     if command -v jq >/dev/null 2>&1; then
       jq -n --arg m "$msg" --arg c "$ctx" '{systemMessage: $m, hookSpecificOutput: {hookEventName: "SessionStart", additionalContext: $c}}'
     else
-      python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1], "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$msg" "$ctx"
+      python3 -c 'import json,sys; print(json.dumps({"systemMessage": sys.argv[1], "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": sys.argv[2]}}))' "$msg" "$ctx" 2>/dev/null ||
+        printf '{"systemMessage": %s, "hookSpecificOutput": {"hookEventName": "SessionStart", "additionalContext": %s}}\n' "$(sy_json_str "$msg")" "$(sy_json_str "$ctx")"
     fi
   fi
 }

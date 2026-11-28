@@ -40,7 +40,7 @@ These rules are enforced:
 Four more hooks only inform you:
 
 - **The short commands.** When a new session starts, it installs or refreshes the `shipinetics-*` short commands in `~/.local/bin` (or `$SHIPINETICS_SHIM_DIR`), so your own terminal can run them. It writes only when that folder exists and is on your PATH, and never changes a file that it didn't write. It tells you when it writes, and says nothing otherwise.
-- **The companions notice.** When a new session starts and a required companion is missing, it lists the missing companions, and tells Claude too. A missing optional companion (tasteskill, Strix) shows only beside a missing required one.
+- **The companions notice.** When a new session starts and a recommended companion is missing, it lists the missing companions, and tells Claude too. In a project that isn't set up, it shows the list at most once in 7 days. It also warns when neither `jq` nor python3 is installed (the guards need one of them), and when the project was set up with a newer Shipinetics than the one on this machine. A missing optional companion (tasteskill, Strix) shows only beside a missing recommended one.
 - **The worktree notice.** When a new session starts in a git worktree where Shipinetics can't find the project's settings, it says why and what to do. "Git worktrees" below has the cases.
 - **The usage log.** When a session ends, it records the tokens that the session used.
 
@@ -352,11 +352,13 @@ Shipinetics uses these skills, plugins and tools together with its own skills. T
 
 Shipinetics tells you about each missing companion in three places:
 
-- **At the start of each new session.** A notice lists each missing companion, why Shipinetics uses it, its SkillSpector result and its install command.
+- **At the start of a new session.** A notice lists each missing companion, why Shipinetics uses it, its SkillSpector result and its install command. In a set-up project it shows in each new session, elsewhere at most once in 7 days.
 - **`shipinetics-companions`.** It shows the full list and the status of each companion. `shipinetics-companions install` prints the install commands. It runs nothing.
 - **`/shipinetics:setup`.** It checks the companions in each project.
 
 During a task, the agent offers you routes. Each route names the companion skills that it uses (shipinetics:workflow, "Choose a route").
+
+Each companion is recommended unless the table says optional. Shipinetics works without any of them: a step that uses a missing companion is weaker, or is skipped.
 
 | Companion | Why Shipinetics uses it | SkillSpector result | Install |
 |---|---|---|---|
@@ -529,13 +531,13 @@ Shipinetics works in a git worktree as it works in the main checkout. The first 
 | `SHIPINETICS_ALLOW_INSTALLS=1` | Turns off the install gate for a session |
 | `SHIPINETICS_ALLOW_NO_WORKSHEET=1` | Lets one commit through without a `Worksheet:` trailer |
 | `SHIPINETICS_ALLOW_BIG_COMMIT=1` | Lets one commit through above the size limit. Say why in the commit message |
-| `SHIPINETICS_LLM_FIX=0` | Skips the model step in `bin/lint-fix` |
+| `SHIPINETICS_LLM_FIX=1`, `=0` | Turns the model step in `bin/lint-fix` on or off. Without it, the step runs only for a commit by Claude Code's agent (`CLAUDE_CODE_CHILD_SESSION=1`) |
 | `SHIPINETICS_FIX_MODEL` | The Claude model for `bin/llm-fix` (default `sonnet`) |
 | `SHIPINETICS_FIX_EFFORT` | The effort for `bin/llm-fix` (default `high`; empty means the model's default) |
 | `SHIPINETICS_USAGE_LOG` | Another path for the usage log |
 | `SHIPINETICS_BENCH_MACHINE` | The machine name for `bench-compare` baselines (default `<host>-<arch>`). Set it in CI, so all runners share one baseline |
 | `GOOGLE_CLOUD_PROJECT` | The default project for `bin/with-secrets` (else gcloud's project) |
-| `XDG_CONFIG_HOME`, `XDG_DATA_HOME` | Move `~/.config/shipinetics` and `~/.local/share/shipinetics` |
+| `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME` | Move `~/.config/shipinetics`, `~/.local/share/shipinetics` and `~/.cache/shipinetics` |
 | `CLAUDE_CODE_EFFORT_LEVEL` | Claude Code's own setting: one effort level for the session and all agents |
 | `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` | Claude Code's own credential scrub. The settings template turns it on |
 
@@ -543,10 +545,23 @@ Shipinetics works in a git worktree as it works in the main checkout. The first 
 
 | Part | Model and effort | How to change it |
 |---|---|---|
-| The main session | Your model, at high effort (the settings template sets `effortLevel`) | `/effort`, or `effortLevel` in `.claude/settings.json` |
+| The main session | Your model and effort. Setup doesn't set them, so each person keeps their own | `/effort`, or `effortLevel` in your own `~/.claude/settings.json` |
 | Each agent | See "Agents" | Edit the `model:` or `effort:` line in `agents/<name>.md`. The skills don't override it |
 | `bin/llm-fix` | Sonnet, high | `SHIPINETICS_FIX_MODEL`, `SHIPINETICS_FIX_EFFORT` |
-| Everything at once | | Start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium` (or another level). It overrides all other settings |
+| Everything at once | | Start Claude Code with `CLAUDE_CODE_EFFORT_LEVEL=medium` (or another level). It overrides the other settings, except a `maxEffortLevel` cap |
+| Every agent on one model | | Start Claude Code with `CLAUDE_CODE_SUBAGENT_MODEL=sonnet` and `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` (Claude Code 2.1.257 or later). Without `_FORCE`, each agent's `model:` line wins |
+
+**On a Pro plan or with API billing,** the defaults can use up your limit fast: four agents run on Opus, and one M task can start about eight agents. To run every agent on Sonnet at medium effort, set these three variables in `env` of your own `~/.claude/settings.json` (or in your shell profile):
+
+```json
+"env": {
+  "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet",
+  "CLAUDE_CODE_SUBAGENT_MODEL_FORCE": "1",
+  "CLAUDE_CODE_EFFORT_LEVEL": "medium"
+}
+```
+
+The reviews then find less. To keep Opus for the agents that set it, leave out `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`.
 
 ## Known limits
 

@@ -9,7 +9,9 @@
 # Exits 1 only if problems remain after both passes.
 # Files with unstaged changes aren't auto-fixed in --staged mode, because fixing them would
 # mix unstaged work into the commit. They're checked and reported instead.
-# Set SHIPINETICS_LLM_FIX=0 to skip the LLM pass.
+# The LLM pass runs when Claude Code's agent commits (CLAUDE_CODE_CHILD_SESSION=1, Claude Code 2.1.172
+# or later; IDE terminals don't set it), so a person's commit never spends tokens without asking.
+# SHIPINETICS_LLM_FIX=1 turns it on (for example for agents in other harnesses), and =0 turns it off.
 
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -37,7 +39,8 @@ done
 
 if [ "${#fixable[@]}" -gt 0 ]; then
   fix "${fixable[@]}" >/dev/null 2>&1 || true
-  if [ "${SHIPINETICS_LLM_FIX:-1}" != "0" ]; then
+  llm="${SHIPINETICS_LLM_FIX:-}"; [ -n "$llm" ] || { [ "${CLAUDE_CODE_CHILD_SESSION:-}" = 1 ] && llm=1 || llm=0; }
+  if [ "$llm" != "0" ]; then
     for f in "${fixable[@]}"; do
       if ! out="$(check "$f" 2>&1)"; then
         echo "lint-fix: $f still has problems after --fix, asking an LLM to fix them"

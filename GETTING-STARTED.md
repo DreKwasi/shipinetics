@@ -60,7 +60,7 @@ The [README](README.md) says what each part does, and which rules code enforces.
    ~/.claude/plugins/cache/shipinetics/shipinetics/<version>/bin/shipinetics-shims install
    ```
 
-5. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a required companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.
+5. Check the result. `shipinetics-companions` shows each companion as installed, missing or declined. While a recommended companion is missing, each new session starts with a notice that lists the missing ones. If you don't want a companion, add its name to `companions_skip` in `~/.config/shipinetics/config`.
 
 6. Install the optional tools that you want:
    - **Secrets in Google Secret Manager:** run `gcloud auth login` and `gcloud auth application-default login`. Then `bin/with-secrets` can read Secret Manager.

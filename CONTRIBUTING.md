@@ -72,7 +72,7 @@ bash tests/run.sh test-config.sh
   - Skill text has no automatic test of the agent's behaviour. In the pull request, say how you tried the change: the session, the prompt, and what the agent did.
 - **An agent** (`agents/*.md`): its `name` matches the file. If it has a `model`, say why in the pull request. Agents that run often should use the cheapest model that does the job well.
 - **A setup template:** `/shipinetics:setup` copies it into other people's projects. Never put a value there that only fits your own project.
-- **A companion** (`companions.tsv`): give its license, and say why Shipinetics needs it. Mark it `required` only if a skill fails without it.
+- **A companion** (`companions.tsv`): give its license, and say why Shipinetics needs it. Mark it `recommended` when a skill works clearly worse without it, else `optional`.
 - **Tests:** add or update tests in `tests/` for each change of behaviour and for each bug fix. A test runs in a scratch folder under `$TMPDIR` (use `tests/helpers.sh`), and never touches your home folder or this repo. Write one test for each behaviour, not one for each function.
 - **Writing:** docs, skill text, commit messages and pull request descriptions follow the plain-language guide (`skills/explain/plain-language.md`), which is based on ASD-STE100. Do your best. A maintainer can help with the wording, and wording never blocks a first contribution.
 - **No personal data:** don't commit names of your employer, its projects or tickets, private paths, hostnames, emails or tokens. Use examples such as `web`, `api` and `PROJ-123`.

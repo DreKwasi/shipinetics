@@ -9,6 +9,21 @@ Shipinetics uses [Semantic Versioning](https://semver.org).
 
 ## Unreleased
 
+### Changed
+- **Companions are `recommended` or `optional`.** `required` was wrong: Shipinetics works without any of them. `companions.tsv` uses the new word, and the old word `required` still counts as recommended.
+- **The companions notice shows at most once in 7 days outside set-up projects.** In a set-up project it still shows in each new session. The stamp is in `${XDG_CACHE_HOME:-~/.cache}/shipinetics/`. The model now gets only the names of the missing companions, not the full list, which saves about 1,500 tokens in each session.
+- **Setup no longer sets `effortLevel: high` in the project's `.claude/settings.json`,** so each teammate keeps their own effort. **Projects:** remove `"effortLevel"` from `.claude/settings.json` if you want each person to choose.
+- **The model fix in the pre-commit hook (`bin/lint-fix`) runs only for a commit by Claude Code's agent** (`CLAUDE_CODE_CHILD_SESSION=1`, Claude Code 2.1.172 or later), or with `SHIPINETICS_LLM_FIX=1`. A person's commit, also from an IDE terminal, no longer spends tokens without asking. Agents in other harnesses can set `SHIPINETICS_LLM_FIX=1`. **Projects with `bin/lint-fix` from setup:** copy the new `skills/setup/templates/bin/lint-fix` over it.
+- **No default vault.** Setup asks which vault the project uses, and copies `bin/with-secrets` only for Google Secret Manager or Infisical. For another vault, it sets `secrets_runner` to the vault's own runner.
+- **A shared task queue:** claims and new task IDs go through the default branch (pull, commit, push), so two people never take the same task or ID.
+- **The README's Effort section** says how to run every agent on Sonnet at medium effort, for a Pro plan or API billing (`CLAUDE_CODE_SUBAGENT_MODEL`, `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`, `CLAUDE_CODE_EFFORT_LEVEL`).
+
+### Added
+- **Two more session warnings,** in any project: when neither `jq` nor python3 runs (a macOS `python3` stub counts as missing) (the guards can't read their input, so they let every action through), and when the project was set up with a newer Shipinetics than the plugin on this machine.
+
+### Fixed
+- **A session-start reply without jq or python3.** The reply now falls back to JSON written in bash, so the notice reaches the user.
+
 ## 0.11.0
 
 ### Added

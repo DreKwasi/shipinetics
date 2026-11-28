@@ -5,7 +5,7 @@
 # Usage:
 #   shipinetics-companions            each companion: its status, why Shipinetics uses it, its
 #                                     SkillSpector result, and the install command when it's missing
-#   shipinetics-companions missing    only the missing companions. Exit 1 if a required one is missing
+#   shipinetics-companions missing    only the missing companions. Exit 1 if a recommended one is missing
 #   shipinetics-companions install    the install commands of the missing companions, one per line.
 #                                     It prints them and runs nothing. The install gate asks you
 #                                     before an agent runs one
@@ -13,7 +13,7 @@
 # The list is companions.tsv in the plugin. A companion that you don't want goes in companions_skip
 # (in .shipinetics/config, or ~/.config/shipinetics/config for all projects). Then it shows as
 # declined, and it doesn't count as missing.
-# Exit codes: 0 success, 1 a required companion is missing (missing only), 2 bad usage.
+# Exit codes: 0 success, 1 a recommended companion is missing (missing only), 2 bad usage.
 
 set -uo pipefail
 case "${1:-}" in -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;; esac
@@ -30,10 +30,11 @@ project="${CLAUDE_PROJECT_DIR:-$PWD}"
 
 rc=0
 while IFS=$'\t' read -r name kind id level why install scan; do
+  [ "$level" = required ] && level=recommended   # the old name
   case "$name" in ''|'#'*) continue ;; esac
   if sy_companion_installed "$kind" "$id" "$project"; then status=installed
   elif sy_companion_declined "$name" "$id" "$root"; then status=declined
-  else status=missing; [ "$level" = required ] && [ "$mode" = missing ] && rc=1
+  else status=missing; [ "$level" = recommended ] && [ "$mode" = missing ] && rc=1
   fi
   case "$mode" in
     install)
