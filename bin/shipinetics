@@ -401,6 +401,7 @@ antigravity_status() {
     *) echo "PATH: missing $here/bin"; ok=1 ;;
   esac
   sf="$gdir/skills.json"
+  # shellcheck disable=SC2088  # skills.json holds the literal text ~/.agents/skills
   if [ -f "$sf" ] && grep -qF "~/.agents/skills" "$sf"; then
     echo "Skills config: $sf links ~/.agents/skills"
   else

@@ -27,7 +27,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"
 die() { echo "design-check: $*" >&2; exit 2; }
 repo="$(sy_git_top)" || die "run this inside a git repo"
 repo="$(cd "$repo" && pwd -P)"
-cd "$repo"
+cd "$repo" || exit 2
 root="$(sy_root "$repo" || echo "$repo")"
 prefix=""; [ "$root" != "$repo" ] && prefix="$(sy_rel "$root" "$repo")/"
 command -v python3 >/dev/null 2>&1 || die "python3 is required"
